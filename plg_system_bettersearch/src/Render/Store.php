@@ -44,6 +44,25 @@ final class Store
     /** @var array<int, string> */
     private array $appTypes = [];
 
+    /** Administrator preview: links lead nowhere, image addresses are absolute (the site, not /administrator). */
+    private bool $preview = false;
+
+    public function setPreview(bool $preview): void
+    {
+        $this->preview = $preview;
+    }
+
+    public function isPreview(): bool
+    {
+        return $this->preview;
+    }
+
+    /** A Joomla link routed for the site (or "#" in the preview). */
+    public function route(string $link): string
+    {
+        return $this->preview ? '#' : Route::_($link, false);
+    }
+
     public function __construct(DatabaseInterface $db, CMSApplicationInterface $app, array $levels)
     {
         $this->db     = $db;
@@ -96,8 +115,8 @@ final class Store
             $row->app_id     = (int) $row->app_id;
             $row->category   = $cats[$catId]->title ?? '';
             $row->categoryId = $catId;
-            $row->link       = Route::_($this->pageLink($row->id, $row->app_id, $catId), false);
-            $row->catLink    = $catId > 0 ? Route::_($this->categoryLink($row->app_id, $catId), false) : '';
+            $row->link       = $this->route($this->pageLink($row->id, $row->app_id, $catId));
+            $row->catLink    = $catId > 0 ? $this->route($this->categoryLink($row->app_id, $catId)) : '';
             $row->image      = $this->introImage((string) $row->intro_image);
             $row->isProduct  = $this->appType($row->app_id) === 'products' && $row->product_type !== null;
             $row->prices     = $row->isProduct ? $this->prices($row, array_unique(array_merge([$catId], $mapped[$id] ?? []))) : null;
@@ -465,6 +484,6 @@ final class Store
         $image = preg_replace('/#.*$/', '', $image) ?? $image;
         $path  = implode('/', array_map(fn ($s) => rawurlencode(rawurldecode($s)), explode('/', ltrim($image, '/'))));
 
-        return ($absolute ? rtrim(Uri::root(), '/') : Uri::root(true)) . '/' . $path;
+        return ($absolute || $this->preview ? rtrim(Uri::root(), '/') : Uri::root(true)) . '/' . $path;
     }
 }

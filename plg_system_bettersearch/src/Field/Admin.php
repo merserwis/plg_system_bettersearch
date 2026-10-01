@@ -26,15 +26,16 @@ final class Admin
         }
         self::$done = true;
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
-        $v  = fn (string $file) => '1.0.0-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
+        $v  = fn (string $file) => '1.1.0-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
         $wa->registerAndUseStyle('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/css/admin.css', ['version' => $v('media/plg_system_bettersearch/css/admin.css')]);
         $wa->registerAndUseScript('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/js/admin.js', ['version' => $v('media/plg_system_bettersearch/js/admin.js')], ['defer' => true]);
+        $wa->registerAndUseScript('plg_system_bettersearch.preview', 'media/plg_system_bettersearch/js/preview.js', ['version' => $v('media/plg_system_bettersearch/js/preview.js')], ['defer' => true]);
 
         $keys = ['PICKER_EMPTY', 'PICKER_NONE', 'PICKER_REMOVE', 'PICKER_UP', 'PICKER_DOWN', 'PICKER_UNPUBLISHED', 'TOOLS_ITEMS', 'TOOLS_PAGES',
             'TOOLS_PENDING', 'TOOLS_CHECKED', 'TOOLS_COMPLETE', 'TOOLS_APPS', 'TOOLS_CONFIG_CHANGED', 'TOOLS_DONE', 'TOOLS_REBUILD_CONFIRM',
             'TOOLS_WORKING', 'TOOLS_RESULTS', 'TOOLS_MODE', 'TOOLS_GROUPS', 'TOOLS_SCORE', 'TOOLS_WHY', 'TOOLS_TOP', 'TOOLS_ZERO', 'TOOLS_RECENT',
             'TOOLS_SEARCHES', 'TOOLS_RESULTS_COL', 'TOOLS_LAST', 'TOOLS_CLEAR_CONFIRM', 'TOOLS_SAVE_FIRST', 'TOOLS_NO_DATA', 'TOOLS_PINNED',
-            'TOOLS_CORRECTED', 'TOOLS_THUMBS_REMOVED', 'TOOLS_CACHE_CLEARED'];
+            'TOOLS_CORRECTED', 'TOOLS_THUMBS_REMOVED', 'TOOLS_CACHE_CLEARED', 'PREVIEW_UPDATING', 'PREVIEW_COUNT'];
         $texts = [];
         foreach ($keys as $k) {
             $texts[$k] = Text::_('PLG_SYSTEM_BETTERSEARCH_' . $k);

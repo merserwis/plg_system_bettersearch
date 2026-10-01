@@ -6,7 +6,7 @@
     <creationDate>2026-10-01</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -203,6 +203,7 @@
 
             <!-- ============================================================ Live results -->
             <fieldset name="live" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_LIVE">
+                <field name="preview_live" type="bspreview" mode="live" hiddenLabel="true" />
                 <field name="live_min_chars" type="number" default="2" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MIN_CHARS_LABEL" />
                 <field name="live_debounce" type="number" default="220" min="0" max="2000" step="10" label="PLG_SYSTEM_BETTERSEARCH_LIVE_DEBOUNCE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_DEBOUNCE_DESC" />
                 <field name="live_limit" type="number" default="8" min="1" max="50" label="PLG_SYSTEM_BETTERSEARCH_LIVE_LIMIT_LABEL" />
@@ -224,6 +225,27 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
+                <field name="live_effects_spacer" type="spacer" hr="true" />
+                <field name="live_animation" type="list" default="slide_up" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIMATION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIMATION_DESC">
+                    <option value="none">PLG_SYSTEM_BETTERSEARCH_EFFECT_NONE</option>
+                    <option value="fade">PLG_SYSTEM_BETTERSEARCH_EFFECT_FADE</option>
+                    <option value="slide_up">PLG_SYSTEM_BETTERSEARCH_EFFECT_SLIDE_UP</option>
+                    <option value="slide_down">PLG_SYSTEM_BETTERSEARCH_EFFECT_SLIDE_DOWN</option>
+                    <option value="zoom">PLG_SYSTEM_BETTERSEARCH_EFFECT_ZOOM</option>
+                    <option value="flip">PLG_SYSTEM_BETTERSEARCH_EFFECT_FLIP</option>
+                    <option value="expand">PLG_SYSTEM_BETTERSEARCH_EFFECT_EXPAND</option>
+                </field>
+                <field name="live_anim_duration" type="number" default="200" min="0" max="2000" step="10" showon="live_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIM_DURATION_LABEL" />
+                <field name="live_item_animation" type="list" default="none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_ANIMATION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_ANIMATION_DESC">
+                    <option value="none">PLG_SYSTEM_BETTERSEARCH_EFFECT_NONE</option>
+                    <option value="fade">PLG_SYSTEM_BETTERSEARCH_EFFECT_FADE</option>
+                    <option value="fade_up">PLG_SYSTEM_BETTERSEARCH_EFFECT_FADE_UP</option>
+                    <option value="slide">PLG_SYSTEM_BETTERSEARCH_EFFECT_SLIDE</option>
+                    <option value="zoom">PLG_SYSTEM_BETTERSEARCH_EFFECT_ZOOM</option>
+                    <option value="blur">PLG_SYSTEM_BETTERSEARCH_EFFECT_BLUR</option>
+                </field>
+                <field name="live_item_duration" type="number" default="260" min="0" max="2000" step="10" showon="live_item_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_DURATION_LABEL" />
+                <field name="live_item_stagger" type="number" default="35" min="0" max="500" step="5" showon="live_item_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_STAGGER_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_STAGGER_DESC" />
                 <field name="live_layout_spacer" type="spacer" hr="true" />
                 <field name="live_width_mode" type="list" default="wide" label="PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_MODE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_MODE_DESC">
                     <option value="input">PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_INPUT</option>
@@ -310,6 +332,7 @@
 
             <!-- ============================================================ Results page -->
             <fieldset name="page" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_PAGE">
+                <field name="preview_page" type="bspreview" mode="page" hiddenLabel="true" />
                 <field name="page_heading" type="list" default="gridbox" label="PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_DESC">
                     <option value="gridbox">PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_GRIDBOX</option>
                     <option value="custom">PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_CUSTOM</option>
@@ -457,6 +480,7 @@
 
             <!-- ============================================================ Texts and images -->
             <fieldset name="texts" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_TEXTS">
+                <field name="preview_texts" type="bspreview" mode="both" hiddenLabel="true" />
                 <field name="texts_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_TEXTS_NOTE" />
                 <field name="highlight" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_LABEL">
                     <option value="0">JNO</option>

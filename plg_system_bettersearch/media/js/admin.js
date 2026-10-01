@@ -319,23 +319,40 @@
             });
         }
 
-        function statsTable(title, rows) {
+        function statsTable(rows) {
             if (!rows.length) {
-                return '<h4>' + esc(title) + '</h4><p class="text-muted">' + esc(T.TOOLS_NO_DATA) + '</p>';
+                return '<p class="text-muted">' + esc(T.TOOLS_NO_DATA) + '</p>';
             }
-            return '<h4>' + esc(title) + '</h4><table class="table table-sm table-striped"><thead><tr><th></th><th>' + esc(T.TOOLS_SEARCHES)
+            return '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th></th><th>' + esc(T.TOOLS_SEARCHES)
                 + '</th><th>' + esc(T.TOOLS_RESULTS_COL) + '</th><th>' + esc(T.TOOLS_LAST) + '</th></tr></thead><tbody>'
                 + rows.map(function (r) {
                     return '<tr><td><a href="#" data-bs-try="' + esc(r.query) + '">' + esc(r.query) + '</a></td><td>' + r.searches + '</td><td>'
                         + (parseInt(r.results, 10) === 0 ? '<span class="badge bg-danger">0</span>' : r.results) + '</td><td><small>' + esc(r.last_at) + '</small></td></tr>';
-                }).join('') + '</tbody></table>';
+                }).join('') + '</tbody></table></div>';
         }
+
+        var statsView = 'top';
 
         function stats(task) {
             var out = root.querySelector('.bs-stats-out');
             call(task).then(function (r) {
-                out.innerHTML = '<div class="bs-stats-grid">' + statsTable(T.TOOLS_TOP, r.top) + statsTable(T.TOOLS_ZERO, r.zero)
-                    + statsTable(T.TOOLS_RECENT, r.recent) + '</div>';
+                // one full-width table at a time, switched with tabs
+                var tabs = [['top', T.TOOLS_TOP, r.top], ['zero', T.TOOLS_ZERO, r.zero], ['recent', T.TOOLS_RECENT, r.recent]];
+                var draw = function () {
+                    out.innerHTML = '<div class="bs-stats-tabs" role="tablist">' + tabs.map(function (t) {
+                        return '<button type="button" role="tab" aria-selected="' + (t[0] === statsView) + '" class="' + (t[0] === statsView ? 'is-active' : '')
+                            + '" data-bs-stats="' + t[0] + '">' + esc(t[1]) + '<span class="badge ' + (t[0] === 'zero' && t[2].length ? 'bg-danger' : 'bg-secondary') + '">'
+                            + t[2].length + '</span></button>';
+                    }).join('') + '</div>' + statsTable(tabs.filter(function (t) { return t[0] === statsView; })[0][2]);
+                };
+                draw();
+                out.onclick = function (e) {
+                    var b = e.target.closest('[data-bs-stats]');
+                    if (b) {
+                        statsView = b.dataset.bsStats;
+                        draw();
+                    }
+                };
             }).catch(function (e) {
                 out.innerHTML = '<p class="text-danger">' + esc(e.message) + '</p>';
             });

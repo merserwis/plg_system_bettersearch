@@ -384,6 +384,18 @@
             }
         }, true);
 
+        window.addEventListener('touchend', function (e) {
+            if (!matches(e.target) || !isMobile()) {
+                return;
+            }
+            // the tap must not focus the original field: the full-screen field takes the keyboard
+            e.preventDefault();
+            own(e);
+            current = e.target;
+            prepare(current);
+            startFull();
+        }, { capture: true, passive: false });
+
         window.addEventListener('focusin', function (e) {
             if (!matches(e.target)) {
                 return;
@@ -447,6 +459,11 @@
         }, true);
     }
 
+    /**
+     * Phones: the search opens over the page with its own field. Mobile browsers show the keyboard
+     * only for a field focused inside the handler of the tap itself, so the focus moves here at once
+     * (never in a timer).
+     */
     function startFull() {
         build();
         headInput.value = current.value;
@@ -456,15 +473,15 @@
             lastQuery = null;
         }
         open();
-        current.blur();
-        setTimeout(function () {
-            headInput.focus();
-            var n = headInput.value.length;
-            try {
-                headInput.setSelectionRange(n, n);
-            } catch (err) {
-            }
-        }, 30);
+        headInput.focus({ preventScroll: true });
+        var n = headInput.value.length;
+        try {
+            headInput.setSelectionRange(n, n);
+        } catch (err) {
+        }
+        if (document.activeElement === headInput && current !== headInput) {
+            current.blur();
+        }
         schedule(headInput.value);
     }
 

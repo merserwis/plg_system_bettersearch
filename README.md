@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.0.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.1.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -21,7 +21,9 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Manual ranking:** **Query rules** pin products to the top of chosen queries **in the order you set** (drag and drop) or hide them; the query is matched exactly, by its start or anywhere, and spaces or dashes in it do not matter. **Product boosts** and **category boosts** move products up or down in every search.
 * **Exclusions:** excluded categories (with or without their subcategories), excluded products, products out of stock shown normally, at the end or hidden. Subscription add-ons hidden by Gridbox stay hidden.
 * **Explainable relevance:** weights per field (code, name, fields, categories, descriptions), a factor for words with digits, popularity (page views) and a cut-off of weak matches. The **test console** shows every result with its score and the reasons.
-* **Live results under every Gridbox search field:** categories matching the query, products grouped by app (store, blog…), price, category, code, availability, short description, a *show all results* button; keyboard navigation (arrows, Enter, Escape) and ARIA combobox semantics; a **full-screen search on phones** with its own field above the on-screen keyboard.
+* **Live results under every Gridbox search field:** categories matching the query, products grouped by app (store, blog…), price, category, code, availability, short description, a *show all results* button; keyboard navigation (arrows, Enter, Escape) and ARIA combobox semantics; a **full-screen search on phones** with its own field — the keyboard opens with the first tap (fixed in 1.1.0).
+* **Appearing effects (new in 1.1.0):** the panel fades in, slides up or down, zooms, flips down or unrolls from the top; the results inside it fade in, rise, slide in, zoom or sharpen from blur, one after another — each with its own duration and delay. Visitors who ask their system for less motion see none.
+* **Live preview in the settings (new in 1.1.0):** the live results and the results page rendered from the settings in the form, before you save — real products, at desktop, tablet and phone width.
 * **Results page in the Gridbox results element:** category and app filters with counts, sorting (best match, name, price, newest, most viewed), page numbers and/or *load more*, grid or list. Gridbox does no search work on that page at all.
 * **Full visual control:** width (as the field / at least / fixed), height, alignment and distance of the live results; list or grid; image left / right / top, size, proportions, fit, shape and background; columns for desktop / tablet / phone; card colours, border, radius, padding, shadow and hover effect; text alignment; what each result shows; every text shown on the site.
 * **Prices like in the store:** sale prices, active store sales and variations (“from …”), in the currency picked in Gridbox's currency switcher, formatted like Gridbox.
@@ -59,7 +61,7 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ## 🚀 Installation & Package Structure
 
-1. Download `pkg_bettersearch-1.0.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
+1. Download `pkg_bettersearch-1.1.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
 2. In the Joomla administrator go to **System → Install → Extensions** and upload the package.
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
@@ -79,13 +81,24 @@ Uninstalling the package removes all three extensions and the plugin's tables (i
 
 ---
 
+## 👀 Live Preview
+
+The *Live results*, *Results page* and *Texts & images* tabs have a **live preview column**. It shows exactly what the plugin renders — real products, categories, prices and images from your store, as a guest of the site sees them — using the values currently in the form, before you save.
+
+* **Live results:** the panel opened under a search field of a mock page header, at its configured width, alignment and distance; on *Phone* the full-screen search. **Replay** shows the appearing effects again.
+* **Results page:** the results block under the Gridbox headline, with filters, sorting and cards.
+* **Desktop (1280 px), Tablet (820 px) and Phone (390 px):** the preview renders at the real device width, scaled to fit, so columns per device and all responsive rules apply as on the site. The desktop preview of the live results is as wide as the panel, so it stays readable.
+* Type any **query for the preview**; it starts with the most searched query with results. Links in the preview are inactive.
+
+---
+
 ## 🧰 Index & Tools
 
 The **Index & tools** tab of the plugin:
 
 * **Search index** — indexed products / pages, products waiting for indexing, searched apps, time of the last check and of the last complete update. **Update index** (new and changed products) and **Rebuild everything** (every product again; the search keeps working meanwhile) with a progress bar; **Clear cache**; **Delete small images**.
 * **Test search** — the results of any query **as a guest sees them**, with the score of each result and its reasons (e.g. `mi3155:title exact +15.0`, `phrase +23.3`, `views +2.9`, `pinned by rule`), the search mode and how the query was understood. It uses the settings of the form **before they are saved**, so weights, rules and boosts can be tried out first.
-* **Search statistics** — most searched queries, queries without results and recent ones; a click on a query runs it in the test console.
+* **Search statistics** — most searched queries, queries without results and recent ones, as tabs with one full-width table each (counts on the tabs); a click on a query runs it in the test console.
 
 ---
 
@@ -165,6 +178,11 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Categories shown | `4` |  |
 | Section titles | Yes |  |
 | “Show all results” button | Yes |  |
+| Panel appears with | Slide up | How the live results panel appears under the field. Visitors who asked their system for less motion see no effect. Options: No effect / Fade in / Slide up / Slide down / Zoom in / Flip down / Unroll from the top. |
+| Panel effect duration (ms) | `200` |  |
+| Results appear with | No effect | How the results inside the panel appear, one after another — also each time new results come while typing. Options: No effect / Fade in / Fade in from below / Slide in from the left / Zoom in / Sharpen from blur. |
+| Result effect duration (ms) | `260` |  |
+| Delay between results (ms) | `35` | Each next result starts this much later. 0 = all at once. |
 | Width | At least the given width | Width of the field, at least the given width, or always the given width (never wider than the screen). |
 | Width (px) | `640` |  |
 | Maximum height (px) | `560` |  |
@@ -275,7 +293,6 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Small images (WebP) | Yes | Results load reduced WebP copies of product images instead of the originals (made once, kept in media/plg_system_bettersearch/thumbs). |
 | WebP quality | `80` |  |
 
-
 ### Module (mod_bettersearch)
 
 | Option | Default | Description |
@@ -295,7 +312,7 @@ The live results of the module field use the settings of the plugin.
 
 ## 🧪 Verification & Testing
 
-Version 1.0.0 was tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
+Versions 1.0.0 and 1.1.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
 
 1. **Model codes** — `MI 3155`, `MI3155`, `MI-3155`, `mi.3155` and `metrel mi 3155` return the same product first; `MPI 530` = `MPI530`; `ht 7051` = `HT7051`; `eurotest xd` = *EurotestXD*; `miernik izolacji 5 kv` = `5kv`.
 2. **Fallbacks** — `eurotset` → *eurotest*, `miernk izolacji` → *miernik izolacji*; partial matches limited to products with at least half of the words; a fixed list of 41 queries kept as a regression baseline.
@@ -305,6 +322,7 @@ Version 1.0.0 was tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gr
 6. **Administrator** — all tabs, product pickers with search and drag-and-drop order inside repeatable rows, saving through the form, index tools, test console and statistics.
 7. **Package** — fresh install (tables and full-text index created, plugin enabled), update over 1.0.0 keeping settings and index, uninstall without leftovers, reinstall.
 8. **Code health** — no PHP warnings, notices or deprecated Joomla API calls from the extension with full error reporting.
+9. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
 
 Quick check on your site: open the search results page and look for `<div class="bettersearch-results"` in the page source.
 
@@ -346,6 +364,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+* **1.1.0** — Live preview in the settings. Appearing effects of the live results panel and of the results inside it. Phones: the keyboard opens with the first tap on the search field. Search statistics as tabs.
 * **1.0.0** — First release.
 
 ---
