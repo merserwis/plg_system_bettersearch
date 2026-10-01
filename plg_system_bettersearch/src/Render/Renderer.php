@@ -15,7 +15,6 @@ namespace Merserwis\Plugin\System\BetterSearch\Render;
 \defined('_JEXEC') or die;
 
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Router\Route;
 use Merserwis\Plugin\System\BetterSearch\Engine\Normalizer;
 use Joomla\Registry\Registry;
 
@@ -123,8 +122,8 @@ final class Renderer
                     continue;
                 }
                 $path  = $this->store->categoryPath($cat->parent);
-                $html .= '<li role="presentation"><a class="bs-opt bs-cat" role="option" id="bs-opt-' . $opt++ . '" href="'
-                    . $esc(Route::_($this->store->categoryLink($cat->app_id, $cat->id), false)) . '">'
+                $html .= '<li role="presentation"><a class="bs-opt bs-cat" role="option" id="bs-opt-' . $opt . '" style="--i:' . $opt++ . '" href="'
+                    . $esc($this->store->route($this->store->categoryLink($cat->app_id, $cat->id))) . '">'
                     . '<span class="bs-cat-name">' . $this->mark($cat->title) . '</span>'
                     . ($path ? '<span class="bs-cat-path">' . $esc(implode(' › ', $path)) . '</span>' : '') . '</a></li>';
             }
@@ -199,7 +198,7 @@ final class Renderer
 
         $price = $this->bool('live_show_price', true) ? $this->price($row) : '';
 
-        return '<li role="presentation"><a class="bs-opt bs-item" role="option" id="bs-opt-' . $n . '" href="' . $esc($row->link) . '">' . $image
+        return '<li role="presentation"><a class="bs-opt bs-item" role="option" id="bs-opt-' . $n . '" style="--i:' . $n . '" href="' . $esc($row->link) . '">' . $image
             . '<span class="bs-info"><span class="bs-title">' . $this->mark($row->title) . '</span>'
             . ($meta ? '<span class="bs-meta">' . implode('<span class="bs-dot">·</span>', $meta) . '</span>' : '')
             . $excerpt . '</span>' . $price . '</a></li>';
@@ -234,15 +233,18 @@ final class Renderer
             '--bs-max-h'     => $this->int('live_max_height', 560, 200, 2000) . 'px',
             '--bs-cols'      => (string) $cols,
             '--bs-z'         => (string) $this->int('live_z', 99999, 1, 2147483647),
+            '--bs-anim-dur'  => $this->int('live_anim_duration', 200, 0, 2000) . 'ms',
+            '--bs-item-dur'  => $this->int('live_item_duration', 260, 0, 2000) . 'ms',
+            '--bs-stagger'   => $this->int('live_item_stagger', 35, 0, 500) . 'ms',
         ];
 
         $css = '.bs-live{' . $this->vars($vars) . '}';
         $css .= <<<CSS
-.bs-live{position:absolute;box-sizing:border-box;background:var(--bs-bg);color:var(--bs-text);border:1px solid var(--bs-border);border-radius:var(--bs-radius);box-shadow:var(--bs-shadow);font-size:var(--bs-font);line-height:1.35;z-index:var(--bs-z);overflow:hidden;display:none;flex-direction:column;text-align:left;opacity:0;transform:translateY(6px);transition:opacity .16s ease,transform .16s ease}
+.bs-live{position:absolute;box-sizing:border-box;background:var(--bs-bg);color:var(--bs-text);border:1px solid var(--bs-border);border-radius:var(--bs-radius);box-shadow:var(--bs-shadow);font-size:var(--bs-font);line-height:1.35;z-index:var(--bs-z);overflow:hidden;display:none;flex-direction:column;text-align:left;opacity:0}
 .bs-live *{box-sizing:border-box}
 .bs-live a,.bs-live span,.bs-live div,.bs-live li,.bs-live b,.bs-live del,.bs-live ul{font-size:inherit;line-height:inherit;font-family:inherit;font-weight:inherit;font-style:normal;letter-spacing:normal;text-transform:none;text-decoration:none;color:inherit;margin:0;padding:0;border:0;background:none;text-align:inherit}
 .bs-live.is-open{display:flex}
-.bs-live.is-shown{opacity:1;transform:none}
+.bs-live.is-shown{opacity:1}
 .bs-live .bs-live-body{overflow-y:auto;max-height:var(--bs-max-h);padding:6px 0;overscroll-behavior:contain}
 .bs-live .bs-section+.bs-section{border-top:1px solid var(--bs-border);margin-top:4px;padding-top:4px}
 .bs-live .bs-section-title{font-size:.78em;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--bs-muted);padding:8px 16px 4px}
@@ -280,6 +282,8 @@ final class Renderer
 .bs-live.is-loading .bs-live-body{opacity:.55}
 CSS;
 
+        $css .= $this->liveAnimationCss();
+
         if ($pos === 'right') {
             $css .= '.bs-live .bs-item{flex-direction:row-reverse}.bs-live .bs-item .bs-price{align-items:flex-start;text-align:left}';
         } elseif ($pos === 'top') {
@@ -293,6 +297,49 @@ CSS;
         }
 
         return $css;
+    }
+
+
+    /** Keyframes of the chosen effects: the panel appearing, and the results inside it. */
+    public const PANEL_EFFECTS = ['none', 'fade', 'slide_up', 'slide_down', 'zoom', 'flip', 'expand'];
+    public const ITEM_EFFECTS  = ['none', 'fade', 'fade_up', 'slide', 'zoom', 'blur'];
+
+    private function liveAnimationCss(): string
+    {
+        $panel = $this->str('live_animation', 'slide_up', self::PANEL_EFFECTS);
+        $items = $this->str('live_item_animation', 'none', self::ITEM_EFFECTS);
+        $ease  = 'cubic-bezier(.2,.75,.25,1)';
+        $css   = '';
+
+        $frames = [
+            'fade'       => 'from{opacity:0}to{opacity:1}',
+            'slide_up'   => 'from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}',
+            'slide_down' => 'from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}',
+            'zoom'       => 'from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}',
+            'flip'       => 'from{opacity:0;transform:perspective(900px) rotateX(-14deg)}to{opacity:1;transform:none}',
+            'expand'     => 'from{opacity:.4;clip-path:inset(0 0 100% 0 round var(--bs-radius))}to{opacity:1;clip-path:inset(0 0 0 0 round var(--bs-radius))}',
+        ];
+        if ($panel !== 'none') {
+            $css .= '@keyframes bs-panel-in{' . $frames[$panel] . '}'
+                . '.bs-live.is-shown{animation:bs-panel-in var(--bs-anim-dur) ' . $ease . ' both;transform-origin:top center}';
+        }
+
+        $itemFrames = [
+            'fade'    => 'from{opacity:0}to{opacity:1}',
+            'fade_up' => 'from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}',
+            'slide'   => 'from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}',
+            'zoom'    => 'from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}',
+            'blur'    => 'from{opacity:0;filter:blur(6px)}to{opacity:1;filter:none}',
+        ];
+        if ($items !== 'none') {
+            // every new set of results plays the effect, one item after another
+            $css .= '@keyframes bs-item-in{' . $itemFrames[$items] . '}'
+                . '.bs-live.is-shown .bs-opt:not(.bs-all),.bs-live.is-shown .bs-section-title,.bs-live.is-shown .bs-note,.bs-live.is-shown .bs-empty'
+                . '{animation:bs-item-in var(--bs-item-dur) ' . $ease . ' both;animation-delay:calc(var(--i, 0) * var(--bs-stagger))}';
+        }
+
+        // visitors who asked their system for less motion get none
+        return $css . '@media (prefers-reduced-motion: reduce){.bs-live,.bs-live *{animation:none!important}}';
     }
 
     // ================================================================ results page

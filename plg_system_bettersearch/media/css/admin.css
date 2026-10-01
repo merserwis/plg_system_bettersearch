@@ -22,5 +22,32 @@
 .bs-progress-bar{height:100%;width:0;background:var(--template-link-color, #2a69b8);color:#fff;font-size:.8rem;line-height:1.4rem;text-align:center;transition:width .2s}
 .bs-test-out{margin-top:.75rem}
 .bs-test-table td{vertical-align:top}
-.bs-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1rem}
-.bs-stats-grid h4{font-size:1rem}
+
+/* 1.1.0 — live preview column next to the settings */
+.options-form:has(.bs-preview) > .form-grid{display:grid !important;grid-template-columns:minmax(0,1fr) minmax(380px,48%);column-gap:2rem;align-items:start}
+.options-form:has(.bs-preview) > .form-grid > .control-group{grid-column:1}
+.options-form:has(.bs-preview) > .form-grid > .control-group:has(.bs-preview){grid-column:2;grid-row:1 / span 300;position:sticky;top:5rem;margin:0}
+.options-form:has(.bs-preview) .control-group:has(.bs-preview) > .control-label{display:none}
+.options-form:has(.bs-preview) .control-group:has(.bs-preview) > .controls{margin:0;max-width:none}
+@media (max-width:1200px){
+  .options-form:has(.bs-preview) > .form-grid{grid-template-columns:1fr}
+  .options-form:has(.bs-preview) > .form-grid > .control-group:has(.bs-preview){grid-column:1;grid-row:auto;position:static}
+}
+.bs-preview{border:1px solid var(--template-bg-dark-7,#dfe3e7);border-radius:.5rem;background:#fff;padding:.75rem}
+.bs-preview-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap}
+.bs-preview-query{display:flex;gap:.5rem;margin-bottom:.5rem}
+.bs-preview-query input{max-width:22rem}
+.bs-preview-frame{background:repeating-conic-gradient(#f5f6f8 0% 25%,#fff 0% 50%) 50% / 16px 16px;border-radius:.35rem;overflow:hidden;position:relative}
+.bs-preview-frame iframe{display:block;border:0;background:#fff;transform-origin:0 0;box-shadow:0 0 0 1px rgba(0,0,0,.06)}
+.bs-preview-status{margin-top:.35rem;min-height:1.2em}
+
+/* 1.1.0 — search statistics as tabs with one full-width table */
+.bs-stats-tabs{display:flex;flex-wrap:wrap;gap:.25rem;border-bottom:1px solid var(--template-bg-dark-10,#dfe3e7);margin:0 0 .75rem}
+.bs-stats-tabs button{border:0;background:none;padding:.5rem .9rem;border-bottom:3px solid transparent;margin-bottom:-1px;color:inherit;font-weight:500}
+.bs-stats-tabs button.is-active{border-bottom-color:var(--template-link-color,#2a69b8);color:var(--template-link-color,#2a69b8)}
+.bs-stats-tabs .badge{margin-left:.35rem}
+.bs-stats-table{table-layout:fixed;width:100%;margin:0}
+.bs-stats-table th:nth-child(1),.bs-stats-table td:nth-child(1){width:auto;overflow-wrap:anywhere}
+.bs-stats-table th:nth-child(2),.bs-stats-table td:nth-child(2),.bs-stats-table th:nth-child(3),.bs-stats-table td:nth-child(3){width:7rem;text-align:right}
+.bs-stats-table th:nth-child(4),.bs-stats-table td:nth-child(4){width:11rem;white-space:nowrap}
+.bs-stats-wrap{max-height:28rem;overflow:auto}

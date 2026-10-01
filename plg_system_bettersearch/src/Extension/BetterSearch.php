@@ -40,7 +40,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.1.0';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -432,29 +432,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $result = $this->search($query, 'relevance');
         $limit  = max(1, min(50, (int) $this->params->get('live_limit', 8)));
 
-        // per app: the best items of each app (products first, in the order of the index apps)
-        $counts = [];
-        $byApp  = [];
-        foreach ($result['items'] as $item) {
-            $counts[$item['app_id']] = ($counts[$item['app_id']] ?? 0) + 1;
-            $byApp[$item['app_id']][] = $item;
-        }
-        $items = [];
-        if ($this->params->get('live_group_apps', 1)) {
-            $other = max(0, (int) $this->params->get('live_limit_other', 3));
-            $first = true;
-            foreach ($this->indexer()->appIds() as $appId) {
-                if (isset($byApp[$appId])) {
-                    $items = array_merge($items, array_slice($byApp[$appId], 0, $first ? $limit : $other));
-                    $first = false;
-                }
-            }
-        } else {
-            $items = array_slice($result['items'], 0, $limit);
-        }
-        $live               = $result;
-        $live['items']      = $items;
-        $live['app_counts'] = $counts;
+        $live = $this->liveSlice($result);
 
         $categories = [];
         if ($this->params->get('live_categories', 1)) {
@@ -477,6 +455,36 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
 
         return $data;
+    }
+
+    /** The live results: the best items of each app (products first, in the order of the indexed apps). */
+    private function liveSlice(array $result): array
+    {
+        $limit  = max(1, min(50, (int) $this->params->get('live_limit', 8)));
+        $counts = [];
+        $byApp  = [];
+        foreach ($result['items'] as $item) {
+            $counts[$item['app_id']]  = ($counts[$item['app_id']] ?? 0) + 1;
+            $byApp[$item['app_id']][] = $item;
+        }
+        $items = [];
+        if ($this->params->get('live_group_apps', 1)) {
+            $other = max(0, (int) $this->params->get('live_limit_other', 3));
+            $first = true;
+            foreach ($this->indexer()->appIds() as $appId) {
+                if (isset($byApp[$appId])) {
+                    $items = array_merge($items, array_slice($byApp[$appId], 0, $first ? $limit : $other));
+                    $first = false;
+                }
+            }
+        } else {
+            $items = array_slice($result['items'], 0, $limit);
+        }
+        $live               = $result;
+        $live['items']      = $items;
+        $live['app_counts'] = $counts;
+
+        return $live;
     }
 
     /** Next page of the results page ("load more"). */
@@ -655,7 +663,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview'], true)) {
             $this->params = new Registry($form['params']);
         }
 
@@ -688,6 +696,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 return ['query' => $query, 'mode' => $result['mode'], 'corrected' => $result['corrected'], 'total' => $result['total'],
                     'groups' => $result['groups'], 'ms' => $result['ms'], 'rows' => $rows];
 
+            case 'preview':
+                return $this->preview((string) $input->getCmd('mode', 'live'), (string) $input->getCmd('device', 'desktop'),
+                    mb_substr(trim((string) $input->get('q', '', 'raw')), 0, 200));
+
             case 'products':
                 return ['items' => $this->findProducts(trim((string) $input->get('q', '', 'raw')))];
 
@@ -714,6 +726,83 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
 
         return ['error' => 'unknown task'];
+    }
+
+    /**
+     * Administrator live preview: the live results or the results page as a guest of the site would
+     * see them, rendered from the settings in the form (also unsaved ones), for the chosen device.
+     */
+    private function preview(string $mode, string $device, string $query): array
+    {
+        $device = in_array($device, ['desktop', 'tablet', 'mobile'], true) ? $device : 'desktop';
+        $this->deviceClass = $device;
+        $this->levels      = $this->guestLevels();
+        $this->storeHelper = null;
+        $siteLang          = (string) ComponentHelper::getParams('com_languages')->get('site', 'en-GB');
+        $searcher          = new Searcher($this->db(), $this->params, $this->normalizer(), $this->levels, $siteLang);
+
+        if ($query === '') {
+            $query = $this->previewQuery();
+        }
+        $result = $searcher->search($query, (string) $this->params->get('default_sort', 'relevance'));
+        $store  = $this->store();
+        $store->setPreview(true);
+        $renderer = new Renderer($this->params, $store, new Thumbs((float) $this->params->get('thumb_budget', 1.0),
+            (int) $this->params->get('thumb_quality', 80), true), $device);
+        $renderer->setHighlight($result['groups']);
+
+        $out = ['q' => $query, 'count' => $result['total'], 'mode' => $mode];
+        if ($mode === 'page') {
+            $perPage = max(1, min(200, (int) $this->params->get('page_per_page', 24)));
+            $state   = $this->filterState($result, $query, (string) $this->params->get('default_sort', 'relevance'), 0, 0, 1, $perPage);
+            $state['url']    = fn (array $set = []) => '#';
+            $state['action'] = '#';
+            $state['hidden'] = [];
+            foreach (['chips', 'appChips'] as $key) {
+                foreach ($state[$key] as &$chip) {
+                    $chip['url'] = '#';
+                }
+                unset($chip);
+            }
+            $out['css']     = $renderer->pageCss('bsr-preview');
+            $out['html']    = $renderer->page($state['result'], $state, 'bsr-preview');
+            $out['heading'] = (string) $this->params->get('page_heading', 'gridbox') === 'gridbox' ? Text::_('PLG_SYSTEM_BETTERSEARCH_PREVIEW_GRIDBOX_HEADING') . ' ' . $query : '';
+        } else {
+            $categories = [];
+            if ($this->params->get('live_categories', 1)) {
+                $categories = $searcher->matchCategories($query, $store->visibleCategories($this->indexer()->appIds()),
+                    max(0, (int) $this->params->get('live_categories_limit', 4)));
+            }
+            $out['css']    = $renderer->liveCss();
+            $out['html']   = $renderer->live($this->liveSlice($result), $categories, '#');
+            $out['layout'] = [
+                'widthMode' => (string) $this->params->get('live_width_mode', 'wide'),
+                'width'     => max(200, (int) $this->params->get('live_width', 640)),
+                'align'     => (string) $this->params->get('live_align', 'left'),
+                'offset'    => (int) $this->params->get('live_offset', 8),
+                'full'      => $device === 'mobile' && (string) $this->params->get('live_mobile', 'fullscreen') === 'fullscreen',
+            ];
+        }
+
+        return $out;
+    }
+
+    /** A query that shows something: the most searched one with results, else the start of the most viewed product name. */
+    private function previewQuery(): string
+    {
+        $db = $this->db();
+        try {
+            $q = (string) $db->setQuery('SELECT query FROM ' . $db->quoteName('#__bettersearch_log') . ' WHERE results > 1 ORDER BY searches DESC', 0, 1)->loadResult();
+            if ($q !== '') {
+                return $q;
+            }
+            $title = (string) $db->setQuery('SELECT p.title FROM ' . $db->quoteName('#__bettersearch_items', 'i') . ' JOIN ' . $db->quoteName('#__gridbox_pages', 'p')
+                . ' ON p.id = i.id WHERE p.published = 1 ORDER BY p.hits DESC', 0, 1)->loadResult();
+
+            return implode(' ', array_slice(preg_split('/\s+/u', trim($title)) ?: [], 0, 2));
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     private function status(): array
