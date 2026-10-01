@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" client="site" method="upgrade">
+    <name>mod_bettersearch</name>
+    <author>Merserwis</author>
+    <authorUrl>https://github.com/merserwis/</authorUrl>
+    <creationDate>2026-10-01</creationDate>
+    <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
+    <license>GNU General Public License version 3</license>
+    <version>1.0.0</version>
+    <description>MOD_BETTERSEARCH_XML_DESCRIPTION</description>
+    <namespace path="src">Merserwis\Module\BetterSearch</namespace>
+    <files>
+        <folder module="mod_bettersearch">services</folder>
+        <folder>src</folder>
+        <folder>tmpl</folder>
+    </files>
+    <languages folder="language">
+        <language tag="en-GB">en-GB/mod_bettersearch.ini</language>
+        <language tag="en-GB">en-GB/mod_bettersearch.sys.ini</language>
+    </languages>
+    <config>
+        <fields name="params">
+            <fieldset name="basic">
+                <field name="module_info" type="note" class="alert alert-info" description="MOD_BETTERSEARCH_INFO" />
+                <field name="placeholder" type="text" default="" label="MOD_BETTERSEARCH_PLACEHOLDER_LABEL" />
+                <field name="width" type="text" default="100%" label="MOD_BETTERSEARCH_WIDTH_LABEL" description="MOD_BETTERSEARCH_SIZE_DESC" />
+                <field name="height" type="number" default="44" min="24" max="120" label="MOD_BETTERSEARCH_HEIGHT_LABEL" />
+                <field name="font_size" type="number" default="15" min="10" max="30" label="MOD_BETTERSEARCH_FONT_SIZE_LABEL" />
+                <field name="radius" type="number" default="8" min="0" max="60" label="MOD_BETTERSEARCH_RADIUS_LABEL" />
+                <field name="background" type="color" default="#ffffff" label="MOD_BETTERSEARCH_BG_LABEL" />
+                <field name="color" type="color" default="#1f2328" label="MOD_BETTERSEARCH_COLOR_LABEL" />
+                <field name="border" type="color" default="#d0d5dd" label="MOD_BETTERSEARCH_BORDER_LABEL" />
+                <field name="button" type="list" default="icon" label="MOD_BETTERSEARCH_BUTTON_LABEL">
+                    <option value="icon">MOD_BETTERSEARCH_BUTTON_ICON</option>
+                    <option value="none">MOD_BETTERSEARCH_BUTTON_NONE</option>
+                </field>
+                <field name="button_color" type="color" default="" showon="button:icon" label="MOD_BETTERSEARCH_BUTTON_COLOR_LABEL" />
+            </fieldset>
+            <fieldset name="advanced">
+                <field name="layout" type="modulelayout" label="JFIELD_ALT_LAYOUT_LABEL" class="form-select" validate="moduleLayout" />
+                <field name="moduleclass_sfx" type="textarea" label="COM_MODULES_FIELD_MODULECLASS_SFX_LABEL" rows="3" validate="CssIdentifier" />
+            </fieldset>
+        </fields>
+    </config>
+</extension>

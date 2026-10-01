@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="package" method="upgrade">
+    <name>Better Search for Gridbox Package</name>
+    <packagename>bettersearch</packagename>
+    <version>1.0.0</version>
+    <creationDate>2026-10-01</creationDate>
+    <author>Merserwis</author>
+    <authorUrl>https://github.com/merserwis/</authorUrl>
+    <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
+    <license>GNU General Public License version 3</license>
+    <description>Better Search for Gridbox: system plugin (index, live results, results page), search field module and administrator menu entry. Requires Joomla 5/6 with Balbooa Gridbox and PHP 8.2+ (tested with Joomla 6.1 and PHP 8.5).</description>
+    <files folder="packages">
+        <file type="plugin" id="bettersearch" group="system">plg_system_bettersearch.zip</file>
+        <file type="component" id="com_bettersearch">com_bettersearch.zip</file>
+        <file type="module" id="mod_bettersearch" client="site">mod_bettersearch.zip</file>
+    </files>
+    <updateservers>
+        <server type="extension" priority="1" name="Better Search for Gridbox Updates">https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/update.xml</server>
+    </updateservers>
+</extension>
