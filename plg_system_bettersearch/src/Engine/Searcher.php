@@ -21,6 +21,15 @@ final class Searcher
 {
     public const SORTS = ['relevance', 'title', 'title_desc', 'price', 'price_desc', 'newest', 'popular'];
 
+    /** Words of a query that are searched (the rest is ignored). */
+    public const MAX_GROUPS = 8;
+
+    /** Misspelt words corrected per query (each costs a pass over the vocabulary). */
+    private const MAX_CORRECTIONS = 3;
+
+    /** The last run() hit the candidate limit: products beyond it were not scored. */
+    public bool $truncated = false;
+
     private DatabaseInterface $db;
 
     private Registry $params;
@@ -42,6 +51,9 @@ final class Searcher
 
     /** The index table has its full-text index (null = not checked yet). */
     private ?bool $fulltext = null;
+
+    /** Shortest word the full-text index holds (innodb_ft_min_token_size); shorter words use LIKE. */
+    private int $ftMin = 3;
 
     /** @param int[] $levels view levels of the visitor */
     public function __construct(DatabaseInterface $db, Registry $params, Normalizer $norm, array $levels, string $language)
@@ -106,10 +118,13 @@ final class Searcher
         if (!$items && $this->params->get('typo_tolerance', 1)) {
             $fix = $this->correct($query);
             if ($fix !== '' && $fix !== $this->norm->fold($query)) {
-                $groups    = $this->prepare($fix, true);
-                $items     = $this->run($groups, $this->norm->compact($fix), $apps, $explain, false);
-                $mode      = 'typo';
-                $corrected = $fix;
+                $tried = $this->prepare($fix, true);
+                $items = $this->run($tried, $this->norm->compact($fix), $apps, $explain, false);
+                if ($items) {
+                    $groups    = $tried;
+                    $mode      = 'typo';
+                    $corrected = $fix;
+                }
             }
         }
 
@@ -150,6 +165,7 @@ final class Searcher
         $result['total']     = count($items);
         $result['items']     = $items;
         $result['groups']    = array_column($groups, 'term');
+        $result['truncated'] = $this->truncated;
         $result['ms']        = round((hrtime(true) - $t0) / 1e6, 1);
 
         return $result;
@@ -195,7 +211,8 @@ final class Searcher
             $groups = $this->phraseSynonyms($groups, $synonyms);
         }
 
-        return $groups;
+        // every group is one more LIKE per row: a query of more than MAX_GROUPS words is cut
+        return array_slice($groups, 0, self::MAX_GROUPS);
     }
 
     /** @return array<string, string[]> */
@@ -271,11 +288,15 @@ final class Searcher
         $select = ['i.id', 'i.app_id', 'i.t_title', 'i.c_title', 'i.t_sku', 'i.c_sku', 'i.t_fields', 'i.c_fields', 'i.t_cats', 'i.c_cats',
             'i.price', 'i.in_stock', 'i.cat_ids', 'i.category_id', 'p.title', 'p.hits', 'p.created'];
         $conds  = [];
+        $rank   = [];
         $ft     = $this->fulltext();
         foreach ($groups as $gi => $group) {
             $or     = [];
             $bodyOr = [];
             $words  = [];
+            // a cheap SQL pre-rank for the candidate limit: a word in the code or name counts most
+            $first  = $db->quote('% ' . $db->escape($group['term'], true) . '%', false);
+            $rank[] = '(i.t_sku LIKE ' . $first . ') * 4 + (i.t_title LIKE ' . $first . ') * 2 + (i.t_fields LIKE ' . $first . ')';
             foreach ($group['alts'] as $alt) {
                 $a    = $alt['c'];
                 $like = $db->quote('%' . $db->escape($a, true) . '%', false);
@@ -291,7 +312,7 @@ final class Searcher
                 }
                 if ($body && strlen($a) > 1) {
                     // descriptions: words starting with the alternative (full-text index when there is one)
-                    if ($ft && strlen($a) >= 3) {
+                    if ($ft && strlen($a) >= $this->ftMin) {
                         $words[] = $a . '*';
                     } else {
                         $bodyOr[] = 'i.t_body LIKE ' . $word;
@@ -308,16 +329,26 @@ final class Searcher
             $conds[] = '(' . implode(' OR ', $or) . ')';
         }
 
+        // the candidates most likely to rank high come first, so the limit cuts the weak tail only
+        $limit = max(100, min(5000, (int) $this->params->get('max_candidates', 3000)));
         $query = $db->createQuery()
             ->select($select)
             ->from($db->quoteName('#__bettersearch_items', 'i'))
             ->innerJoin($db->quoteName('#__gridbox_pages', 'p') . ' ON p.id = i.id')
-            ->where($partial ? '(' . implode(' OR ', $conds) . ')' : implode(' AND ', $conds));
+            ->where($partial ? '(' . implode(' OR ', $conds) . ')' : implode(' AND ', $conds))
+            ->order('(' . implode(' + ', $rank) . ') DESC, p.hits DESC, i.id ASC');
         $this->visibility($query, $apps);
-        $query->setLimit(max(100, min(20000, (int) $this->params->get('max_candidates', 3000))));
+        $query->setLimit($limit);
 
+        $productBoost  = $this->idMap((array) $this->params->get('product_boosts', []), 'product', 'boost');
+        $categoryBoost = $this->idMap((array) $this->params->get('category_boosts', []), 'category', 'boost');
+        $popularity    = (float) $this->params->get('popularity_boost', 1);
+        $outOfStock    = (string) $this->params->get('out_of_stock', 'none');
+
+        $items = [];
+        $n     = 0;
         try {
-            $rows = $db->setQuery($query)->loadObjectList() ?: [];
+            $rows = $db->setQuery($query)->getIterator();
         } catch (\Throwable $e) {
             if (!$ft) {
                 throw $e;
@@ -327,17 +358,10 @@ final class Searcher
 
             return $this->run($groups, $phrase, $apps, $explain, $partial);
         }
-        if (!$rows) {
-            return [];
-        }
-
-        $productBoost  = $this->idMap((array) $this->params->get('product_boosts', []), 'product', 'boost');
-        $categoryBoost = $this->idMap((array) $this->params->get('category_boosts', []), 'category', 'boost');
-        $popularity    = (float) $this->params->get('popularity_boost', 1);
-        $outOfStock    = (string) $this->params->get('out_of_stock', 'none');
-
-        $items = [];
+        // rows are scored as they stream in: only the scored items stay in memory
         foreach ($rows as $row) {
+            $n++;
+            $row->cats = array_map('intval', array_filter(explode(',', (string) $row->cat_ids)));
             $s = $this->scorer->score($groups, $row, $phrase, $explain);
             if ($s['matched'] === 0) {
                 continue;
@@ -350,8 +374,8 @@ final class Searcher
                 $score += 100 * $s['matched'];
             }
             $boost = (float) ($productBoost[(int) $row->id] ?? 0);
-            foreach (array_filter(explode(',', (string) $row->cat_ids)) as $catId) {
-                $boost += (float) ($categoryBoost[(int) $catId] ?? 0);
+            foreach ($row->cats as $catId) {
+                $boost += (float) ($categoryBoost[$catId] ?? 0);
             }
             if ($boost != 0.0) {
                 $score += $boost;
@@ -375,6 +399,7 @@ final class Searcher
 
             $items[(int) $row->id] = $this->item($row, $score, $s['score'], $reasons) + ['matched' => $s['matched']];
         }
+        $this->truncated = $this->truncated || $n >= $limit;
 
         // drop the weak tail: matches far below the best one (e.g. a word only in a long description)
         $min = max(0, min(90, (int) $this->params->get('min_relevance', 15)));
@@ -465,7 +490,7 @@ final class Searcher
             'id'          => (int) $row->id,
             'app_id'      => (int) $row->app_id,
             'category_id' => (int) $row->category_id,
-            'cats'        => array_map('intval', array_filter(explode(',', (string) $row->cat_ids))),
+            'cats'        => $row->cats ?? array_map('intval', array_filter(explode(',', (string) $row->cat_ids))),
             'score'       => round($score, 3),
             'base'        => $base,
             'pinned'      => false,
@@ -480,9 +505,19 @@ final class Searcher
 
     private function order(array $items, string $sort): array
     {
-        $title = fn ($a, $b) => strcoll(mb_strtolower($a['title']), mb_strtolower($b['title']));
+        // the sort key of a title once per item, not once per comparison
+        foreach ($items as &$it) {
+            $it['tkey'] = mb_strtolower((string) $it['title'], 'UTF-8');
+        }
+        unset($it);
+        // names in the order of the site language (ł after l, not after z) when intl is there
+        $collator = class_exists(\Collator::class) ? \Collator::create(str_replace('-', '_', $this->language)) : null;
+        $title    = $collator
+            ? fn ($a, $b) => $collator->compare($a['tkey'], $b['tkey'])
+            : fn ($a, $b) => strnatcasecmp($a['tkey'], $b['tkey']);
         $rel   = fn ($a, $b) => $b['score'] <=> $a['score'] ?: $title($a, $b);
-        $pin   = fn ($a, $b) => $b['pinned'] <=> $a['pinned'];
+        // pinned products first, among themselves in the order the administrator set (their score)
+        $pin   = fn ($a, $b) => ($b['pinned'] <=> $a['pinned']) ?: ($a['pinned'] ? $b['score'] <=> $a['score'] : 0);
         // items without a price go last in price sorting
         $price = fn ($a, $b, $dir) => ($a['price'] === null) <=> ($b['price'] === null) ?: $dir * ($a['price'] <=> $b['price']);
 
@@ -551,49 +586,68 @@ final class Searcher
         if (!$vocab) {
             return '';
         }
+        $buckets = $this->buckets($vocab);
         $out     = [];
-        $changed = false;
-        foreach ($this->norm->tokens($query) as $token) {
+        $changed = 0;
+        foreach (array_slice($this->norm->tokens($query), 0, self::MAX_GROUPS) as $token) {
             $len = strlen($token);
-            if (isset($vocab[$token]) || $len < 4 || preg_match('/^[0-9]+$/', $token)) {
+            if (isset($vocab[$token]) || $len < 4 || preg_match('/^[0-9]+$/', $token) || $changed >= self::MAX_CORRECTIONS
+                || $this->norm->isStopword($token)) {
                 $out[] = $token;
                 continue;
             }
             $max  = $len >= 8 ? 2 : 1;
             $best = null;
             $rank = [PHP_INT_MAX, 1, 0];
-            foreach ($vocab as $word => $df) {
-                $word = (string) $word;
-                $wlen = strlen($word);
-                if ($wlen + $max < $len) {
-                    continue;
-                }
-                // the whole word, then the start of a longer word of the query's length
-                $candidates = abs($wlen - $len) <= $max ? [[$word, 0]] : [];
-                if ($wlen > $len) {
-                    $candidates[] = [substr($word, 0, $len), 1];
-                }
-                foreach ($candidates as [$cand, $isPrefix]) {
-                    $d = $this->distance($token, $cand);
-                    if ($d > $max) {
-                        continue;
+            // candidates: words of about the same length (the whole word) and longer words (their
+            // start) — only those beginning with the same letter, as spell checkers do
+            $first = $token[0];
+            for ($wlen = max(3, $len - $max); $wlen <= $len + 8; $wlen++) {
+                foreach ($buckets[$wlen][$first] ?? [] as $word => $df) {
+                    $word = (string) $word;
+                    $candidates = abs($wlen - $len) <= $max ? [[$word, 0]] : [];
+                    if ($wlen > $len) {
+                        $candidates[] = [substr($word, 0, $len), 1];
                     }
-                    $r = [$d, $isPrefix, -$df];
-                    if ($r < $rank) {
-                        $rank = $r;
-                        $best = $cand;
+                    foreach ($candidates as [$cand, $isPrefix]) {
+                        $d = $this->distance($token, $cand);
+                        if ($d > $max) {
+                            continue;
+                        }
+                        $r = [$d, $isPrefix, -$df];
+                        if ($r < $rank) {
+                            $rank = $r;
+                            $best = $cand;
+                        }
                     }
                 }
             }
             if ($best !== null && $best !== $token) {
-                $out[]   = $best;
-                $changed = true;
+                $out[] = $best;
+                $changed++;
             } else {
                 $out[] = $token;
             }
         }
 
         return $changed ? implode(' ', $out) : '';
+    }
+
+    /** @var array<int, array<string, array<string, int>>>|null vocabulary by length and first letter */
+    private ?array $vocabBuckets = null;
+
+    /** @return array<int, array<string, array<string, int>>> */
+    private function buckets(array $vocab): array
+    {
+        if ($this->vocabBuckets === null) {
+            $this->vocabBuckets = [];
+            foreach ($vocab as $word => $df) {
+                $word = (string) $word;
+                $this->vocabBuckets[strlen($word)][$word[0]][$word] = $df;
+            }
+        }
+
+        return $this->vocabBuckets;
     }
 
     /** Levenshtein distance where swapping two neighbouring letters counts as one edit. */
@@ -614,36 +668,58 @@ final class Searcher
     /** @var array<string, int>|null */
     private ?array $vocab = null;
 
-    /** @return array<string, int> words of titles, codes, categories and fields with their frequency */
+    /** @var callable|null gives the (cached) vocabulary when correct() needs it */
+    private $vocabLoader = null;
+
+    /**
+     * Words of titles, codes, categories and fields with their frequency — of the products a guest
+     * can see, so a correction never points at an unpublished or restricted product.
+     *
+     * @return array<string, int>
+     */
     private function vocabulary(): array
     {
         if ($this->vocab !== null) {
             return $this->vocab;
         }
-        $this->vocab = [];
-        $query       = $this->db->createQuery()
-            ->select('t_main')
-            ->from($this->db->quoteName('#__bettersearch_items'));
-        foreach ($this->db->setQuery($query)->loadColumn() ?: [] as $tokens) {
-            foreach (explode(' ', trim((string) $tokens)) as $t) {
-                if (strlen($t) >= 3) {
-                    $this->vocab[$t] = ($this->vocab[$t] ?? 0) + 1;
+        if ($this->vocabLoader !== null) {
+            $loaded = ($this->vocabLoader)();
+            if (is_array($loaded)) {
+                return $this->vocab = $loaded;
+            }
+        }
+
+        return $this->vocab = $this->buildVocabulary();
+    }
+
+    /** @return array<string, int> */
+    public function buildVocabulary(): array
+    {
+        $db    = $this->db;
+        $vocab = [];
+        $query = $db->createQuery()
+            ->select('i.t_main')
+            ->from($db->quoteName('#__bettersearch_items', 'i'))
+            ->innerJoin($db->quoteName('#__gridbox_pages', 'p') . ' ON p.id = i.id')
+            ->where('p.published = 1')
+            ->where('p.page_access = 1')
+            ->where('p.page_category <> ' . $db->quote('trashed'));
+        foreach ($db->setQuery($query)->getIterator() as $row) {
+            foreach (explode(' ', trim((string) $row->t_main)) as $t) {
+                // a word of letters, long enough to be worth a correction (codes are not corrected)
+                if (strlen($t) >= 3 && !ctype_digit($t)) {
+                    $vocab[$t] = ($vocab[$t] ?? 0) + 1;
                 }
             }
         }
 
-        return $this->vocab;
+        return $vocab;
     }
 
-    /** Lets the caller provide a cached vocabulary. */
-    public function setVocabulary(array $vocab): void
+    /** Lets the caller provide the vocabulary only when it is needed (e.g. from a cache). */
+    public function setVocabularyLoader(callable $loader): void
     {
-        $this->vocab = $vocab;
-    }
-
-    public function exportVocabulary(): array
-    {
-        return $this->vocabulary();
+        $this->vocabLoader = $loader;
     }
 
     // ---------------------------------------------------------------- categories
@@ -727,6 +803,10 @@ final class Searcher
             try {
                 $this->fulltext = (bool) $this->db->setQuery('SHOW INDEX FROM ' . $this->db->quoteName('#__bettersearch_items')
                     . ' WHERE Key_name = ' . $this->db->quote('ft_body'))->loadRow();
+                if ($this->fulltext) {
+                    $row = $this->db->setQuery('SHOW VARIABLES LIKE ' . $this->db->quote('innodb_ft_min_token_size'))->loadRow();
+                    $this->ftMin = max(1, min(10, (int) ($row[1] ?? 3)));
+                }
             } catch (\Throwable $e) {
                 $this->fulltext = false;
             }

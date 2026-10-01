@@ -67,7 +67,66 @@ final class Store
     {
         $this->db     = $db;
         $this->app    = $app;
-        $this->levels = $levels ?: [1];
+        $this->levels = array_map('intval', $levels) ?: [1];
+    }
+
+    /** Memoised category menu items and resolved intro images of this request. */
+    private array $catItemids = [];
+
+    /** @var array<int, string> */
+    private array $uploads = [];
+
+    /** @var array<int, array{0: string, 1: string}> routed product and category links, by page id */
+    private array $links = [];
+
+    private bool $linksDirty = false;
+
+    /** @var object|null Joomla cache controller holding the routed links */
+    private $linkCache = null;
+
+    private string $linkKey = '';
+
+    /** Links already built in earlier requests: a Gridbox route costs several queries each. */
+    public function setLinkCache($cache, string $key): void
+    {
+        $this->linkCache = $cache;
+        $this->linkKey   = $key;
+        $hit = $cache->get($key);
+        $this->links = is_array($hit) ? $hit : [];
+    }
+
+    /** Writes the links built in this request back to the cache (once, at the end of the request). */
+    public function saveLinks(): void
+    {
+        if ($this->linkCache && $this->linksDirty) {
+            // bounded: the products shown most recently
+            if (count($this->links) > 4000) {
+                $this->links = array_slice($this->links, -3000, null, true);
+            }
+            try {
+                $this->linkCache->store($this->links, $this->linkKey);
+            } catch (\Throwable $e) {
+            }
+            $this->linksDirty = false;
+        }
+    }
+
+    /**
+     * Only pages a visitor may see now: the same rules as the search (published, live dates,
+     * language, access level, not trashed) — a page unpublished after a result was cached is dropped.
+     */
+    private function visible($query, string $alias = 'p'): void
+    {
+        $db   = $this->db;
+        $now  = $db->quote(gmdate('Y-m-d H:i:s'));
+        $null = $db->quote($db->getNullDate());
+        $lang = $this->app->getLanguage()->getTag();
+        $query->where("$alias.published = 1")
+            ->where("$alias.created <= " . $now)
+            ->where("($alias.end_publishing = " . $null . " OR $alias.end_publishing >= " . $now . ')')
+            ->where("$alias.language IN (" . $db->quote($lang) . ', ' . $db->quote('*') . ')')
+            ->where("$alias.page_access IN (" . implode(',', $this->levels) . ')')
+            ->where("$alias.page_category <> " . $db->quote('trashed'));
     }
 
     /**
@@ -92,7 +151,13 @@ final class Store
             ->leftJoin($db->quoteName('#__bettersearch_items', 'i') . ' ON i.id = p.id')
             ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
             ->where('p.id IN (' . $list . ')');
+        $this->visible($query);
         $rows = $db->setQuery($query)->loadObjectList('id') ?: [];
+        if (!$rows) {
+            return [];
+        }
+        // uploaded field images are stored by number: one lookup for the whole page of results
+        $this->loadUploads(array_filter(array_map(fn ($r) => trim((string) $r->intro_image), $rows), 'is_numeric'));
 
         $mapped = [];
         $query  = $db->createQuery()
@@ -115,11 +180,25 @@ final class Store
             $row->app_id     = (int) $row->app_id;
             $row->category   = $cats[$catId]->title ?? '';
             $row->categoryId = $catId;
-            $row->link       = $this->route($this->pageLink($row->id, $row->app_id, $catId));
-            $row->catLink    = $catId > 0 ? $this->route($this->categoryLink($row->app_id, $catId)) : '';
+            if ($this->preview) {
+                $row->link    = '#';
+                $row->catLink = '#';
+            } elseif (isset($this->links[$row->id])) {
+                [$row->link, $row->catLink] = $this->links[$row->id];
+            } else {
+                $row->link    = $this->route($this->pageLink($row->id, $row->app_id, $catId));
+                $row->catLink = $catId > 0 ? $this->route($this->categoryLink($row->app_id, $catId)) : '';
+                $this->links[$row->id] = [$row->link, $row->catLink];
+                $this->linksDirty      = true;
+            }
+            // an address that is not an image address (e.g. climbing out of its folder) is no image
             $row->image      = $this->introImage((string) $row->intro_image);
+            if ($row->image !== '' && $this->imageUrl($row->image) === '') {
+                $row->image = '';
+            }
             $row->isProduct  = $this->appType($row->app_id) === 'products' && $row->product_type !== null;
-            $row->prices     = $row->isProduct ? $this->prices($row, array_unique(array_merge([$catId], $mapped[$id] ?? []))) : null;
+            // store sales on categories apply to the product's own category and its parents (as Gridbox does)
+            $row->prices     = $row->isProduct ? $this->prices($row, $this->categoryPathIds($catId)) : null;
             $out[$id]        = $row;
         }
 
@@ -169,25 +248,26 @@ final class Store
         ];
     }
 
-    /** Price after the first store sale that applies (Gridbox's own rule order). */
+    /** Price after the store sales: every applicable sale is computed from the regular price and the last one wins (Gridbox's rule). */
     private function salePrice(float $price, int $productId, string $variation, array $categories): float
     {
+        $result = $price;
         foreach ($this->sales() as $sale) {
             if (empty($sale->discount)) {
                 continue;
             }
             $applies = match ((string) $sale->applies_to) {
                 '*'        => true,
-                'category' => (bool) array_filter($sale->map, fn ($m) => in_array((int) $m->item_id, $categories, true)),
-                'product'  => (bool) array_filter($sale->map, fn ($m) => (int) $m->item_id === $productId && (string) $m->variation === $variation),
+                'category' => (bool) array_intersect_key($sale->catSet, array_flip($categories)),
+                'product'  => isset($sale->prodSet[$productId . '|' . $variation]),
                 default    => false,
             };
             if ($applies) {
-                return $price - ($sale->unit === '%' ? $price * ((float) $sale->discount / 100) : (float) $sale->discount);
+                $result = $price - ($sale->unit === '%' ? $price * ((float) $sale->discount / 100) : (float) $sale->discount);
             }
         }
 
-        return $price;
+        return $result;
     }
 
     private function sales(): array
@@ -209,13 +289,25 @@ final class Store
                 ->where('(publish_up = ' . $null . ' OR publish_up IS NULL OR publish_up <= ' . $now . ')')
                 ->where('access IN (' . implode(',', $this->levels) . ')')
                 ->order('id ASC');
-            $this->sales = $db->setQuery($query)->loadObjectList() ?: [];
-            foreach ($this->sales as $sale) {
-                $query     = $db->createQuery()
-                    ->select('*')
+            $this->sales = $db->setQuery($query)->loadObjectList('id') ?: [];
+            if ($this->sales) {
+                // the product / category maps of all sales in one query, indexed for O(1) checks
+                foreach ($this->sales as $sale) {
+                    $sale->catSet  = [];
+                    $sale->prodSet = [];
+                }
+                $query = $db->createQuery()
+                    ->select(['sale_id', 'item_id', 'variation'])
                     ->from($db->quoteName('#__gridbox_store_sales_map'))
-                    ->where('sale_id = ' . (int) $sale->id);
-                $sale->map = $db->setQuery($query)->loadObjectList() ?: [];
+                    ->where('sale_id IN (' . implode(',', array_map('intval', array_keys($this->sales))) . ')');
+                foreach ($db->setQuery($query)->loadObjectList() ?: [] as $m) {
+                    $sale = $this->sales[(int) $m->sale_id] ?? null;
+                    if ($sale) {
+                        $sale->catSet[(int) $m->item_id] = true;
+                        $sale->prodSet[(int) $m->item_id . '|' . (string) $m->variation] = true;
+                    }
+                }
+                $this->sales = array_values($this->sales);
             }
         } catch (\Throwable $e) {
             $this->sales = [];
@@ -264,7 +356,26 @@ final class Store
             }
         }
 
-        return $this->currency = $currency ?? (is_object($store->currency ?? null) ? $store->currency : null);
+        $this->currency = $currency ?? (is_object($store->currency ?? null) ? $store->currency : null);
+
+        // with automatic exchange rates Gridbox takes the rate from the fetched rates, not from the stored currency
+        if ($this->currency && !empty($store->currencies->auto) && isset($this->currency->code)) {
+            try {
+                $query = $this->db->createQuery()
+                    ->select($this->db->quoteName('key'))
+                    ->from($this->db->quoteName('#__gridbox_api'))
+                    ->where($this->db->quoteName('service') . ' = ' . $this->db->quote('exchangerates_data'));
+                $rates = json_decode((string) $this->db->setQuery($query)->loadResult());
+                $rate  = $rates->rates->{$this->currency->code} ?? null;
+                if (is_numeric($rate) && (float) $rate > 0) {
+                    $this->currency       = clone $this->currency;
+                    $this->currency->rate = (float) $rate;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return $this->currency;
     }
 
     public function format(float $price): string
@@ -287,10 +398,10 @@ final class Store
     public function pageLink(int $id, int $appId, int $categoryId): string
     {
         $itemId = $this->menuItem(fn ($q) => ($q['view'] ?? '') === 'page' && (int) ($q['id'] ?? 0) === $id);
-        $link   = $appId > 0 && $categoryId > 0
+        $link   = $appId > 0
             ? 'index.php?option=com_gridbox&view=page&blog=' . $appId . '&category=' . $categoryId . '&id=' . $id
             : 'index.php?option=com_gridbox&view=page&id=' . $id;
-        if ($itemId === 0 && $appId > 0 && $categoryId > 0) {
+        if ($itemId === 0 && $appId > 0) {
             $itemId = $this->categoryItemid($appId, $categoryId);
         }
 
@@ -306,6 +417,11 @@ final class Store
 
     /** Menu item of the category, else of its nearest parent, else of the whole app. */
     private function categoryItemid(int $appId, int $categoryId): int
+    {
+        return $this->catItemids[$appId . ':' . $categoryId] ??= $this->findCategoryItemid($appId, $categoryId);
+    }
+
+    private function findCategoryItemid(int $appId, int $categoryId): int
     {
         $cats  = $this->categories();
         $id    = $categoryId;
@@ -402,6 +518,28 @@ final class Store
         return $out;
     }
 
+    /** @return int[] the category and its parents (the category first) */
+    public function categoryPathIds(int $id): array
+    {
+        $cats  = $this->categories();
+        $path  = [];
+        $guard = 0;
+        while ($id > 0 && isset($cats[$id]) && $guard++ < 50) {
+            $path[] = $id;
+            $id     = $cats[$id]->parent;
+        }
+
+        return $path;
+    }
+
+    /** Link of a Gridbox system page (search results) with the Itemid Gridbox would pick. */
+    public function systemLink(int $id): string
+    {
+        $itemId = $this->menuItem(fn ($q) => ($q['view'] ?? '') === 'system' && (int) ($q['id'] ?? 0) === $id);
+
+        return 'index.php?option=com_gridbox&view=system&id=' . $id . '&Itemid=' . ($itemId ?: $this->defaultItemid());
+    }
+
     /** Names of the category and its parents, top first. */
     public function categoryPath(int $id): array
     {
@@ -461,17 +599,31 @@ final class Store
         if ($image === '' || !is_numeric($image)) {
             return $image;
         }
+        $this->loadUploads([$image]);
+
+        return $this->uploads[(int) $image] ?? '';
+    }
+
+    /** Paths of uploaded field images by number, loaded once for the ids not seen yet. */
+    private function loadUploads(array $ids): void
+    {
+        $ids = array_values(array_filter(array_unique(array_map('intval', $ids)), fn ($id) => $id > 0 && !array_key_exists($id, $this->uploads)));
+        if (!$ids) {
+            return;
+        }
+        foreach ($ids as $id) {
+            $this->uploads[$id] = '';
+        }
         try {
             $query = $this->db->createQuery()
-                ->select(['app_id', 'filename'])
+                ->select(['id', 'app_id', 'filename'])
                 ->from($this->db->quoteName('#__gridbox_fields_desktop_files'))
-                ->where('id = ' . (int) $image);
-            $file = $this->db->setQuery($query)->loadObject();
+                ->where('id IN (' . implode(',', $ids) . ')');
+            foreach ($this->db->setQuery($query)->loadObjectList() ?: [] as $file) {
+                $this->uploads[(int) $file->id] = 'components/com_gridbox/assets/uploads/app-' . (int) $file->app_id . '/' . $file->filename;
+            }
         } catch (\Throwable $e) {
-            return '';
         }
-
-        return $file ? 'components/com_gridbox/assets/uploads/app-' . (int) $file->app_id . '/' . $file->filename : '';
     }
 
     /** Address of an image for the page (site-relative paths become root-relative, segments encoded). */
@@ -482,7 +634,12 @@ final class Store
             return $image;
         }
         $image = preg_replace('/#.*$/', '', $image) ?? $image;
-        $path  = implode('/', array_map(fn ($s) => rawurlencode(rawurldecode($s)), explode('/', ltrim($image, '/'))));
+        $parts = array_map(fn ($s) => rawurldecode($s), explode('/', ltrim($image, '/')));
+        // a path that climbs out of its folder is not an image address
+        if (in_array('..', $parts, true) || preg_match('/[\x00-\x1F]/', $image)) {
+            return '';
+        }
+        $path = implode('/', array_map('rawurlencode', $parts));
 
         return ($absolute || $this->preview ? rtrim(Uri::root(), '/') : Uri::root(true)) . '/' . $path;
     }

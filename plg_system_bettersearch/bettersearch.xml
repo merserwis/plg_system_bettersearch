@@ -6,7 +6,7 @@
     <creationDate>2026-10-01</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -138,7 +138,7 @@
                 <field name="w_body" type="number" default="1" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_BODY_LABEL" />
                 <field name="w_digits" type="number" default="1.5" min="1" max="5" step="0.1" label="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_DESC" />
                 <field name="popularity_boost" type="number" default="1" min="0" max="20" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_POPULARITY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_POPULARITY_DESC" />
-                <field name="max_candidates" type="number" default="3000" min="100" max="20000" label="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_LABEL" />
+                <field name="max_candidates" type="number" default="3000" min="100" max="5000" label="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_LABEL" />
             </fieldset>
 
             <!-- ============================================================ Ranking and exclusions -->
@@ -510,6 +510,7 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="thumb_quality" type="number" default="80" min="40" max="95" showon="thumbnails:1" label="PLG_SYSTEM_BETTERSEARCH_THUMB_QUALITY_LABEL" />
+                <field name="thumb_budget" type="number" default="0.5" min="0" max="5" step="0.1" showon="thumbnails:1" label="PLG_SYSTEM_BETTERSEARCH_THUMB_BUDGET_LABEL" description="PLG_SYSTEM_BETTERSEARCH_THUMB_BUDGET_DESC" />
             </fieldset>
 
             <!-- ============================================================ Index and tools -->

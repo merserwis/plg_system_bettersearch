@@ -8,6 +8,10 @@
  * 1500 px photo). Made once with GD and kept in media/plg_system_bettersearch/thumbs; the name
  * changes when the original changes. A request spends at most a time budget making them — the
  * original is used meanwhile and the next request continues.
+ *
+ * Existing copies are found with file stats only (no image decoding): the name carries the
+ * original's modification time and size, and a ".none" marker remembers that the original is not
+ * larger than a copy would be.
  */
 
 namespace Merserwis\Plugin\System\BetterSearch\Render;
@@ -21,6 +25,8 @@ final class Thumbs
 {
     public const DIR = 'media/plg_system_bettersearch/thumbs';
 
+    private const TYPES = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF];
+
     private float $budget;
 
     private float $spent = 0.0;
@@ -28,6 +34,9 @@ final class Thumbs
     private int $quality;
 
     private bool $absolute;
+
+    /** @var array<string, array{0: string, 1: string}> results of this request */
+    private array $memo = [];
 
     public function __construct(float $budget = 1.0, int $quality = 80, bool $absolute = false)
     {
@@ -47,43 +56,87 @@ final class Thumbs
         if ($width <= 0 || trim($image) === '' || !function_exists('imagewebp')) {
             return ['', ''];
         }
+
+        return $this->memo[$image . '|' . $width] ??= $this->resolve($image, $width);
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function resolve(string $image, int $width): array
+    {
         $file = $this->localImage($image);
-        $info = $file !== null ? @getimagesize($file) : false;
-        if (!$info || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF], true) || $info[0] < 2 || $info[1] < 2) {
+        if ($file === null) {
+            return ['', ''];
+        }
+        $mtime = @filemtime($file);
+        $size  = @filesize($file);
+        if (!$mtime || !$size) {
             return ['', ''];
         }
 
         $base = ($this->absolute ? rtrim(Uri::root(), '/') : Uri::root(true)) . '/' . self::DIR . '/';
-        $hash = substr(md5($file . '|' . filemtime($file) . '|' . filesize($file) . '|' . $this->quality), 0, 16);
-        $set  = [];
+        $dir  = JPATH_ROOT . '/' . self::DIR;
+        // the path relative to the site: moving the site keeps the thumbnails
+        $root = (string) realpath(JPATH_ROOT);
+        $rel  = $root !== '' && str_starts_with($file, $root) ? substr($file, strlen($root)) : $file;
+        $hash = substr(md5($rel . '|' . $mtime . '|' . $size . '|' . $this->quality), 0, 16);
+
+        $set     = [];
+        $missing = [];
         foreach ([$width, $width * 2] as $w) {
-            if ($w >= $info[0]) {
-                break;
-            }
             $name = $hash . '-' . $w . '.webp';
-            if (!is_file(JPATH_ROOT . '/' . self::DIR . '/' . $name) && !$this->make($file, $info, $name, $w)) {
+            if (is_file($dir . '/' . $name)) {
+                $set[$w] = $base . $name . ' ' . $w . 'w';
+                continue;
+            }
+            if (is_file($dir . '/' . $hash . '-' . $w . '.none')) {
+                // the original is not larger than this copy would be: it serves these screens itself
                 break;
             }
-            $set[] = $base . $name . ' ' . $w . 'w';
+            $missing[] = $w;
         }
-        if (!$set) {
+
+        if ($missing) {
+            // only now the image itself is looked at
+            $info = @getimagesize($file);
+            if (!$info || !in_array($info[2], self::TYPES, true) || $info[0] < 2 || $info[1] < 2) {
+                return ['', ''];
+            }
+            $wanted = [];
+            foreach ($missing as $w) {
+                if ($w >= $info[0]) {
+                    if (is_dir($dir) || @mkdir($dir, 0755, true) || is_dir($dir)) {
+                        @touch($dir . '/' . $hash . '-' . $w . '.none');
+                    }
+                    break;
+                }
+                $wanted[] = $w;
+            }
+            foreach ($this->make($file, $info, $hash, $wanted) as $w) {
+                $set[$w] = $base . $hash . '-' . $w . '.webp ' . $w . 'w';
+            }
+        }
+
+        // never offer a 2x without the 1x (the 1x is the src); a missing copy means "not made yet"
+        if (!isset($set[$width])) {
             return ['', ''];
         }
+        ksort($set);
 
-        return [strtok($set[0], ' '), implode(', ', $set)];
+        return [strtok($set[$width], ' '), implode(', ', $set)];
     }
 
-    /** Deletes every thumbnail; returns the number of files removed. */
+    /** Deletes every thumbnail and marker; returns the number of files removed. */
     public static function clear(): int
     {
         $n = 0;
-        foreach (glob(JPATH_ROOT . '/' . self::DIR . '/*.webp') ?: [] as $file) {
+        foreach (glob(JPATH_ROOT . '/' . self::DIR . '/*.{webp,none}', GLOB_BRACE) ?: [] as $file) {
             $n += @unlink($file) ? 1 : 0;
         }
 
         return $n;
     }
 
+    /** Absolute path of an image inside the site, or null (external URL, missing file, outside the site). */
     private function localImage(string $image): ?string
     {
         $url = HTMLHelper::cleanImageURL(trim($image))->url;
@@ -102,17 +155,32 @@ final class Thumbs
             && preg_match('/\.(jpe?g|png|webp|gif)$/i', $file) ? $file : null;
     }
 
-    private function make(string $file, array $info, string $name, int $width): bool
+    /**
+     * Makes the copies of the given widths (largest first, the smaller ones resampled from it, so
+     * the original is decoded once). Returns the widths made; stops when the time budget is spent
+     * or something fails.
+     *
+     * @param int[] $widths
+     *
+     * @return int[]
+     */
+    private function make(string $file, array $info, string $hash, array $widths): array
     {
-        if ($this->spent >= $this->budget) {
-            return false;
+        if (!$widths || $this->spent >= $this->budget) {
+            return [];
         }
+        // decoded image + copies must fit in the memory left to PHP
         $limit = $this->memoryLimit();
         if ($limit > 0 && memory_get_usage() + $info[0] * $info[1] * 5 + 16 * 1048576 > $limit) {
-            return false;
+            return [];
+        }
+        $dir = JPATH_ROOT . '/' . self::DIR;
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return [];
         }
 
-        $t0 = hrtime(true);
+        $t0   = hrtime(true);
+        $made = [];
         try {
             $src = match ($info[2]) {
                 IMAGETYPE_JPEG => @imagecreatefromjpeg($file),
@@ -122,36 +190,43 @@ final class Thumbs
                 default        => false,
             };
             if (!$src) {
-                return false;
+                return [];
             }
+            // photos taken sideways: browsers honour the EXIF orientation, GD does not
             if ($info[2] === IMAGETYPE_JPEG) {
                 $angle = [3 => 180, 6 => -90, 8 => 90][$this->jpegOrientation($file)] ?? 0;
                 if ($angle !== 0 && ($rotated = imagerotate($src, $angle, 0))) {
                     $src = $rotated;
                 }
             }
-            $w      = imagesx($src);
-            $h      = imagesy($src);
-            $height = max(1, (int) round($h * $width / $w));
-            $dst    = imagecreatetruecolor($width, $height);
-            imagealphablending($dst, false);
-            imagesavealpha($dst, true);
-            imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 255, 255, 255, 127));
-            imagecopyresampled($dst, $src, 0, 0, 0, 0, $width, $height, $w, $h);
 
-            $dir = JPATH_ROOT . '/' . self::DIR;
-            if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
-                return false;
-            }
-            $tmp = $dir . '/' . $name . '.' . bin2hex(random_bytes(4)) . '.tmp';
-            $ok  = @imagewebp($dst, $tmp, $this->quality) && @rename($tmp, $dir . '/' . $name);
-            if (!$ok) {
-                @unlink($tmp);
+            rsort($widths);
+            $from = $src;
+            foreach ($widths as $width) {
+                $w      = imagesx($from);
+                $h      = imagesy($from);
+                $height = max(1, (int) round($h * $width / $w));
+                $dst    = imagecreatetruecolor($width, $height);
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 255, 255, 255, 127));
+                imagecopyresampled($dst, $from, 0, 0, 0, 0, $width, $height, $w, $h);
+
+                // written under a temporary name first: a visitor never gets a half-written file
+                $name = $hash . '-' . $width . '.webp';
+                $tmp  = $dir . '/' . $name . '.' . bin2hex(random_bytes(4)) . '.tmp';
+                $ok   = @imagewebp($dst, $tmp, $this->quality) && @rename($tmp, $dir . '/' . $name);
+                if (!$ok) {
+                    @unlink($tmp);
+                    break;
+                }
+                $made[] = $width;
+                $from   = $dst;
             }
 
-            return $ok;
+            return $made;
         } catch (\Throwable $e) {
-            return false;
+            return $made;
         } finally {
             $this->spent += (hrtime(true) - $t0) / 1e9;
         }

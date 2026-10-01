@@ -24,7 +24,8 @@
 
   function liveDocument(r, device) {
     const l = r.layout || {};
-    const script = '<script>(function(){var p=document.getElementById("bs-live"),w=' + JSON.stringify(l) + ';'
+    // JSON inside an inline script: "<" must not be able to close the script element
+    const script = '<script>(function(){var p=document.getElementById("bs-live"),w=' + JSON.stringify(l).replace(/</g, '\\u003c') + ';'
       + 'function place(){if(w.full)return;var f=document.querySelector(".demo-search").getBoundingClientRect(),vw=document.documentElement.clientWidth,'
       + 'width=w.widthMode==="fixed"?w.width:(w.widthMode==="wide"?Math.max(f.width,w.width):f.width);width=Math.min(width,vw-16);'
       + 'var left=w.align==="right"?f.right-width:(w.align==="center"?f.left+f.width/2-width/2:f.left);left=Math.max(8,Math.min(left,vw-width-8));'

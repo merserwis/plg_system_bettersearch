@@ -16,12 +16,13 @@ namespace Merserwis\Plugin\System\BetterSearch\Engine;
 \defined('_JEXEC') or die;
 
 use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
 use Joomla\Registry\Registry;
 
 final class Indexer
 {
     /** Bump when the index format changes: every item is indexed again. */
-    public const FORMAT = 3;
+    public const FORMAT = 4;
 
     private DatabaseInterface $db;
 
@@ -35,6 +36,18 @@ final class Indexer
     /** @var array<int, object>|null Gridbox fields chosen for the index, by id */
     private ?array $fields = null;
 
+    /** @var int[]|null */
+    private ?array $appIdsMemo = null;
+
+    /** Seconds between two deep checks (the page layouts, by checksum). */
+    private const DEEP_INTERVAL = 86400;
+
+    /** Seconds the visibility stamp is reused before the pages are looked at again. */
+    private const STAMP_INTERVAL = 60;
+
+    /** Bytes of one REPLACE statement (hosts with a small max_allowed_packet). */
+    private const STATEMENT_BYTES = 900000;
+
     public function __construct(DatabaseInterface $db, Registry $params, Normalizer $norm)
     {
         $this->db     = $db;
@@ -47,9 +60,12 @@ final class Indexer
     /** @return int[] ids of the Gridbox apps whose pages are indexed */
     public function appIds(): array
     {
+        if ($this->appIdsMemo !== null) {
+            return $this->appIdsMemo;
+        }
         $ids = array_values(array_filter(array_map('intval', (array) $this->params->get('apps', []))));
         if ($ids) {
-            return $ids;
+            return $this->appIdsMemo = $ids;
         }
 
         // default: every store app
@@ -58,7 +74,7 @@ final class Indexer
             ->from($this->db->quoteName('#__gridbox_app'))
             ->where($this->db->quoteName('type') . ' = ' . $this->db->quote('products'));
 
-        return array_map('intval', $this->db->setQuery($query)->loadColumn() ?: []);
+        return $this->appIdsMemo = array_map('intval', $this->db->setQuery($query)->loadColumn() ?: []);
     }
 
     /** @return int[] */
@@ -117,6 +133,60 @@ final class Indexer
             . $this->db->quoteName('v') . ') VALUES (' . $this->db->quote($key) . ', ' . $this->db->quote($value) . ')')->execute();
     }
 
+    /** @return array<string, string> the given state keys (missing ones are left out) */
+    public function states(array $keys): array
+    {
+        $query = $this->db->createQuery()
+            ->select($this->db->quoteName(['k', 'v']))
+            ->from($this->db->quoteName('#__bettersearch_state'))
+            ->whereIn($this->db->quoteName('k'), $keys, ParameterType::STRING);
+        $out = [];
+        foreach ($this->db->setQuery($query)->loadRowList() ?: [] as [$k, $v]) {
+            $out[(string) $k] = (string) $v;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Takes the timestamp $key for this process when at least $interval seconds passed since it was
+     * last taken — one atomic UPDATE, so of two parallel requests exactly one gets true.
+     */
+    public function claim(string $key, int $interval): bool
+    {
+        $db  = $this->db;
+        $now = time();
+        $db->setQuery('INSERT IGNORE INTO ' . $db->quoteName('#__bettersearch_state') . ' (' . $db->quoteName('k') . ', ' . $db->quoteName('v')
+            . ') VALUES (' . $db->quote($key) . ', ' . $db->quote('0') . ')')->execute();
+        $db->setQuery('UPDATE ' . $db->quoteName('#__bettersearch_state') . ' SET ' . $db->quoteName('v') . ' = ' . $db->quote((string) $now)
+            . ' WHERE ' . $db->quoteName('k') . ' = ' . $db->quote($key) . ' AND CAST(' . $db->quoteName('v') . ' AS SIGNED) <= ' . ($now - $interval))->execute();
+
+        return $db->getAffectedRows() === 1;
+    }
+
+    /**
+     * The index version and a stamp of the pages' visibility (published, access, language, dates),
+     * refreshed at most every minute: a product unpublished a moment ago changes every cache key.
+     *
+     * @return array{version: string, vis: string}
+     */
+    public function versionAndStamp(): array
+    {
+        $state = $this->states(['version', 'vis', 'vis_at']);
+        $vis   = $state['vis'] ?? '';
+        if ($vis === '' || time() - (int) ($state['vis_at'] ?? 0) > self::STAMP_INTERVAL) {
+            $apps = $this->appIds();
+            $db   = $this->db;
+            $row  = $apps ? $db->setQuery('SELECT COUNT(*), IFNULL(SUM(CRC32(CONCAT_WS(' . $db->quote('|') . ', id, published, page_access, language, created, end_publishing))), 0)'
+                . ' FROM ' . $db->quoteName('#__gridbox_pages') . ' WHERE app_id IN (' . implode(',', $apps) . ')')->loadRow() : [0, 0];
+            $vis  = substr(md5(implode('|', (array) $row)), 0, 12);
+            $this->setState('vis', $vis);
+            $this->setState('vis_at', (string) time());
+        }
+
+        return ['version' => $state['version'] ?? '0', 'vis' => $vis];
+    }
+
     // ---------------------------------------------------------------- synchronisation
 
     /**
@@ -156,6 +226,16 @@ final class Indexer
             }
         }
 
+        // once a day (and on a forced update) the page layouts are compared by checksum, too: the
+        // quick signature relies on Gridbox's save time, which an edit may leave unchanged
+        $deep = $force || time() - (int) $this->state('deep_at', '0') > self::DEEP_INTERVAL;
+        if ($deep && $this->params->get('index_content', 1)) {
+            foreach ($this->layoutChanges(array_diff(array_keys($current), $changed)) as $id) {
+                $changed[] = $id;
+            }
+            $this->setState('deep_at', (string) time());
+        }
+
         $todo = $budget > 0 ? array_slice($changed, 0, $budget) : $changed;
         foreach (array_chunk($todo, 100) as $chunk) {
             $this->indexItems($chunk, $current);
@@ -187,7 +267,9 @@ final class Indexer
     }
 
     /**
-     * Current signature of every page of the indexed apps (trashed pages are left out).
+     * Current signature of every page of the indexed apps (trashed pages are left out). The page
+     * layout (a large blob) is not read here: Gridbox stamps saved_time when the layout is saved;
+     * layoutChanges() compares the layouts by checksum once a day.
      *
      * @return array<int, int>
      */
@@ -198,9 +280,11 @@ final class Indexer
             return [];
         }
 
-        $db  = $this->db;
-        $sql = 'SELECT p.id, CRC32(CONCAT_WS(' . $db->quote('|') . ', p.title, p.saved_time, p.page_category, p.app_id, p.intro_image,'
-            . ' CHAR_LENGTH(IFNULL(p.params, ' . $db->quote('') . ')), CRC32(IFNULL(p.intro_text, ' . $db->quote('') . ')),'
+        $db     = $this->db;
+        $fields = array_keys($this->fields());
+        $inApps = ' WHERE page_id IN (SELECT id FROM ' . $db->quoteName('#__gridbox_pages') . ' WHERE app_id IN (' . implode(',', $apps) . '))';
+        $sql    = 'SELECT p.id, CRC32(CONCAT_WS(' . $db->quote('|') . ', p.title, p.saved_time, p.page_category, p.app_id, p.intro_image,'
+            . ' CRC32(IFNULL(p.intro_text, ' . $db->quote('') . ')),'
             . ' CRC32(IFNULL(p.meta_description, ' . $db->quote('') . ')), CRC32(IFNULL(p.meta_keywords, ' . $db->quote('') . ')),'
             . ' IFNULL(d.sku, ' . $db->quote('') . '), IFNULL(d.price, ' . $db->quote('') . '), IFNULL(d.stock, ' . $db->quote('') . '),'
             . ' CRC32(IFNULL(d.variations, ' . $db->quote('') . ')), IFNULL(m.cats, ' . $db->quote('') . '), IFNULL(f.fsig, 0),'
@@ -208,17 +292,43 @@ final class Indexer
             . ' FROM ' . $db->quoteName('#__gridbox_pages', 'p')
             . ' LEFT JOIN ' . $db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id'
             . ' LEFT JOIN (SELECT page_id, GROUP_CONCAT(category_id ORDER BY category_id) AS cats FROM '
-            . $db->quoteName('#__gridbox_category_page_map') . ' GROUP BY page_id) AS m ON m.page_id = p.id'
+            . $db->quoteName('#__gridbox_category_page_map') . $inApps . ' GROUP BY page_id) AS m ON m.page_id = p.id'
             . ' LEFT JOIN (SELECT page_id, SUM(CRC32(CONCAT(field_id, ' . $db->quote(':') . ', IFNULL(value, ' . $db->quote('') . ')))) AS fsig FROM '
-            . $db->quoteName('#__gridbox_page_fields') . ' GROUP BY page_id) AS f ON f.page_id = p.id'
+            . $db->quoteName('#__gridbox_page_fields') . $inApps . ($fields ? ' AND field_id IN (' . implode(',', $fields) . ')' : ' AND 1 = 0') . ' GROUP BY page_id) AS f ON f.page_id = p.id'
             . ' LEFT JOIN (SELECT page_id, GROUP_CONCAT(tag_id ORDER BY tag_id) AS tags FROM '
-            . $db->quoteName('#__gridbox_tags_map') . ' GROUP BY page_id) AS t ON t.page_id = p.id'
+            . $db->quoteName('#__gridbox_tags_map') . $inApps . ' GROUP BY page_id) AS t ON t.page_id = p.id'
             . ' WHERE p.app_id IN (' . implode(',', $apps) . ')'
             . ' AND p.page_category <> ' . $db->quote('trashed');
 
         $out = [];
-        foreach ($db->setQuery($sql)->loadRowList() ?: [] as [$id, $sig]) {
-            $out[(int) $id] = (int) $sig;
+        foreach ($db->setQuery($sql)->getIterator() as $row) {
+            $out[(int) $row->id] = (int) $row->sig;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pages whose layout checksum differs from the one stored at indexing time.
+     *
+     * @param int[] $ids
+     *
+     * @return int[]
+     */
+    private function layoutChanges(array $ids): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) {
+            return [];
+        }
+        $db  = $this->db;
+        $out = [];
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            $sql = 'SELECT p.id FROM ' . $db->quoteName('#__gridbox_pages', 'p') . ' INNER JOIN ' . $db->quoteName('#__bettersearch_items', 'i')
+                . ' ON i.id = p.id WHERE p.id IN (' . implode(',', $chunk) . ') AND i.pcrc <> CRC32(IFNULL(p.params, ' . $db->quote('') . '))';
+            foreach ($db->setQuery($sql)->loadColumn() ?: [] as $id) {
+                $out[] = (int) $id;
+            }
         }
 
         return $out;
@@ -244,7 +354,7 @@ final class Indexer
             ->from($db->quoteName('#__gridbox_pages', 'p'))
             ->where('p.id IN (' . $list . ')');
         if ($content) {
-            $query->select('p.params');
+            $query->select(['p.params', 'CRC32(IFNULL(p.params, ' . $db->quote('') . ')) AS pcrc']);
         }
         $pages = $db->setQuery($query)->loadObjectList('id') ?: [];
 
@@ -358,7 +468,10 @@ final class Indexer
                     $price = (float) $p;
                 }
             }
-            // empty stock = not tracked = available; any variant in stock makes the product available
+            // empty stock = not tracked = available; with variations their stocks decide (Gridbox sells the chosen variation)
+            if (count($stocks) > 1) {
+                array_shift($stocks);
+            }
             $stock = (bool) array_filter($stocks, fn ($s) => trim($s) === '' || (float) $s > 0);
         }
         $skus = array_values(array_unique($skus));
@@ -410,6 +523,7 @@ final class Indexer
             'excerpt'     => mb_substr($excerpt, 0, 600),
             'price'       => $price,
             'in_stock'    => $stock ? 1 : 0,
+            'pcrc'        => (int) ($page->pcrc ?? 0),
             'sig'         => $sig,
             'indexed_at'  => $now,
         ];
@@ -427,9 +541,21 @@ final class Indexer
         foreach ($rows as $row) {
             $values[] = '(' . implode(',', array_map(fn ($v) => $v === null ? 'NULL' : (is_int($v) || is_float($v) ? (string) $v : $db->quote((string) $v)), $row)) . ')';
         }
-        foreach (array_chunk($values, 50) as $chunk) {
-            $db->setQuery('REPLACE INTO ' . $db->quoteName('#__bettersearch_items') . ' (' . implode(',', array_map([$db, 'quoteName'], $columns)) . ') VALUES '
-                . implode(',', $chunk))->execute();
+        // statements of a bounded size: a host may allow only a few MB per packet
+        $head  = 'REPLACE INTO ' . $db->quoteName('#__bettersearch_items') . ' (' . implode(',', array_map([$db, 'quoteName'], $columns)) . ') VALUES ';
+        $chunk = [];
+        $bytes = 0;
+        foreach ($values as $value) {
+            if ($chunk && $bytes + strlen($value) > self::STATEMENT_BYTES) {
+                $db->setQuery($head . implode(',', $chunk))->execute();
+                $chunk = [];
+                $bytes = 0;
+            }
+            $chunk[] = $value;
+            $bytes  += strlen($value);
+        }
+        if ($chunk) {
+            $db->setQuery($head . implode(',', $chunk))->execute();
         }
     }
 
@@ -497,8 +623,13 @@ final class Indexer
         $options = [];
         $decoded = json_decode((string) $field->options);
         foreach ((is_object($decoded) ? ($decoded->items ?? []) : []) as $item) {
-            if (is_object($item) && isset($item->key)) {
-                $options[(string) $item->key] = (string) ($item->title ?? '');
+            if (is_object($item)) {
+                // select/radio options carry a key, category options an id
+                foreach (['key', 'id'] as $k) {
+                    if (isset($item->{$k})) {
+                        $options[(string) $item->{$k}] = (string) ($item->title ?? '');
+                    }
+                }
             }
         }
 

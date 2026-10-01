@@ -17,11 +17,11 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_items` (
   `excerpt` text NOT NULL,
   `price` decimal(15,4) NULL DEFAULT NULL,
   `in_stock` tinyint(1) NOT NULL DEFAULT 1,
+  `pcrc` int unsigned NOT NULL DEFAULT 0,
   `sig` bigint(20) NOT NULL DEFAULT 0,
   `indexed_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_app` (`app_id`),
-  FULLTEXT KEY `ft_body` (`t_body`)
+  KEY `idx_app` (`app_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `#__bettersearch_state` (
@@ -36,5 +36,6 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_log` (
   `results` int(11) NOT NULL DEFAULT 0,
   `last_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`query`),
-  KEY `idx_searches` (`searches`)
+  KEY `idx_searches` (`searches`),
+  KEY `idx_last` (`last_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;

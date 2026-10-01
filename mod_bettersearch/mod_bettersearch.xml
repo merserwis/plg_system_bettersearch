@@ -6,7 +6,7 @@
     <creationDate>2026-10-01</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <description>MOD_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Module\BetterSearch</namespace>
     <files>

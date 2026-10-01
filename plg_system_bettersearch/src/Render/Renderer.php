@@ -33,6 +33,9 @@ final class Renderer
 
     private ?Normalizer $norm = null;
 
+    /** @var array<string, string> folded form of single characters (mark()) */
+    private array $charMap = [];
+
     /** @var string[] compact query groups for highlighting */
     private array $highlight = [];
 
@@ -78,6 +81,15 @@ final class Renderer
         return preg_match('/^(#[0-9a-f]{3,8}|rgba?\([0-9.,\s%]+\)|hsla?\([0-9.,\s%a-z]+\)|transparent|var\(--[a-z0-9-]+\))$/i', $value) ? $value : $default;
     }
 
+    /**
+     * Fills %s / %d in an administrator text. Not sprintf(): a stray "%" in a text typed in the
+     * settings would throw and take the whole search down.
+     */
+    private function fmt(string $text, array $values): string
+    {
+        return strtr($text, array_map('strval', $values));
+    }
+
     /** A text setting, else the language string. */
     private function text(string $key, string $languageKey): string
     {
@@ -103,7 +115,7 @@ final class Renderer
         $html  = '';
 
         if ($result['mode'] === 'typo' && $result['corrected'] !== '') {
-            $html .= '<div class="bs-note">' . sprintf($esc($this->text('text_corrected', 'PLG_SYSTEM_BETTERSEARCH_T_CORRECTED')), '<b>' . $esc($result['corrected']) . '</b>') . '</div>';
+            $html .= '<div class="bs-note">' . $this->fmt($esc($this->text('text_corrected', 'PLG_SYSTEM_BETTERSEARCH_T_CORRECTED')), ['%s' => '<b>' . $esc($result['corrected']) . '</b>']) . '</div>';
         } elseif ($result['mode'] === 'partial') {
             $html .= '<div class="bs-note">' . $esc($this->text('text_partial', 'PLG_SYSTEM_BETTERSEARCH_T_PARTIAL')) . '</div>';
         }
@@ -155,12 +167,12 @@ final class Renderer
         }
 
         if (!$items && !$categories) {
-            $html .= '<div class="bs-empty">' . sprintf($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), '<b>' . $esc($q) . '</b>') . '</div>';
+            $html .= '<div class="bs-empty">' . $this->fmt($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), ['%s' => '<b>' . $esc($q) . '</b>']) . '</div>';
         }
 
         $out = '<div class="bs-live-body">' . $html . '</div>';
         if ($items && $this->bool('live_show_all', true)) {
-            $label = sprintf($this->text('text_show_all', 'PLG_SYSTEM_BETTERSEARCH_T_SHOW_ALL'), (int) $result['total']);
+            $label = $this->fmt($this->text('text_show_all', 'PLG_SYSTEM_BETTERSEARCH_T_SHOW_ALL'), ['%d' => (int) $result['total']]);
             $out  .= '<a class="bs-all bs-opt" role="option" id="bs-opt-' . $opt . '" href="' . $esc($allUrl) . '">' . $esc($label) . '</a>';
         }
 
@@ -360,7 +372,7 @@ CSS;
 
         $heading = $this->str('page_heading', 'gridbox', ['gridbox', 'custom', 'none']);
         if ($heading === 'custom' && $q !== '') {
-            $html .= '<h2 class="bsr-heading">' . sprintf($esc($this->text('text_heading', 'PLG_SYSTEM_BETTERSEARCH_T_HEADING')), $esc($q), $total) . '</h2>';
+            $html .= '<h2 class="bsr-heading">' . $this->fmt($esc($this->text('text_heading', 'PLG_SYSTEM_BETTERSEARCH_T_HEADING')), ['%s' => $esc($q), '%d' => $total]) . '</h2>';
         }
 
         if ($q === '') {
@@ -368,7 +380,7 @@ CSS;
         }
 
         if ($result['mode'] === 'typo' && $result['corrected'] !== '') {
-            $html .= '<p class="bsr-note">' . sprintf($esc($this->text('text_corrected', 'PLG_SYSTEM_BETTERSEARCH_T_CORRECTED')), '<b>' . $esc($result['corrected']) . '</b>') . '</p>';
+            $html .= '<p class="bsr-note">' . $this->fmt($esc($this->text('text_corrected', 'PLG_SYSTEM_BETTERSEARCH_T_CORRECTED')), ['%s' => '<b>' . $esc($result['corrected']) . '</b>']) . '</p>';
         } elseif ($result['mode'] === 'partial') {
             $html .= '<p class="bsr-note">' . $esc($this->text('text_partial', 'PLG_SYSTEM_BETTERSEARCH_T_PARTIAL')) . '</p>';
         }
@@ -384,7 +396,7 @@ CSS;
         // toolbar: count + sorting
         $html .= '<div class="bsr-toolbar">';
         if ($this->bool('page_count', true)) {
-            $html .= '<div class="bsr-count">' . sprintf($esc($this->text('text_count', 'PLG_SYSTEM_BETTERSEARCH_T_COUNT')), $total) . '</div>';
+            $html .= '<div class="bsr-count">' . $this->fmt($esc($this->text('text_count', 'PLG_SYSTEM_BETTERSEARCH_T_COUNT')), ['%d' => $total]) . '</div>';
         }
         $sorts = $this->sortOptions();
         if ($this->bool('page_sort', true) && count($sorts) > 1 && $total > 1) {
@@ -401,7 +413,7 @@ CSS;
         $html .= '</div>';
 
         if (!$total) {
-            $html .= '<div class="bsr-empty">' . sprintf($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), '<b>' . $esc($q) . '</b>') . '</div>';
+            $html .= '<div class="bsr-empty">' . $this->fmt($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), ['%s' => '<b>' . $esc($q) . '</b>']) . '</div>';
 
             return $html . '</div>';
         }
@@ -734,7 +746,8 @@ CSS);
         $norm  = '';
         $map   = [];
         foreach ($chars as $i => $ch) {
-            $folded = $fold->compact($ch);
+            // the alphabet of a title is small: fold each distinct character once per request
+            $folded = $this->charMap[$ch] ??= $fold->compact($ch);
             for ($k = 0; $k < strlen($folded); $k++) {
                 $norm  .= $folded[$k];
                 $map[]  = $i;

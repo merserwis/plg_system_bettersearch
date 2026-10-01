@@ -17,12 +17,19 @@
         });
     }
 
+    // tasks that change something are sent as POST; the others as GET
+    var WRITES = { sync: 1, clearlog: 1, clearthumbs: 1, clearcache: 1 };
+
     function call(task, params, form) {
         var url = opts.ajax + '&task=admin_' + task;
         Object.keys(params || {}).forEach(function (k) {
             url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
         });
         var init = { credentials: 'same-origin', headers: { 'Accept': 'application/json' } };
+        if (WRITES[task]) {
+            init.method = 'POST';
+            init.body = new FormData();
+        }
         if (form) {
             init.method = 'POST';
             // only the plugin settings: the form's own option/task fields would redirect the request

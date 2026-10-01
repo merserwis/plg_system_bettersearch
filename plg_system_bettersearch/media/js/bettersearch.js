@@ -22,11 +22,21 @@
     var panel = null, body = null, head = null, headInput = null, backdrop = null;
     var current = null;          // the input the panel belongs to
     var timer = 0, controller = null, lastQuery = null, active = -1, full = false;
-    var cache = {};
+    var cache = Object.create(null);
+
+    // an invalid selector typed in the settings must not break every event on the page
+    try {
+        document.querySelector(cfg.selector);
+    } catch (e) {
+        cfg.selector = '.ba-item-store-search input, .ba-item-search input, input.bettersearch-input';
+    }
 
     function matches(el) {
         return el && el.nodeType === 1 && el.tagName === 'INPUT' && el.matches(cfg.selector);
     }
+
+    // where the finger went down: a scroll that ends over the field is not a tap on it
+    var touchStart = null;
 
     function wrapperOf(input) {
         return input.closest('.ba-search-wrapper') || input.closest('.bettersearch-form') || input;
@@ -384,8 +394,17 @@
             }
         }, true);
 
+        window.addEventListener('touchstart', function (e) {
+            var t = e.changedTouches && e.changedTouches[0];
+            touchStart = t ? [t.clientX, t.clientY] : null;
+        }, { capture: true, passive: true });
+
         window.addEventListener('touchend', function (e) {
             if (!matches(e.target) || !isMobile()) {
+                return;
+            }
+            var t = e.changedTouches && e.changedTouches[0];
+            if (touchStart && t && (Math.abs(t.clientX - touchStart[0]) > 12 || Math.abs(t.clientY - touchStart[1]) > 12)) {
                 return;
             }
             // the tap must not focus the original field: the full-screen field takes the keyboard
@@ -511,9 +530,16 @@
                 if (!data || typeof data.html !== 'string') {
                     return;
                 }
+                // the result set may have shrunk meanwhile: the server says which page it sent
+                var got = parseInt(data.page, 10) || page;
+                if (got < page || !data.html) {
+                    btn.parentNode.parentNode.removeChild(btn.parentNode);
+                    return;
+                }
                 grid.insertAdjacentHTML('beforeend', data.html);
-                btn.dataset.page = String(page + 1);
-                if (page + 1 > pages) {
+                pages = parseInt(data.pages, 10) || pages;
+                btn.dataset.page = String(got + 1);
+                if (got + 1 > pages) {
                     btn.parentNode.parentNode.removeChild(btn.parentNode);
                 }
                 var nav = root.querySelector('.bsr-pages');
