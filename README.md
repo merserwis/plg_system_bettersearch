@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.1.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.2.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -61,7 +61,7 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ## 🚀 Installation & Package Structure
 
-1. Download `pkg_bettersearch-1.1.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
+1. Download `pkg_bettersearch-1.2.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
 2. In the Joomla administrator go to **System → Install → Extensions** and upload the package.
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
@@ -292,6 +292,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Empty query | *(empty)* | Default: “Type what you are looking for.”. |
 | Small images (WebP) | Yes | Results load reduced WebP copies of product images instead of the originals (made once, kept in media/plg_system_bettersearch/thumbs). |
 | WebP quality | `80` |  |
+| Time for new small images per page view (s) | `0.5` | New images are converted while a page is built; after this time the originals are used and the next page view continues. Live results get at most 0.25 s. |
 
 ### Module (mod_bettersearch)
 
@@ -312,7 +313,7 @@ The live results of the module field use the settings of the plugin.
 
 ## 🧪 Verification & Testing
 
-Versions 1.0.0 and 1.1.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
+Versions 1.0.0 to 1.2.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
 
 1. **Model codes** — `MI 3155`, `MI3155`, `MI-3155`, `mi.3155` and `metrel mi 3155` return the same product first; `MPI 530` = `MPI530`; `ht 7051` = `HT7051`; `eurotest xd` = *EurotestXD*; `miernik izolacji 5 kv` = `5kv`.
 2. **Fallbacks** — `eurotset` → *eurotest*, `miernk izolacji` → *miernik izolacji*; partial matches limited to products with at least half of the words; a fixed list of 41 queries kept as a regression baseline.
@@ -322,7 +323,8 @@ Versions 1.0.0 and 1.1.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 
 6. **Administrator** — all tabs, product pickers with search and drag-and-drop order inside repeatable rows, saving through the form, index tools, test console and statistics.
 7. **Package** — fresh install (tables and full-text index created, plugin enabled), update over 1.0.0 keeping settings and index, uninstall without leftovers, reinstall.
 8. **Code health** — no PHP warnings, notices or deprecated Joomla API calls from the extension with full error reporting.
-9. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
+9. **1.2.0** — penetration tests on the live results, the results page, the module and the administrator tools: XSS payloads (also through POST), SQL and full-text operator injection, LIKE wildcards, CSRF without a token, administrator tasks as a guest, path traversal in image paths, CSS injection through colour settings, long and many-word queries; store sales (global, category, parent category, order of sales); an unpublished product disappearing from cached results within a minute; chips against their result pages; load more; the Gridbox items filter on a Gridbox page; parallel requests running one index check; expired cache files removed; update 1.1.0 → 1.2.0 with settings and index kept.
+10. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
 
 Quick check on your site: open the search results page and look for `<div class="bettersearch-results"` in the page source.
 
@@ -357,6 +359,7 @@ The plugin always uses its settings as saved in the database, even when the site
 | PHP | 8.2 – 8.5 |
 | Balbooa Gridbox | Store (*Products*) app; tested with 2.20.3.1 |
 | Database | MySQL / MariaDB (full-text index used when available) |
+| PHP intl | optional: names sort in the order of the site language |
 
 With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) results pages are cached like other pages: clear the cache after larger catalogue changes.
 
@@ -364,6 +367,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+* **1.2.0** — Security, correctness and performance release after a code review with penetration tests: current visibility of cached results, bounded resource use, Gridbox items filter no longer broken, searches with `<`, ordered candidates before the limit, store sales priced as Gridbox does, far fewer database queries, cheaper thumbnails and index upkeep, cache clean-up.
 * **1.1.0** — Live preview in the settings. Appearing effects of the live results panel and of the results inside it. Phones: the keyboard opens with the first tap on the search field. Search statistics as tabs.
 * **1.0.0** — First release.
 

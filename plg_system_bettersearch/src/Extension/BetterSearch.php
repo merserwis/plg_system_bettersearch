@@ -20,10 +20,12 @@ namespace Merserwis\Plugin\System\BetterSearch\Extension;
 
 \defined('_JEXEC') or die;
 
+use Joomla\CMS\Access\Access;
 use Joomla\CMS\Cache\CacheControllerFactoryInterface;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
@@ -40,9 +42,15 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.1.0';
+    public const VERSION = '1.2.0';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
+
+    /** Seconds between two looks at the index state from one server (a file stamp, no query). */
+    private const CHECK_GATE = 30;
+
+    /** Rows kept in the search statistics. */
+    private const LOG_ROWS = 20000;
 
     /** Default words left out of queries (Polish and English connectors). */
     private const STOPWORDS = 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
@@ -61,6 +69,21 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     private ?Normalizer $normalizer = null;
 
+    /** Settings as saved in #__extensions (read once per request). */
+    private ?Registry $saved = null;
+
+    private bool $savedRead = false;
+
+    private ?Searcher $searcherInstance = null;
+
+    /** @var int[]|null */
+    private ?array $appIdsMemo = null;
+
+    /** @var array<string, string>|null version and visibility stamp of the index (read once per request) */
+    private ?array $indexState = null;
+
+    private ?string $resultsUrlMemo = null;
+
     public static function getSubscribedEvents(): array
     {
         return [
@@ -68,7 +91,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'onAfterRoute'          => ['onAfterRoute', Priority::MIN],
             // after Gridbox, which builds its search elements in its own onAfterRender
             'onAfterRender'         => ['onAfterRender', Priority::MIN],
-            'onAfterRespond'        => 'onAfterRespond',
+            'onAfterRespond'        => ['onAfterRespond', Priority::MIN],
             'onAjaxBettersearch'    => 'onAjax',
             'onExtensionAfterSave'  => 'onExtensionAfterSave',
             'onBetterSearchModule'  => 'onModule',
@@ -83,22 +106,58 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if (!$app->isClient('site')) {
             return;
         }
-        // settings as saved (some sites hand phones an older copy of plugin parameters)
-        $this->params = $this->savedParams() ?? $this->params;
-        $this->syncDue = true;
-
         $input = $app->getInput();
-        if (!$this->params->get('replace_results', 1) || $input->getCmd('option') !== 'com_gridbox'
-            || !in_array($input->getCmd('view'), ['system', 'page'], true) || $input->getCmd('format', 'html') !== 'html') {
+        // the index check runs after ordinary pages only, never after live-search or other ajax requests
+        $this->syncDue = $input->getCmd('format', 'html') === 'html' && $input->getCmd('option') !== 'com_ajax';
+
+        if ($input->getCmd('option') !== 'com_gridbox' || !in_array($input->getCmd('view'), ['system', 'page'], true)
+            || $input->getCmd('format', 'html') !== 'html') {
             return;
         }
         $query = trim((string) $input->get('query', '', 'raw'));
-        if ($query === '') {
+        // Gridbox's items filter travels in the same parameter ("brand__metrel--sonel"): not a search
+        if ($query === '' || str_contains($query, '__')) {
+            return;
+        }
+        // settings as saved (some sites hand phones an older copy of plugin parameters)
+        $this->params = $this->savedParams() ?? $this->params;
+        if (!$this->params->get('replace_results', 1) || !$this->isSearchPage($input->getCmd('view'), $input->getInt('id'))) {
             return;
         }
         $this->query = mb_substr($query, 0, 200);
         // Gridbox searches when it sees the query: give it none, the results come from this plugin
         $input->set('query', '');
+    }
+
+    /**
+     * Only a Gridbox search results page gets its query taken over: the search system pages, or a
+     * Gridbox page that holds a search results element. Any other page keeps its query parameter
+     * (Gridbox uses it for the items filter too).
+     */
+    private function isSearchPage(string $view, int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+        try {
+            $db = $this->db();
+            if ($view === 'system') {
+                $type = (string) $db->setQuery($db->createQuery()
+                    ->select($db->quoteName('type'))
+                    ->from($db->quoteName('#__gridbox_system_pages'))
+                    ->where($db->quoteName('id') . ' = ' . $id))->loadResult();
+
+                return in_array($type, ['search', 'store-search'], true);
+            }
+            $params = (string) $db->setQuery($db->createQuery()
+                ->select($db->quoteName('params'))
+                ->from($db->quoteName('#__gridbox_pages'))
+                ->where($db->quoteName('id') . ' = ' . $id))->loadResult();
+
+            return str_contains($params, 'search-result');
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     public function onAfterRender(): void
@@ -121,9 +180,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             try {
                 $html = $this->resultsPage($this->query);
             } catch (\Throwable $e) {
-                $html = '<!-- Better Search: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . ' -->';
+                // the reason goes to the log, not to the visitor
+                $this->logError($e);
+                $html = '<!-- Better Search: unavailable' . (JDEBUG ? ' — ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') : '') . ' -->';
             }
-            $html .= sprintf('<!-- Better Search %s | %s | %.1f ms -->', self::VERSION, $this->device(), (hrtime(true) - $t0) / 1e6);
+            $html .= sprintf('<!-- Better Search | %s | %.1f ms -->', $this->device(), (hrtime(true) - $t0) / 1e6);
             $new   = $this->placeResults($body, $html, $this->query);
             if ($new !== null) {
                 $body    = $new;
@@ -133,6 +194,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $wanted = $this->query !== null || (bool) $this->params->get('load_everywhere', 0)
             || preg_match('/ba-item-(store-)?search\b|bettersearch-box/', $body);
+        if ($wanted) {
+            $this->params = $this->savedParams() ?? $this->params;
+        }
         if ($wanted && $this->params->get('live_enabled', 1) && ($pos = stripos($body, '</head>')) !== false) {
             $body    = substr($body, 0, $pos) . $this->assets() . substr($body, $pos);
             $changed = true;
@@ -266,21 +330,27 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $items = array_values(array_filter($items, fn ($i) => $i['app_id'] === $appId));
         }
 
-        // categories of the results (the product's own category, or its top category)
-        $chips = [];
+        // categories of the results (the product's own category, or its top category); the filter
+        // below uses the same category per item, so a chip's count is what a click on it shows
+        $chips  = [];
+        $level  = (string) $this->params->get('page_cat_level', 'direct');
+        $cats   = $store->categories();
+        $chipOf = function (array $item) use ($level, $cats): int {
+            $id = (int) $item['category_id'];
+            if ($level === 'top') {
+                $guard = 0;
+                while (($cats[$id]->parent ?? 0) > 0 && $guard++ < 50) {
+                    $id = $cats[$id]->parent;
+                }
+            }
+
+            return $id > 0 && isset($cats[$id]) ? $id : 0;
+        };
         if ($this->params->get('page_cat_filter', 1) && count($items) > 1) {
-            $level  = (string) $this->params->get('page_cat_level', 'direct');
-            $cats   = $store->categories();
             $counts = [];
             foreach ($items as $item) {
-                $id = $item['category_id'];
-                if ($level === 'top') {
-                    $guard = 0;
-                    while (($cats[$id]->parent ?? 0) > 0 && $guard++ < 50) {
-                        $id = $cats[$id]->parent;
-                    }
-                }
-                if ($id > 0 && isset($cats[$id])) {
+                $id = $chipOf($item);
+                if ($id > 0) {
                     $counts[$id] = ($counts[$id] ?? 0) + 1;
                 }
             }
@@ -299,7 +369,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             }
         }
         if ($cat > 0) {
-            $items = array_values(array_filter($items, fn ($i) => in_array($cat, $i['cats'], true)));
+            $items = array_values(array_filter($items, fn ($i) => $chipOf($i) === $cat));
         }
 
         $filtered          = $result;
@@ -342,8 +412,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private function search(string $query, string $sort, array $apps = []): array
     {
         $minutes = max(0, min(1440, (int) $this->params->get('cache_time', 15)));
-        $key     = md5(implode('|', [self::VERSION, $this->configHash(), $this->indexVersion(), $query, $sort, implode(',', $apps),
-            implode(',', $this->levels()), $this->getApplication()->getLanguage()->getTag()]));
+        $key     = md5(json_encode([self::VERSION, $this->configHash(), $this->indexVersion(), $this->visibilityStamp(), $query, $sort, $apps,
+            $this->levels(), $this->getApplication()->getLanguage()->getTag()]));
 
         $cache = $minutes > 0 ? $this->cache($minutes) : null;
         if ($cache) {
@@ -353,30 +423,38 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             }
         }
 
-        $searcher = $this->searcher();
-        $result   = $searcher->search($query, $sort, $apps);
+        $result = $this->searcher()->search($query, $sort, $apps);
         if ($cache) {
-            $cache->store($result, $key);
+            // only what the pages read later: ids, apps, categories, order (not titles, prices, reasons)
+            $lean          = $result;
+            $lean['items'] = array_map(fn ($i) => ['id' => $i['id'], 'app_id' => $i['app_id'], 'category_id' => $i['category_id'],
+                'cats' => $i['cats'], 'score' => $i['score'], 'pinned' => $i['pinned']], $result['items']);
+            $cache->store($lean, $key);
         }
 
         return $result;
     }
 
+    /** One searcher per request; the vocabulary for typo correction is read only when a correction is tried. */
     private function searcher(): Searcher
     {
-        $searcher = new Searcher($this->db(), $this->params, $this->normalizer(), $this->levels(), $this->getApplication()->getLanguage()->getTag());
-
-        // the vocabulary for typo correction is read once per index version
-        $cache = $this->cache(1440);
-        $key   = 'vocab-' . $this->indexVersion();
-        $vocab = $cache->get($key);
-        if (is_array($vocab)) {
-            $searcher->setVocabulary($vocab);
-        } elseif ($this->params->get('typo_tolerance', 1)) {
-            $cache->store($searcher->exportVocabulary(), $key);
+        if ($this->searcherInstance !== null) {
+            return $this->searcherInstance;
         }
+        $searcher = new Searcher($this->db(), $this->params, $this->normalizer(), $this->levels(), $this->getApplication()->getLanguage()->getTag());
+        $searcher->setVocabularyLoader(function () use ($searcher) {
+            $cache = $this->cache(1440);
+            $key   = 'vocab-' . $this->indexVersion();
+            $vocab = $cache->get($key);
+            if (!is_array($vocab)) {
+                $vocab = $searcher->buildVocabulary();
+                $cache->store($vocab, $key);
+            }
 
-        return $searcher;
+            return $vocab;
+        });
+
+        return $this->searcherInstance = $searcher;
     }
 
     // ================================================================ live results (com_ajax)
@@ -399,7 +477,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $data = ['error' => 'unknown task'];
             }
         } catch (\Throwable $e) {
-            $data = ['error' => $e->getMessage()];
+            $this->logError($e);
+            $data = ['error' => JDEBUG ? $e->getMessage() : Text::_('PLG_SYSTEM_BETTERSEARCH_T_UNAVAILABLE')];
         }
 
         if (method_exists($event, 'addResult')) {
@@ -421,8 +500,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $minutes  = max(0, min(1440, (int) $this->params->get('cache_time', 15)));
         $currency = $this->getApplication()->getInput()->cookie->getString('gridbox-currency', '');
-        $key      = md5(implode('|', ['live', self::VERSION, $this->configHash(), $this->indexVersion(), $query, implode(',', $this->levels()),
-            $this->getApplication()->getLanguage()->getTag(), $this->device(), $currency]));
+        $key      = md5(json_encode(['live', self::VERSION, $this->configHash(), $this->indexVersion(), $this->visibilityStamp(), $query, $this->levels(),
+            $this->getApplication()->getLanguage()->getTag(), $currency]));
         $cache = $minutes > 0 ? $this->cache($minutes) : null;
         if ($cache && is_array($hit = $cache->get($key))) {
             return $hit;
@@ -430,18 +509,16 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $t0     = hrtime(true);
         $result = $this->search($query, 'relevance');
-        $limit  = max(1, min(50, (int) $this->params->get('live_limit', 8)));
-
-        $live = $this->liveSlice($result);
+        $live   = $this->liveSlice($result);
 
         $categories = [];
         if ($this->params->get('live_categories', 1)) {
-            $apps       = $this->indexer()->appIds();
-            $categories = $this->searcher()->matchCategories($query, $this->store()->visibleCategories($apps),
+            $categories = $this->searcher()->matchCategories($query, $this->store()->visibleCategories($this->appIds()),
                 max(0, (int) $this->params->get('live_categories_limit', 4)));
         }
 
-        $renderer = $this->renderer();
+        // a keystroke must not wait for thumbnails: a short budget, the originals meanwhile
+        $renderer = $this->renderer(0.25);
         $renderer->setHighlight($result['groups']);
         $data = [
             'html'  => $renderer->live($live, $categories, '#'),
@@ -471,7 +548,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($this->params->get('live_group_apps', 1)) {
             $other = max(0, (int) $this->params->get('live_limit_other', 3));
             $first = true;
-            foreach ($this->indexer()->appIds() as $appId) {
+            foreach ($this->appIds() as $appId) {
                 if (isset($byApp[$appId])) {
                     $items = array_merge($items, array_slice($byApp[$appId], 0, $first ? $limit : $other));
                     $first = false;
@@ -542,6 +619,24 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($url !== '') {
             return $url;
         }
+        if ($this->resultsUrlMemo !== null) {
+            return $this->resultsUrlMemo;
+        }
+        // the Gridbox store search page and its route change rarely: looked up once an hour
+        $cache = $this->cache(60);
+        $key   = 'results-url-' . $this->getApplication()->getLanguage()->getTag();
+        $hit   = $cache->get($key);
+        if (is_string($hit) && $hit !== '') {
+            return $this->resultsUrlMemo = $hit;
+        }
+        $url = $this->findResultsUrl();
+        $cache->store($url, $key);
+
+        return $this->resultsUrlMemo = $url;
+    }
+
+    private function findResultsUrl(): string
+    {
         try {
             $db    = $this->db();
             $query = $db->createQuery()
@@ -550,7 +645,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 ->where($db->quoteName('type') . ' = ' . $db->quote('store-search'));
             $id = (int) $db->setQuery($query)->loadResult();
             if ($id) {
-                return \Joomla\CMS\Router\Route::_('index.php?option=com_gridbox&view=system&id=' . $id, false);
+                return \Joomla\CMS\Router\Route::_($this->store()->systemLink($id), false);
             }
         } catch (\Throwable $e) {
         }
@@ -599,27 +694,53 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     /** After the page went out: bring the index up to date (at most every few minutes). */
     public function onAfterRespond(): void
     {
+        if ($this->storeHelper !== null) {
+            $this->storeHelper->saveLinks();
+        }
         if (!$this->syncDue || !$this->params->get('auto_sync', 1)) {
             return;
         }
         $interval = max(1, (int) $this->params->get('sync_interval', 10)) * 60;
+        // a cheap gate before any database work: at most one check per CHECK_GATE seconds per process
+        $stamp = JPATH_CACHE . '/plg_system_bettersearch.stamp';
+        $mtime = @filemtime($stamp);
+        if ($mtime && time() - $mtime < self::CHECK_GATE) {
+            return;
+        }
+        @touch($stamp);
         try {
             $indexer = $this->indexer();
-            $last    = (int) $indexer->state('checked_at', '0');
-            if (time() - $last < $interval) {
+            // the claim is one atomic UPDATE: of two parallel requests only one gets to run the check
+            if (!$indexer->claim('checked_at', $interval)) {
                 return;
             }
-            // claim the check first: parallel requests do not all run it
-            $indexer->setState('checked_at', (string) time());
+            // the visitor has the page already: everything below runs after the response
             if (function_exists('fastcgi_finish_request') && !(defined('JDEBUG') && JDEBUG)) {
                 @fastcgi_finish_request();
+            } elseif (function_exists('litespeed_finish_request')) {
+                @litespeed_finish_request();
             }
+            // the session must not stay locked for the visitor's next request while the index is built
+            try {
+                $this->getApplication()->getSession()->close();
+            } catch (\Throwable $e) {
+            }
+            $before = $indexer->state('version', '0');
             $result = $indexer->sync(max(10, (int) $this->params->get('sync_budget', 300)));
             if ($result['remaining'] > 0) {
                 // more to index (first build, many changes): the next batch after half a minute
                 $indexer->setState('checked_at', (string) (time() - $interval + 30));
             }
+            $cache = $this->cache(1);
+            if ($indexer->state('version', '0') !== $before) {
+                // every cached result embeds the index version: all of them are dead now
+                $cache->clean(self::CACHE_GROUP);
+            } else {
+                // Joomla never removes expired cache files on the site by itself
+                $cache->gc();
+            }
         } catch (\Throwable $e) {
+            $this->logError($e);
         }
     }
 
@@ -747,7 +868,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $result = $searcher->search($query, (string) $this->params->get('default_sort', 'relevance'));
         $store  = $this->store();
         $store->setPreview(true);
-        $renderer = new Renderer($this->params, $store, new Thumbs((float) $this->params->get('thumb_budget', 1.0),
+        $renderer = new Renderer($this->params, $store, new Thumbs(max(0.0, min(5.0, (float) $this->params->get('thumb_budget', 0.5))),
             (int) $this->params->get('thumb_quality', 80), true), $device);
         $renderer->setHighlight($result['groups']);
 
@@ -864,8 +985,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($ua === '' || preg_match('/bot|crawl|spider|slurp|facebookexternalhit|preview|monitor|curl|wget|python/i', $ua)) {
             return;
         }
-        $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8'), 0, 190);
-        if ($q === '') {
+        $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8'), 0, 120);
+        // statistics are for what shoppers type: not for noise or very long strings
+        if ($q === '' || preg_match('/[\x00-\x1F]/', $q) || mb_strlen($this->normalizer()->compact($q)) < 2 || substr_count($q, ' ') > 9) {
             return;
         }
         try {
@@ -873,6 +995,13 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_log') . ' (query, searches, results, last_at) VALUES ('
                 . $db->quote($q) . ', 1, ' . $results . ', ' . $db->quote(gmdate('Y-m-d H:i:s')) . ') ON DUPLICATE KEY UPDATE searches = searches + 1, results = '
                 . $results . ', last_at = VALUES(last_at)')->execute();
+            // now and then: keep the table bounded (the rarely searched, oldest rows go)
+            if (random_int(1, 50) === 1) {
+                $over = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_log'))->loadResult() - self::LOG_ROWS;
+                if ($over > 0) {
+                    $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_log') . ' ORDER BY searches ASC, last_at ASC LIMIT ' . $over)->execute();
+                }
+            }
         } catch (\Throwable $e) {
         }
     }
@@ -930,23 +1059,16 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return $out;
     }
 
+    /** View levels of a guest of the site (what Joomla itself gives user 0). */
     private function guestLevels(): array
     {
-        $guest = (int) ComponentHelper::getParams('com_users')->get('guest_usergroup', 9);
         try {
-            $db     = $this->db();
-            $levels = [];
-            foreach ($db->setQuery('SELECT id, rules FROM ' . $db->quoteName('#__viewlevels'))->loadObjectList() ?: [] as $row) {
-                $groups = json_decode((string) $row->rules, true) ?: [];
-                if (in_array($guest, array_map('intval', $groups), true) || (int) $row->id === 1) {
-                    $levels[] = (int) $row->id;
-                }
-            }
-
-            return $levels ?: [1];
+            $levels = array_map('intval', Access::getAuthorisedViewLevels(0));
         } catch (\Throwable $e) {
-            return [1];
+            $levels = [];
         }
+
+        return $levels ?: [1];
     }
 
     // ================================================================ helpers
@@ -971,16 +1093,66 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return new Indexer($this->db(), $this->params, $this->normalizer());
     }
 
+    /** @return int[] ids of the indexed Gridbox apps (read once per request) */
+    private function appIds(): array
+    {
+        return $this->appIdsMemo ??= $this->indexer()->appIds();
+    }
+
+    /** Version of the index and the visibility stamp of its pages, read together once per request. */
+    private function indexState(): array
+    {
+        if ($this->indexState === null) {
+            try {
+                $this->indexState = $this->indexer()->versionAndStamp();
+            } catch (\Throwable $e) {
+                $this->indexState = ['version' => '0', 'vis' => '0'];
+            }
+        }
+
+        return $this->indexState;
+    }
+
+    /** Changes whenever a page of the indexed apps is published, unpublished, restricted or expires (checked every minute). */
+    private function visibilityStamp(): string
+    {
+        return $this->indexState()['vis'];
+    }
+
+    private function logError(\Throwable $e): void
+    {
+        try {
+            Log::add(get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine(), Log::ERROR, 'plg_system_bettersearch');
+        } catch (\Throwable $ignored) {
+        }
+    }
+
     private ?Store $storeHelper = null;
 
     private function store(): Store
     {
-        return $this->storeHelper ??= new Store($this->db(), $this->getApplication(), $this->levels());
+        if ($this->storeHelper === null) {
+            $this->storeHelper = new Store($this->db(), $this->getApplication(), $this->levels());
+            $minutes = max(0, min(1440, (int) $this->params->get('cache_time', 15)));
+            if ($minutes > 0 && $this->getApplication()->isClient('site')) {
+                // routed links of the products shown so far, per language and access levels
+                $this->storeHelper->setLinkCache($this->cache($minutes), 'links-' . md5(json_encode([
+                    $this->getApplication()->getLanguage()->getTag(), $this->levels(), $this->indexVersion(),
+                ])));
+            }
+        }
+
+        return $this->storeHelper;
     }
 
-    private function renderer(): Renderer
+    /** @param float|null $maxBudget a lower time budget for thumbnails than the setting (live results) */
+    private function renderer(?float $maxBudget = null): Renderer
     {
-        $thumbs = new Thumbs((float) $this->params->get('thumb_budget', 1.0), (int) $this->params->get('thumb_quality', 80));
+        $budget = max(0.0, min(5.0, (float) $this->params->get('thumb_budget', 0.5)));
+        if ($maxBudget !== null) {
+            $budget = min($budget, $maxBudget);
+        }
+        $thumbs = new Thumbs($budget, (int) $this->params->get('thumb_quality', 80));
 
         return new Renderer($this->params, $this->store(), $thumbs, $this->device());
     }
@@ -1014,19 +1186,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return substr(md5(json_encode($this->params->toArray())), 0, 12);
     }
 
-    private ?string $version = null;
-
     private function indexVersion(): string
     {
-        if ($this->version === null) {
-            try {
-                $this->version = (string) $this->indexer()->state('version', '0');
-            } catch (\Throwable $e) {
-                $this->version = '0';
-            }
-        }
-
-        return $this->version;
+        return $this->indexState()['version'];
     }
 
     private function cache(int $minutes)
@@ -1036,6 +1198,16 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     }
 
     private function savedParams(): ?Registry
+    {
+        if ($this->savedRead) {
+            return $this->saved;
+        }
+        $this->savedRead = true;
+
+        return $this->saved = $this->readSavedParams();
+    }
+
+    private function readSavedParams(): ?Registry
     {
         try {
             $db    = $this->db();

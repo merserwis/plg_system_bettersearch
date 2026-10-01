@@ -26,7 +26,7 @@ final class Admin
         }
         self::$done = true;
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
-        $v  = fn (string $file) => '1.1.0-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
+        $v  = fn (string $file) => '1.2.0-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
         $wa->registerAndUseStyle('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/css/admin.css', ['version' => $v('media/plg_system_bettersearch/css/admin.css')]);
         $wa->registerAndUseScript('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/js/admin.js', ['version' => $v('media/plg_system_bettersearch/js/admin.js')], ['defer' => true]);
         $wa->registerAndUseScript('plg_system_bettersearch.preview', 'media/plg_system_bettersearch/js/preview.js', ['version' => $v('media/plg_system_bettersearch/js/preview.js')], ['defer' => true]);

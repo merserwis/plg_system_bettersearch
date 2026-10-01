@@ -44,15 +44,39 @@ final class Normalizer
         $this->stopwords = array_fill_keys(array_filter(array_map(fn ($w) => $this->fold($w), $stopwords)), true);
     }
 
+    /**
+     * Removes HTML tags and comments. strip_tags() is not used: it cuts the text at any "<" that
+     * looks like a tag start, so "<1 kV" or "Przewód <50 V" would lose everything after it.
+     */
+    public static function stripTags(string $text): string
+    {
+        if (!str_contains($text, '<')) {
+            return $text;
+        }
+
+        return preg_replace('#<(?:/?[a-zA-Z][a-zA-Z0-9:-]*(?:\s[^<>]*)?/?|!--.*?--|!DOCTYPE[^>]*|\?[^>]*\?)>#su', ' ', $text) ?? $text;
+    }
+
+    public function isStopword(string $term): bool
+    {
+        return isset($this->stopwords[$term]);
+    }
+
     /** Lower case, without diacritics, every other character turned into a space. */
     public function fold(string $text): string
     {
-        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($text === '') {
+            return '';
+        }
+        $text = html_entity_decode(self::stripTags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = strtr(mb_strtolower($text, 'UTF-8'), self::FOLD);
         // remaining Latin letters with marks (from any language) through the intl/iconv route when present
         if (preg_match('/[^\x00-\x7F]/', $text)) {
             if (class_exists(\Normalizer::class)) {
-                $text = preg_replace('/\p{Mn}+/u', '', (string) \Normalizer::normalize($text, \Normalizer::FORM_D)) ?? $text;
+                $decomposed = \Normalizer::normalize($text, \Normalizer::FORM_D);
+                if (is_string($decomposed) && $decomposed !== '') {
+                    $text = preg_replace('/\p{Mn}+/u', '', $decomposed) ?: $text;
+                }
             }
         }
 
