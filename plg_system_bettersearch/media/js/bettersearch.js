@@ -324,7 +324,10 @@
             setActive(active - 1 < 0 ? opts.length - 1 : active - 1);
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (openNow && active >= 0 && opts[active]) {
+            if (openNow && active >= 0 && opts[active] && opts[active].hasAttribute('data-bs-q')) {
+                suggest(opts[active].getAttribute('data-bs-q'));
+            } else if (openNow && active >= 0 && opts[active]) {
+                clicked(opts[active], lastQuery);
                 window.location.href = opts[active].href;
             } else {
                 submit(current || field, field.value);
@@ -503,6 +506,85 @@
         }
         schedule(headInput.value);
     }
+
+    // ------------------------------------------------------------------ suggestions and clicks
+
+    /** A suggested phrase: it goes into the field and is searched. */
+    function suggest(q) {
+        var field = full ? headInput : current;
+        if (!field || !q) {
+            return;
+        }
+        field.value = q;
+        if (full && current) {
+            current.value = q;
+        }
+        field.focus();
+        fetchResults(q);
+    }
+
+    /**
+     * A result opened from a search: counted for the query (the conversion statistics), and
+     * remembered in a first-party cookie (product id => query, nothing personal) so that putting
+     * it into the cart later is counted for the same query.
+     */
+    function clicked(link, q) {
+        var id = link && (link.getAttribute('data-bs-id') || (link.closest && link.closest('[data-bs-id]') && link.closest('[data-bs-id]').getAttribute('data-bs-id')));
+        q = String(q || '').trim();
+        if (!cfg.track || !id || !q) {
+            return;
+        }
+        try {
+            var body = new FormData();
+            body.append('q', q);
+            body.append('id', id);
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(cfg.ajax + '&task=track', body);
+            } else {
+                fetch(cfg.ajax + '&task=track', { method: 'POST', body: body, credentials: 'same-origin', keepalive: true });
+            }
+            var map = {};
+            var m = document.cookie.match(/(?:^|;\s*)bs_src=([^;]*)/);
+            if (m) {
+                try {
+                    map = JSON.parse(decodeURIComponent(m[1])) || {};
+                } catch (e) {
+                    map = {};
+                }
+            }
+            delete map[id];
+            map[id] = q.slice(0, 120);
+            var keys = Object.keys(map);
+            while (keys.length > 20) {
+                delete map[keys.shift()];
+            }
+            document.cookie = 'bs_src=' + encodeURIComponent(JSON.stringify(map)) + ';path=/;max-age=' + (30 * 86400) + ';SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : '');
+        } catch (e) {
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t.closest) {
+            return;
+        }
+        var sugg = t.closest('[data-bs-q]');
+        if (sugg && panel && panel.contains(sugg)) {
+            e.preventDefault();
+            suggest(sugg.getAttribute('data-bs-q'));
+            return;
+        }
+        var item = t.closest('a.bs-item[data-bs-id]');
+        if (item && panel && panel.contains(item)) {
+            clicked(item, lastQuery);
+            return;
+        }
+        var card = t.closest('.bettersearch-results .bsr-card a');
+        if (card) {
+            var root = card.closest('.bettersearch-results');
+            clicked(card, root ? root.getAttribute('data-query') : '');
+        }
+    }, true);
 
     // ------------------------------------------------------------------ results page: load more
 

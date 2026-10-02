@@ -209,11 +209,104 @@ final class Store
     // ---------------------------------------------------------------- prices
 
     /**
-     * Regular and current price, formatted (null when the product has no price).
+     * What the filters of the results page need for each item: the current price (in the default
+     * currency, after sales), whether it is on sale, in stock, and the value of the brand field.
      *
-     * @return array{regular: string, price: string, sale: bool, from: bool}|null
+     * @param int[] $ids
+     *
+     * @return array<int, array{price: ?float, sale: bool, stock: bool, brand: string}>
      */
-    private function prices(object $row, array $categories): ?array
+    public function facets(array $ids, int $brandField = 0): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) {
+            return [];
+        }
+        $db   = $this->db;
+        $out  = [];
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            $list  = implode(',', $chunk);
+            $query = $db->createQuery()
+                ->select(['p.id', 'p.app_id', 'p.page_category', 'i.in_stock', 'd.price', 'd.sale_price', 'd.variations', 'd.product_type'])
+                ->from($db->quoteName('#__gridbox_pages', 'p'))
+                ->leftJoin($db->quoteName('#__bettersearch_items', 'i') . ' ON i.id = p.id')
+                ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
+                ->where('p.id IN (' . $list . ')');
+            foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
+                $isProduct = $this->appType((int) $row->app_id) === 'products' && $row->product_type !== null;
+                $values    = $isProduct ? $this->priceValues($row, $this->categoryPathIds((int) $row->page_category)) : null;
+                $out[(int) $row->id] = [
+                    'price' => $values ? $values[1] : null,
+                    'sale'  => $values ? $values[1] < $values[0] : false,
+                    'stock' => (int) $row->in_stock === 1,
+                    'brand' => '',
+                ];
+            }
+            if ($brandField > 0) {
+                $options = $this->fieldOptions($brandField);
+                $query   = $db->createQuery()
+                    ->select(['page_id', 'value'])
+                    ->from($db->quoteName('#__gridbox_page_fields'))
+                    ->where('field_id = ' . $brandField)
+                    ->where('page_id IN (' . $list . ')');
+                foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
+                    $value = trim((string) $row->value);
+                    $json  = json_decode($value);
+                    $key   = is_array($json) ? (string) ($json[0] ?? '') : $value;
+                    $label = trim($options[$key] ?? ($options ? '' : $value));
+                    if ($label !== '' && isset($out[(int) $row->page_id])) {
+                        $out[(int) $row->page_id]['brand'] = mb_substr($label, 0, 80);
+                    }
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /** Option titles of a select / radio / checkbox field (key => title); empty for other fields. */
+    public function fieldOptions(int $fieldId): array
+    {
+        $options = [];
+        try {
+            $query   = $this->db->createQuery()->select('options')->from($this->db->quoteName('#__gridbox_fields'))->where('id = ' . $fieldId);
+            $decoded = json_decode((string) $this->db->setQuery($query)->loadResult());
+            foreach ((is_object($decoded) ? ($decoded->items ?? []) : []) as $item) {
+                if (is_object($item) && isset($item->key)) {
+                    $options[(string) $item->key] = (string) ($item->title ?? '');
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $options;
+    }
+
+    /** Exchange rate of the visitor's currency (prices are stored in the default currency). */
+    public function rate(): float
+    {
+        return (float) ($this->currency()->rate ?? 1) ?: 1.0;
+    }
+
+    /** Symbol of the visitor's currency. */
+    public function currencySymbol(): string
+    {
+        return trim((string) ($this->currency()->symbol ?? ''));
+    }
+
+    /** Decimals of the visitor's currency. */
+    public function decimals(): int
+    {
+        return max(0, min(4, (int) ($this->currency()->decimals ?? 2)));
+    }
+
+    /**
+     * Regular and current price of the cheapest option (product or variation), in the default
+     * currency, and whether the options have different prices.
+     *
+     * @return array{0: float, 1: float, 2: bool}|null
+     */
+    private function priceValues(object $row, array $categories): ?array
     {
         $candidates = [['', (string) $row->price, (string) $row->sale_price]];
         $variations = json_decode((string) $row->variations);
@@ -225,8 +318,8 @@ final class Store
             }
         }
 
-        $best    = null;
-        $values  = [];
+        $best   = null;
+        $values = [];
         foreach ($candidates as [$variation, $price, $sale]) {
             if (!is_numeric($price) || (float) $price <= 0) {
                 continue;
@@ -237,15 +330,27 @@ final class Store
                 $best = [(float) $price, $current];
             }
         }
-        if ($best === null) {
+
+        return $best === null ? null : [$best[0], $best[1], count(array_unique(array_map(fn ($v) => round($v, 2), $values))) > 1];
+    }
+
+    /**
+     * Regular and current price, formatted (null when the product has no price).
+     *
+     * @return array{regular: string, price: string, sale: bool, from: bool}|null
+     */
+    private function prices(object $row, array $categories): ?array
+    {
+        $values = $this->priceValues($row, $categories);
+        if ($values === null) {
             return null;
         }
 
         return [
-            'regular' => $this->format($best[0]),
-            'price'   => $this->format($best[1]),
-            'sale'    => $best[1] < $best[0],
-            'from'    => count(array_unique(array_map(fn ($v) => round($v, 2), $values))) > 1,
+            'regular' => $this->format($values[0]),
+            'price'   => $this->format($values[1]),
+            'sale'    => $values[1] < $values[0],
+            'from'    => $values[2],
         ];
     }
 

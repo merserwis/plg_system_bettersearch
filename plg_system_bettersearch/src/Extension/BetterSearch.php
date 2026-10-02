@@ -24,6 +24,7 @@ use Joomla\CMS\Access\Access;
 use Joomla\CMS\Cache\CacheControllerFactoryInterface;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\Plugin\CMSPlugin;
@@ -43,7 +44,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.3.1';
+    public const VERSION = '1.4.0';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -53,10 +54,16 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     /** Rows kept in the search statistics. */
     private const LOG_ROWS = 20000;
 
+    /** Rows kept in the conversion statistics. */
+    private const EVENT_ROWS = 200000;
+
     /** Default words left out of queries (Polish and English connectors). */
     private const STOPWORDS = 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
 
     protected $autoloadLanguage = true;
+
+    /** A Gridbox page was saved / published / trashed in this request: sync the index after the response. */
+    private bool $reindexDue = false;
 
     /** Query of the results page, taken from Gridbox (null = not a results page). */
     private ?string $query = null;
@@ -91,6 +98,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     /** Parameters of the results page address that name the page itself (the rest is filtering or noise). */
     private const CANONICAL_VARS = ['option', 'view', 'id', 'Itemid', 'lang', 'query'];
 
+    /** URL parameters of the results page filters. */
+    private const FACET_VARS = ['bs_brand', 'bs_min', 'bs_max', 'bs_sale', 'bs_stock'];
+
     public static function getSubscribedEvents(): array
     {
         return [
@@ -109,11 +119,28 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     public function onAfterRoute(): void
     {
-        $app = $this->getApplication();
+        $app   = $this->getApplication();
+        $input = $app->getInput();
+
+        // a Gridbox page, product or category saved, published or trashed (editor on the site, lists in
+        // the administrator): the index is brought up to date right after that response
+        if ($input->getCmd('option') === 'com_gridbox' && $input->getMethod() === 'POST') {
+            $user = $app->getIdentity();
+            $task = strtolower($input->getCmd('task', ''));
+            if ($user && !$user->guest && !str_starts_with($task, 'store.') && !str_starts_with($task, 'account.')) {
+                $this->reindexDue = true;
+            }
+        }
+
         if (!$app->isClient('site')) {
             return;
         }
-        $input = $app->getInput();
+
+        // a product put into the cart after a click in the search results: a conversion of that query
+        if ($input->getCmd('option') === 'com_gridbox' && strtolower($input->getCmd('task', '')) === 'store.addproducttocart') {
+            $this->params = $this->savedParams() ?? $this->params;
+            $this->trackCart($input->getInt('id', 0));
+        }
         // the index check runs after ordinary pages only, never after live-search or other ajax requests
         $this->syncDue = $input->getCmd('format', 'html') === 'html' && $input->getCmd('option') !== 'com_ajax';
 
@@ -131,9 +158,195 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if (!$this->params->get('replace_results', 1) || !$this->isSearchPage($input->getCmd('view'), $input->getInt('id'))) {
             return;
         }
+        // a phrase with its own destination (e.g. a brand page): no results page
+        $redirect = $this->redirectFor($query);
+        if ($redirect !== null) {
+            if ($this->params->get('log_searches', 1)) {
+                $this->logSearch($query, -1);
+            }
+            $app->redirect($redirect['url'], 302);
+
+            return;
+        }
         $this->query = mb_substr($query, 0, 200);
         // Gridbox searches when it sees the query: give it none, the results come from this plugin
         $input->set('query', '');
+    }
+
+    // ================================================================ redirects and suggestions
+
+    /**
+     * Destination of a phrase ("Redirects" setting: "phrase, other phrase => /address | Label"),
+     * matched on the whole query, written in any way ("MI-3155" = "mi 3155").
+     *
+     * @return array{url: string, label: string}|null
+     */
+    private function redirectFor(string $query): ?array
+    {
+        $phrase = $this->normalizer()->compact($query);
+        if ($phrase === '') {
+            return null;
+        }
+        foreach (preg_split('/\R/', (string) $this->params->get('redirects', '')) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=>')) {
+                continue;
+            }
+            [$left, $right] = array_map('trim', explode('=>', $line, 2));
+            [$url, $label]  = array_pad(array_map('trim', explode('|', $right, 2)), 2, '');
+            $url            = $this->safeUrl($url);
+            if ($url === '') {
+                continue;
+            }
+            foreach (explode(',', $left) as $word) {
+                if ($this->normalizer()->compact($word) === $phrase) {
+                    return ['url' => $url, 'label' => $label !== '' ? $label : trim($left)];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** An address set by the administrator: a path on this site or an http(s) address (nothing else). */
+    private function safeUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '' || preg_match('/[\x00-\x1F\s"<>]/', $url)) {
+            return '';
+        }
+        if (preg_match('#^https?://[^/]+#i', $url)) {
+            return $url;
+        }
+        if (str_starts_with($url, '/') && !str_starts_with($url, '//')) {
+            return $url;
+        }
+
+        return preg_match('#^[a-z0-9][a-z0-9_\-./]*(\?[^#]*)?$#i', $url) ? Uri::root(true) . '/' . $url : '';
+    }
+
+    /** Searches with results that start like the typed text (most searched first). */
+    private function popularFor(string $query, int $limit): array
+    {
+        $q = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8');
+        if ($limit <= 0 || mb_strlen($q) < 2) {
+            return [];
+        }
+        try {
+            $db   = $this->db();
+            $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q);
+            $rows = $db->setQuery($db->createQuery()
+                ->select('query')
+                ->from($db->quoteName('#__bettersearch_log'))
+                ->where('results > 0')
+                ->where('searches >= ' . max(1, (int) $this->params->get('suggest_min_searches', 2)))
+                ->where('(query LIKE ' . $db->quote($like . '%') . ' OR query LIKE ' . $db->quote('% ' . $like . '%') . ')')
+                ->where('query <> ' . $db->quote($q))
+                ->order('searches DESC, last_at DESC'), 0, $limit)->loadColumn() ?: [];
+
+            return array_values(array_map('strval', $rows));
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /** "Did you mean": searches with results that are written almost like this one. */
+    private function didYouMean(string $query): array
+    {
+        $norm   = $this->normalizer();
+        $target = $norm->compact($query);
+        if (strlen($target) < 3) {
+            return [];
+        }
+        try {
+            $db   = $this->db();
+            $rows = $db->setQuery($db->createQuery()
+                ->select(['query', 'searches'])
+                ->from($db->quoteName('#__bettersearch_log'))
+                ->where('results > 0')
+                ->order('searches DESC'), 0, 2000)->loadRowList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+        $max   = max(1, intdiv(strlen($target), 4));
+        $found = [];
+        foreach ($rows as [$candidate, $searches]) {
+            $c = $norm->compact((string) $candidate);
+            if ($c === '' || $c === $target || abs(strlen($c) - strlen($target)) > $max) {
+                continue;
+            }
+            $d = levenshtein($c, $target);
+            if ($d <= $max) {
+                $found[(string) $candidate] = $d * 100000 - (int) $searches;
+            }
+        }
+        asort($found);
+
+        return array_slice(array_keys($found), 0, 3);
+    }
+
+    // ================================================================ conversions
+
+    /** A click on a result (sent by the page script). */
+    private function trackClick(): array
+    {
+        $input = $this->getApplication()->getInput();
+        $q     = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $input->post->get('q', '', 'raw')) ?? ''), 'UTF-8'), 0, 120);
+        $id    = $input->post->getInt('id', 0);
+        if (!$this->params->get('track_conversions', 1) || $input->getMethod() !== 'POST' || $id <= 0 || $q === '' || $this->isBot()) {
+            return ['ok' => false];
+        }
+        $db     = $this->db();
+        $exists = (int) $db->setQuery($db->createQuery()->select('COUNT(*)')->from($db->quoteName('#__bettersearch_items'))->where('id = ' . $id))->loadResult();
+        if (!$exists) {
+            return ['ok' => false];
+        }
+        $this->recordEvent($q, $id, 1);
+
+        return ['ok' => true];
+    }
+
+    /** The product put into the Gridbox cart came from a search result (cookie of the page script). */
+    private function trackCart(int $id): void
+    {
+        if ($id <= 0 || !$this->params->get('track_conversions', 1) || $this->isBot()) {
+            return;
+        }
+        $raw = (string) $this->getApplication()->getInput()->cookie->getString('bs_src', '');
+        $map = json_decode(rawurldecode($raw), true);
+        if (!is_array($map) || !isset($map[(string) $id]) || !is_string($map[(string) $id])) {
+            return;
+        }
+        $q = mb_substr(mb_strtolower(trim($map[(string) $id]), 'UTF-8'), 0, 120);
+        if ($q !== '') {
+            $this->recordEvent($q, $id, 2);
+        }
+    }
+
+    /** kind: 1 = click, 2 = cart. One row per day, query, product and kind (counted up). */
+    private function recordEvent(string $q, int $id, int $kind): void
+    {
+        try {
+            $db = $this->db();
+            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_events') . ' (day, query, item_id, kind, hits) VALUES ('
+                . $db->quote(gmdate('Y-m-d')) . ', ' . $db->quote($q) . ', ' . $id . ', ' . $kind . ', 1) ON DUPLICATE KEY UPDATE hits = hits + 1')->execute();
+            // now and then: a year of history, at most EVENT_ROWS rows
+            if (random_int(1, 100) === 1) {
+                $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_events') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - 366 * 86400)))->execute();
+                $over = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_events'))->loadResult() - self::EVENT_ROWS;
+                if ($over > 0) {
+                    $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_events') . ' ORDER BY day ASC LIMIT ' . $over)->execute();
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private function isBot(): bool
+    {
+        $ua = (string) $this->getApplication()->getInput()->server->getString('HTTP_USER_AGENT', '');
+
+        return $ua === '' || (bool) preg_match('/bot|crawl|spider|slurp|facebookexternalhit|preview|monitor|curl|wget|python|headless/i', $ua);
     }
 
     /**
@@ -299,8 +512,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $result = $this->search($query, $sort);
         $state  = $this->filterState($result, $query, $sort, $cat, $appId, $page, $perPage);
+        if (!$result['total'] && $this->params->get('did_you_mean', 1)) {
+            $state['result']['suggest'] = $this->didYouMean($query);
+        }
 
-        if ($page === 1 && !$cat && !$appId && $this->params->get('log_searches', 1)) {
+        if ($page === 1 && !$cat && !$appId && !$state['facetVars'] && $this->params->get('log_searches', 1)) {
             $this->logSearch($query, $result['total']);
         }
 
@@ -310,7 +526,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $html = '<style>' . $renderer->pageCss($id) . '</style>' . $renderer->page($state['result'], $state, $id);
         $this->seoInfo = ['total' => (int) $state['result']['total'], 'cards' => $renderer->listed(), 'page' => (int) $state['page'],
-            'perPage' => $perPage, 'filtered' => $cat > 0 || $appId > 0 || $page > 1 || $input->getCmd('bs_sort', '') !== ''];
+            'perPage' => $perPage, 'filtered' => $cat > 0 || $appId > 0 || $page > 1 || $input->getCmd('bs_sort', '') !== '' || $state['facetVars']];
 
         return $html;
     }
@@ -473,11 +689,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the address of the results page with other filters
         $base = Uri::getInstance();
-        $url  = function (array $set) use ($base, $query, $sort, $cat, $appId): string {
+        $f    = $this->facetInput();
+        $url  = function (array $set) use ($base, $query, $sort, $cat, $appId, $f): string {
             $vars = array_merge(['query' => $query, 'bs_sort' => $sort !== $this->params->get('default_sort', 'relevance') ? $sort : null,
-                'bs_cat' => $cat ?: null, 'bs_app' => $appId ?: null], $set);
+                'bs_cat' => $cat ?: null, 'bs_app' => $appId ?: null], $this->facetVars($f), $set);
             foreach ($base->getQuery(true) as $k => $v) {
-                if (!array_key_exists($k, $vars) && $k !== 'bs_page') {
+                if (!array_key_exists($k, $vars) && $k !== 'bs_page' && !in_array($k, self::FACET_VARS, true)) {
                     $vars[$k] = $v;
                 }
             }
@@ -546,6 +763,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $items = array_values(array_filter($items, fn ($i) => $chipOf($i) === $cat));
         }
 
+        [$items, $facets] = $this->applyFacets($items, $f);
+
         $filtered          = $result;
         $filtered['items'] = $items;
         $filtered['total'] = count($items);
@@ -558,8 +777,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($appId) {
             $hidden['bs_app'] = (string) $appId;
         }
+        foreach ($this->facetVars($f) as $k => $v) {
+            $hidden[$k] = (string) $v;
+        }
         foreach ($base->getQuery(true) as $k => $v) {
-            if (!isset($hidden[$k]) && !in_array($k, ['bs_page', 'bs_sort', 'query', 'bs_cat', 'bs_app'], true) && is_scalar($v)) {
+            if (!isset($hidden[$k]) && !in_array($k, array_merge(['bs_page', 'bs_sort', 'query', 'bs_cat', 'bs_app'], self::FACET_VARS), true) && is_scalar($v)) {
                 $hidden[$k] = (string) $v;
             }
         }
@@ -577,7 +799,154 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'url'      => $url,
             'action'   => $base->toString(['path']),
             'hidden'   => $hidden,
+            'facets'   => $facets,
+            'facetVars' => $this->facetVars($f),
+            'queryUrl' => fn (string $q) => $base->getPath() . '?' . http_build_query(array_merge(array_diff_key(array_filter($base->getQuery(true), 'is_scalar'),
+                array_flip(array_merge(['query', 'bs_page', 'bs_sort', 'bs_cat', 'bs_app'], self::FACET_VARS))), ['query' => $q]), '', '&', PHP_QUERY_RFC3986),
         ];
+    }
+
+    /** Filters of the results page chosen by the visitor (validated). */
+    private function facetInput(): array
+    {
+        $input = $this->getApplication()->getInput();
+        $num   = function (string $name): ?float {
+            $raw = str_replace([' ', "\u{00A0}", ','], ['', '', '.'], trim((string) $this->getApplication()->getInput()->get($name, '', 'string')));
+
+            return is_numeric($raw) && (float) $raw >= 0 ? round((float) $raw, 2) : null;
+        };
+
+        return [
+            'brand' => mb_substr(trim((string) $input->get('bs_brand', '', 'string')), 0, 80),
+            'min'   => $num('bs_min'),
+            'max'   => $num('bs_max'),
+            'sale'  => $input->getInt('bs_sale', 0) === 1,
+            'stock' => $input->getInt('bs_stock', 0) === 1,
+        ];
+    }
+
+    /** The chosen filters as URL parameters. */
+    private function facetVars(array $f): array
+    {
+        return array_filter([
+            'bs_brand' => $f['brand'] !== '' ? $f['brand'] : null,
+            'bs_min'   => $f['min'] !== null ? (string) $f['min'] : null,
+            'bs_max'   => $f['max'] !== null ? (string) $f['max'] : null,
+            'bs_sale'  => $f['sale'] ? '1' : null,
+            'bs_stock' => $f['stock'] ? '1' : null,
+        ], fn ($v) => $v !== null);
+    }
+
+    /**
+     * Brand, price, sale and stock filters. The counts of each filter come from the items the other
+     * filters let through (what a click on it would show).
+     *
+     * @return array{0: array, 1: array} filtered items, facet data for the renderer
+     */
+    private function applyFacets(array $items, array $f): array
+    {
+        $p = $this->params;
+        if (!$p->get('page_facets', 1) || !$items) {
+            return [$items, []];
+        }
+        $brandField = (int) $p->get('facet_brand_field', 0);
+        $useBrand   = $brandField > 0;
+        $usePrice   = (bool) $p->get('facet_price', 1);
+        $useSale    = (bool) $p->get('facet_sale', 1);
+        $useStock   = (bool) $p->get('facet_stock', 1);
+        if (!$useBrand && !$usePrice && !$useSale && !$useStock) {
+            return [$items, []];
+        }
+
+        $store = $this->store();
+        $data  = $store->facets(array_slice(array_column($items, 'id'), 0, 5000), $useBrand ? $brandField : 0);
+        $rate  = $store->rate();
+        $pass  = function (array $item, string $skip) use ($data, $f, $rate, $useBrand, $usePrice, $useSale, $useStock): bool {
+            $d = $data[$item['id']] ?? null;
+            if (!$d) {
+                // not a product with data (e.g. blog post): only filters that do not apply let it through
+                return !($useBrand && $f['brand'] !== '' && $skip !== 'brand') && !($usePrice && ($f['min'] !== null || $f['max'] !== null) && $skip !== 'price')
+                    && !($useSale && $f['sale'] && $skip !== 'sale') && !($useStock && $f['stock'] && $skip !== 'stock');
+            }
+            if ($useBrand && $skip !== 'brand' && $f['brand'] !== '' && mb_strtolower($d['brand']) !== mb_strtolower($f['brand'])) {
+                return false;
+            }
+            if ($usePrice && $skip !== 'price' && ($f['min'] !== null || $f['max'] !== null)) {
+                if ($d['price'] === null) {
+                    return false;
+                }
+                $shown = $d['price'] * $rate;
+                if (($f['min'] !== null && $shown < $f['min'] - 0.005) || ($f['max'] !== null && $shown > $f['max'] + 0.005)) {
+                    return false;
+                }
+            }
+            if ($useSale && $skip !== 'sale' && $f['sale'] && !$d['sale']) {
+                return false;
+            }
+
+            return !($useStock && $skip !== 'stock' && $f['stock'] && !$d['stock']);
+        };
+
+        $facets = [];
+        if ($useBrand) {
+            $counts = [];
+            foreach ($items as $item) {
+                $brand = $data[$item['id']]['brand'] ?? '';
+                if ($brand !== '' && $pass($item, 'brand')) {
+                    $counts[$brand] = ($counts[$brand] ?? 0) + 1;
+                }
+            }
+            uksort($counts, fn ($a, $b) => strnatcasecmp($a, $b));
+            if (count($counts) > 1 || $f['brand'] !== '') {
+                $facets['brand'] = ['values' => $counts, 'active' => $f['brand'],
+                    'label' => $this->fieldLabel($brandField)];
+            }
+        }
+        if ($usePrice) {
+            $prices = [];
+            foreach ($items as $item) {
+                $price = $data[$item['id']]['price'] ?? null;
+                if ($price !== null && $pass($item, 'price')) {
+                    $prices[] = $price * $rate;
+                }
+            }
+            if (count($prices) > 1 || $f['min'] !== null || $f['max'] !== null) {
+                $facets['price'] = ['min' => $prices ? floor(min($prices)) : 0, 'max' => $prices ? ceil(max($prices)) : 0,
+                    'from' => $f['min'], 'to' => $f['max'], 'symbol' => $store->currencySymbol()];
+            }
+        }
+        foreach (['sale' => $useSale, 'stock' => $useStock] as $flag => $use) {
+            if (!$use) {
+                continue;
+            }
+            $count = 0;
+            foreach ($items as $item) {
+                if (!empty($data[$item['id']][$flag]) && $pass($item, $flag)) {
+                    $count++;
+                }
+            }
+            // a filter that removes nothing or everything helps nobody (unless it is on)
+            $all = count(array_filter($items, fn ($i) => $pass($i, $flag)));
+            if ($f[$flag] || ($count > 0 && $count < $all)) {
+                $facets[$flag] = ['count' => $count, 'active' => $f[$flag]];
+            }
+        }
+
+        $items = array_values(array_filter($items, fn ($i) => $pass($i, '')));
+
+        return [$items, $facets];
+    }
+
+    /** Label of a Gridbox field (the brand filter's heading). */
+    private function fieldLabel(int $id): string
+    {
+        try {
+            $db = $this->db();
+
+            return trim((string) $db->setQuery($db->createQuery()->select('label')->from($db->quoteName('#__gridbox_fields'))->where('id = ' . $id))->loadResult());
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     // ================================================================ search with cache
@@ -653,6 +1022,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $data = $this->liveResults(trim((string) $input->get('q', '', 'raw')));
             } elseif ($task === 'more' && $app->isClient('site')) {
                 $data = $this->moreResults();
+            } elseif ($task === 'track' && $app->isClient('site')) {
+                $data = $this->trackClick();
             } else {
                 $data = ['error' => 'unknown task'];
             }
@@ -700,6 +1071,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         // a keystroke must not wait for thumbnails: a short budget, the originals meanwhile
         $renderer = $this->renderer(0.25);
         $renderer->setHighlight($result['groups']);
+        $live['redirect'] = $this->redirectFor($query);
+        $live['popular']  = $this->params->get('live_suggestions', 1) ? $this->popularFor($query, max(0, min(10, (int) $this->params->get('live_suggestions_limit', 4)))) : [];
+        $live['suggest']  = !$result['total'] && $this->params->get('did_you_mean', 1) ? $this->didYouMean($query) : [];
         $data = [
             'html'  => $renderer->live($live, $categories, '#'),
             'count' => $result['total'],
@@ -856,6 +1230,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'mobile'     => (string) $p->get('live_mobile', 'fullscreen'),
             'mobileMax'  => max(0, (int) $p->get('live_mobile_breakpoint', 768)),
             'iconSubmit' => (bool) $p->get('icon_submit', 1),
+            'track'      => (bool) $p->get('track_conversions', 1),
             'texts'      => [
                 'close'   => Text::_('PLG_SYSTEM_BETTERSEARCH_T_CLOSE'),
                 'loading' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_LOADING'),
@@ -876,6 +1251,15 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     {
         if ($this->storeHelper !== null) {
             $this->storeHelper->saveLinks();
+        }
+        if ($this->reindexDue) {
+            $this->reindexDue = false;
+            $this->reindexNow();
+
+            return;
+        }
+        if ($this->syncDue && $this->params->get('gsc_property', '') !== '' && $this->params->get('gsc_key', '') !== '') {
+            $this->gscDaily();
         }
         if (!$this->syncDue || !$this->params->get('auto_sync', 1)) {
             return;
@@ -918,6 +1302,200 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             } else {
                 // Joomla never removes expired cache files on the site by itself
                 $cache->gc();
+            }
+        } catch (\Throwable $e) {
+            $this->logError($e);
+        }
+    }
+
+    // ================================================================ Google Search Console
+
+    /** Once a day, after a page response: the queries of the last days from Search Console. */
+    private function gscDaily(): void
+    {
+        $stamp = JPATH_CACHE . '/plg_system_bettersearch.gsc';
+        $mtime = @filemtime($stamp);
+        if ($mtime && time() - $mtime < 3600) {
+            return;
+        }
+        @touch($stamp);
+        try {
+            if (!$this->indexer()->claim('gsc_at', 86400)) {
+                return;
+            }
+            if (function_exists('fastcgi_finish_request') && !(defined('JDEBUG') && JDEBUG)) {
+                @fastcgi_finish_request();
+            }
+            $this->gscFetch();
+        } catch (\Throwable $e) {
+            $this->logError($e);
+        }
+    }
+
+    /**
+     * Search Console queries through a service account (its JSON key in the settings; the account's
+     * e-mail address must be a user of the Search Console property).
+     *
+     * @return array{ok: bool, rows?: int, error?: string}
+     */
+    private function gscFetch(): array
+    {
+        $property = trim((string) $this->params->get('gsc_property', ''));
+        $key      = json_decode((string) $this->params->get('gsc_key', ''), true);
+        if ($property === '' || !is_array($key) || empty($key['client_email']) || empty($key['private_key'])) {
+            return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_SETUP'));
+        }
+        if (!function_exists('openssl_sign')) {
+            return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_OPENSSL'));
+        }
+
+        // an access token for the read-only Search Console scope (OAuth 2.0 JWT bearer grant)
+        $tokenUri = 'https://oauth2.googleapis.com/token';
+        $b64      = fn (string $s) => rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
+        $now      = time();
+        $unsigned = $b64(json_encode(['alg' => 'RS256', 'typ' => 'JWT'])) . '.' . $b64(json_encode([
+            'iss' => (string) $key['client_email'], 'scope' => 'https://www.googleapis.com/auth/webmasters.readonly',
+            'aud' => $tokenUri, 'iat' => $now, 'exp' => $now + 3600]));
+        $signature = '';
+        $pkey      = @openssl_pkey_get_private((string) $key['private_key']);
+        if (!$pkey || !openssl_sign($unsigned, $signature, $pkey, OPENSSL_ALGO_SHA256)) {
+            return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_KEY'));
+        }
+        $http = HttpFactory::getHttp();
+        try {
+            $response = $http->post($tokenUri, http_build_query(['grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $unsigned . '.' . $b64($signature)]), ['Content-Type' => 'application/x-www-form-urlencoded'], 20);
+            $token = json_decode((string) $response->body, true)['access_token'] ?? '';
+            if ($response->code !== 200 || $token === '') {
+                return $this->gscResult(false, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_AUTH', (int) $response->code));
+            }
+
+            $days     = max(7, min(480, (int) $this->params->get('gsc_days', 28)));
+            $response = $http->post('https://www.googleapis.com/webmasters/v3/sites/' . rawurlencode($property) . '/searchAnalytics/query',
+                json_encode(['startDate' => gmdate('Y-m-d', $now - ($days + 2) * 86400), 'endDate' => gmdate('Y-m-d', $now - 2 * 86400),
+                    'dimensions' => ['query'], 'rowLimit' => 5000]),
+                ['Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json'], 30);
+            if ($response->code !== 200) {
+                return $this->gscResult(false, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_QUERY', (int) $response->code));
+            }
+        } catch (\Throwable $e) {
+            $this->logError($e);
+
+            return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_NETWORK'));
+        }
+
+        $rows = [];
+        foreach ((json_decode((string) $response->body, true)['rows'] ?? []) as $row) {
+            $rows[] = [(string) ($row['keys'][0] ?? ''), (int) ($row['clicks'] ?? 0), (int) ($row['impressions'] ?? 0), (float) ($row['position'] ?? 0)];
+        }
+
+        return $this->gscStore($rows, 'api');
+    }
+
+    /**
+     * A CSV file exported from Search Console ("Queries" table): the first column is the query, then
+     * clicks, impressions, CTR and position (any language of the headings, comma or semicolon).
+     */
+    private function gscImport(string $csv): array
+    {
+        $csv = preg_replace('/^\xEF\xBB\xBF/', '', $csv) ?? $csv;
+        if (trim($csv) === '' || strlen($csv) > 5 * 1048576) {
+            return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_CSV'));
+        }
+        $lines = preg_split('/\r\n|\r|\n/', trim($csv)) ?: [];
+        $sep   = substr_count($lines[0] ?? '', ';') > substr_count($lines[0] ?? '', ',') ? ';' : ',';
+        $num   = fn ($v) => (float) str_replace([' ', "\u{00A0}", '%', ','], ['', '', '', '.'], trim((string) $v));
+        $rows  = [];
+        foreach (array_slice($lines, 1) as $line) {
+            $cols = str_getcsv($line, $sep, '"', '');
+            if (count($cols) < 3 || trim((string) $cols[0]) === '') {
+                continue;
+            }
+            $rows[] = [(string) $cols[0], (int) $num($cols[1]), (int) $num($cols[2]), isset($cols[4]) ? $num($cols[4]) : 0.0];
+        }
+        if (!$rows) {
+            return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_CSV'));
+        }
+
+        return $this->gscStore($rows, 'csv');
+    }
+
+    /** @param array<int, array{0: string, 1: int, 2: int, 3: float}> $rows query, clicks, impressions, position */
+    private function gscStore(array $rows, string $source): array
+    {
+        $db = $this->db();
+        $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_gsc'))->execute();
+        $now    = $db->quote(gmdate('Y-m-d H:i:s'));
+        $values = [];
+        $seen   = [];
+        foreach (array_slice($rows, 0, 5000) as [$q, $clicks, $impressions, $position]) {
+            $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $q) ?? ''), 'UTF-8'), 0, 190);
+            if ($q === '' || isset($seen[$q]) || preg_match('/[\x00-\x1F]/', $q)) {
+                continue;
+            }
+            $seen[$q] = true;
+            $values[] = '(' . $db->quote($q) . ', ' . max(0, $clicks) . ', ' . max(0, $impressions) . ', ' . round(max(0, $position), 2) . ', ' . $now . ')';
+        }
+        foreach (array_chunk($values, 500) as $chunk) {
+            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_gsc') . ' (query, clicks, impressions, position, updated_at) VALUES ' . implode(', ', $chunk))->execute();
+        }
+
+        return $this->gscResult(true, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_GSC_DONE', count($values)), $source, count($values));
+    }
+
+    private function gscResult(bool $ok, string $message, string $source = '', int $rows = 0): array
+    {
+        try {
+            $this->indexer()->setState('gsc_status', json_encode(['ok' => $ok, 'message' => $message, 'source' => $source, 'at' => time()]));
+        } catch (\Throwable $e) {
+        }
+
+        return ['ok' => $ok, 'message' => $message, 'rows' => $rows];
+    }
+
+    /** Search Console queries for the report, with what this search finds for each. */
+    private function gscList(bool $check): array
+    {
+        $db     = $this->db();
+        $rows   = $db->setQuery('SELECT query, clicks, impressions, position FROM ' . $db->quoteName('#__bettersearch_gsc') . ' ORDER BY impressions DESC LIMIT 200')->loadAssocList() ?: [];
+        $status = json_decode((string) $this->indexer()->state('gsc_status', ''), true) ?: [];
+        if ($check && $rows) {
+            $siteLang = (string) ComponentHelper::getParams('com_languages')->get('site', 'en-GB');
+            $searcher = new Searcher($this->db(), $this->params, $this->normalizer(), $this->guestLevels(), $siteLang);
+            $t0       = microtime(true);
+            foreach ($rows as &$row) {
+                // a bounded check: at most 20 seconds of searching
+                $row['found'] = microtime(true) - $t0 < 20 ? $searcher->search((string) $row['query'])['total'] : null;
+            }
+            unset($row);
+        }
+
+        return ['rows' => $rows, 'status' => $status + ['at' => 0, 'message' => ''], 'configured' => trim((string) $this->params->get('gsc_property', '')) !== ''];
+    }
+
+    /** Right after a Gridbox change: the changed pages are indexed again (no waiting for the next check). */
+    private function reindexNow(): void
+    {
+        $this->params = $this->savedParams() ?? $this->params;
+        if (!$this->params->get('instant_reindex', 1)) {
+            return;
+        }
+        try {
+            if (function_exists('fastcgi_finish_request') && !(defined('JDEBUG') && JDEBUG)) {
+                @fastcgi_finish_request();
+            } elseif (function_exists('litespeed_finish_request')) {
+                @litespeed_finish_request();
+            }
+            @ignore_user_abort(true);
+            $indexer = $this->indexer();
+            $before  = $indexer->state('version', '0');
+            $result  = $indexer->sync(max(10, (int) $this->params->get('sync_budget', 300)));
+            if ($result['remaining'] > 0) {
+                // the rest with the next check
+                $indexer->setState('checked_at', '0');
+            }
+            if ($indexer->state('version', '0') !== $before) {
+                $this->cache(1)->clean(self::CACHE_GROUP);
             }
         } catch (\Throwable $e) {
             $this->logError($e);
@@ -1016,6 +1594,30 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $this->db()->setQuery('TRUNCATE TABLE ' . $this->db()->quoteName('#__bettersearch_log'))->execute();
 
                 return ['ok' => true] + $this->stats();
+
+            case 'conversions':
+                return $this->conversions(max(1, min(366, $input->getInt('days', 30))));
+
+            case 'gsc':
+                return $this->gscList($input->getInt('check', 0) === 1);
+
+            case 'gsc_fetch':
+                if (!$user->authorise('core.edit', 'com_plugins')) {
+                    return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
+                }
+                // the key and address in the form (also unsaved) are used
+                if (is_array($form) && isset($form['params']) && is_array($form['params'])) {
+                    $this->params = new Registry($form['params']);
+                }
+
+                return $this->gscFetch() + $this->gscList(false);
+
+            case 'gsc_import':
+                if (!$user->authorise('core.edit', 'com_plugins')) {
+                    return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
+                }
+
+                return $this->gscImport((string) $input->post->get('csv', '', 'raw')) + $this->gscList(false);
 
             case 'clearthumbs':
                 return ['removed' => Thumbs::clear()];
@@ -1159,12 +1761,36 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         ];
     }
 
+    /** $results = -1: the phrase was redirected (counted as a search with a destination). */
+    /** Clicks and cart additions per query (and the products behind them) in the last days. */
+    private function conversions(int $days): array
+    {
+        $db    = $this->db();
+        $since = $db->quote(gmdate('Y-m-d', time() - $days * 86400));
+        $rows  = $db->setQuery('SELECT e.query, SUM(CASE WHEN e.kind = 1 THEN e.hits ELSE 0 END) AS clicks, SUM(CASE WHEN e.kind = 2 THEN e.hits ELSE 0 END) AS carts,'
+            . ' MAX(l.searches) AS searches FROM ' . $db->quoteName('#__bettersearch_events', 'e')
+            . ' LEFT JOIN ' . $db->quoteName('#__bettersearch_log', 'l') . ' ON l.query = e.query'
+            . ' WHERE e.day >= ' . $since . ' GROUP BY e.query ORDER BY carts DESC, clicks DESC LIMIT 100')->loadAssocList() ?: [];
+        $items = $db->setQuery('SELECT item_id, SUM(CASE WHEN kind = 1 THEN hits ELSE 0 END) AS clicks, SUM(CASE WHEN kind = 2 THEN hits ELSE 0 END) AS carts FROM '
+            . $db->quoteName('#__bettersearch_events') . ' WHERE day >= ' . $since . ' GROUP BY item_id ORDER BY carts DESC, clicks DESC LIMIT 30')->loadAssocList() ?: [];
+        $titles = $this->titles(array_map('intval', array_column($items, 'item_id')));
+        foreach ($items as &$item) {
+            $item['title'] = $titles[(int) $item['item_id']]['title'] ?? ('#' . $item['item_id']);
+        }
+        unset($item);
+        $totals = $db->setQuery('SELECT SUM(CASE WHEN kind = 1 THEN hits ELSE 0 END) AS clicks, SUM(CASE WHEN kind = 2 THEN hits ELSE 0 END) AS carts FROM '
+            . $db->quoteName('#__bettersearch_events') . ' WHERE day >= ' . $since)->loadAssoc() ?: [];
+
+        return ['days' => $days, 'queries' => $rows, 'items' => $items, 'clicks' => (int) ($totals['clicks'] ?? 0), 'carts' => (int) ($totals['carts'] ?? 0),
+            'searches' => (int) $db->setQuery('SELECT IFNULL(SUM(searches), 0) FROM ' . $db->quoteName('#__bettersearch_log') . ' WHERE last_at >= ' . $since)->loadResult()];
+    }
+
     private function logSearch(string $query, int $results): void
     {
-        $ua = (string) $this->getApplication()->getInput()->server->getString('HTTP_USER_AGENT', '');
-        if ($ua === '' || preg_match('/bot|crawl|spider|slurp|facebookexternalhit|preview|monitor|curl|wget|python/i', $ua)) {
+        if ($this->isBot()) {
             return;
         }
+        $results = max(-1, $results);
         $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8'), 0, 120);
         // statistics are for what shoppers type: not for noise or very long strings
         if ($q === '' || preg_match('/[\x00-\x1F]/', $q) || mb_strlen($this->normalizer()->compact($q)) < 2 || substr_count($q, ' ') > 9) {
