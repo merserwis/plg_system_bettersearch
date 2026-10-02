@@ -6,6 +6,26 @@
         <element>pkg_bettersearch</element>
         <type>package</type>
         <client>site</client>
+        <version>1.3.1</version>
+        <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
+        <downloads>
+            <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.3.1/pkg_bettersearch-1.3.1.zip</downloadurl>
+        </downloads>
+        <sha256>cfe576a7481a544a5df0f3c09b3a87e99a18d0fe507206ec951779a97b36444b</sha256>
+        <tags>
+            <tag>stable</tag>
+        </tags>
+        <maintainer>Merserwis</maintainer>
+        <maintainerurl>https://github.com/merserwis/</maintainerurl>
+        <targetplatform name="joomla" version="6\..*"/>
+        <php_minimum>8.2</php_minimum>
+    </update>
+    <update>
+        <name>Better Search for Gridbox</name>
+        <description>Better Search for Gridbox — live results and results page for Gridbox stores from an own index; model codes match however they are typed.</description>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <client>site</client>
         <version>1.3.0</version>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
