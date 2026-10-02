@@ -63,11 +63,13 @@
 .bs-actions .btn{padding:.1rem .45rem;font-size:.8rem}
 .bs-gsc-status p{margin:.25rem 0 .5rem}
 
-/* 1.4.1: help tooltips */
-.control-label .bs-help{display:inline-flex;align-items:center;justify-content:center;width:1.15rem;height:1.15rem;margin-inline-start:.35rem;padding:0;border:1px solid var(--template-bg-dark-30, #adb5bd);border-radius:50%;background:transparent;color:var(--template-bg-dark-60, #6c757d);font-size:.72rem;font-weight:700;line-height:1;cursor:help;vertical-align:middle}
-.control-label .bs-help:hover,.control-label .bs-help:focus-visible{border-color:var(--template-link-color, #2a69b8);color:var(--template-link-color, #2a69b8);outline:0}
-.bs-tip{position:absolute;z-index:10000;padding:.55rem .7rem;border-radius:.375rem;background:#1f2328;color:#fff;font-size:.82rem;line-height:1.45;box-shadow:0 .5rem 1.25rem rgba(0,0,0,.25);pointer-events:none}
-.bs-tip p{margin:0 0 .35rem}.bs-tip p:last-child{margin:0}
-.bs-tip a{color:#9ec5fe}
-.bs-tip code{color:#ffd8a8}
+/* 1.4.2+: help tooltips, shown by CSS next to their "?" */
+.bs-help-wrap{position:relative;display:inline-block;vertical-align:middle;margin-inline-start:.35rem;line-height:1}
+.control-label .bs-help,.bs-help{display:inline-flex;align-items:center;justify-content:center;width:1.15rem;height:1.15rem;margin:0;padding:0;border:1px solid var(--template-bg-dark-30, #adb5bd);border-radius:50%;background:transparent;color:var(--template-bg-dark-60, #6c757d);font-size:.72rem;font-weight:700;line-height:1;cursor:help}
+.bs-help:hover,.bs-help:focus-visible,.bs-help-wrap.is-open .bs-help{border-color:var(--template-link-color, #2a69b8);color:var(--template-link-color, #2a69b8);outline:0}
+.bs-help-tip{display:none;position:absolute;z-index:1100;inset-inline-start:-.5rem;top:calc(100% + 6px);width:22rem!important;max-width:calc(100vw - 2rem)!important;min-width:0!important;box-sizing:border-box;padding:.55rem .7rem;border-radius:.375rem;background:#1f2328;color:#fff;font-size:.82rem;font-weight:400;line-height:1.45;text-align:start;white-space:normal;box-shadow:0 .5rem 1.25rem rgba(0,0,0,.25)}
+.bs-help-wrap:hover .bs-help-tip,.bs-help-wrap:focus-within .bs-help-tip,.bs-help-wrap.is-open .bs-help-tip{display:block}
+.bs-help-tip p{margin:0 0 .35rem}.bs-help-tip p:last-child{margin:0}
+.bs-help-tip a{color:#9ec5fe}
+.bs-help-tip code{color:#ffd8a8}
 .bs-picker-found{z-index:1060}

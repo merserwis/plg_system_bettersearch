@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.4.2-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.4.3-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -394,7 +394,7 @@ The live results of the module field use the settings of the plugin.
 
 ## 🧪 Verification & Testing
 
-Versions 1.0.0 to 1.4.2 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
+Versions 1.0.0 to 1.4.3 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
 
 1. **Model codes** — `MI 3155`, `MI3155`, `MI-3155`, `mi.3155` and `metrel mi 3155` return the same product first; `MPI 530` = `MPI530`; `ht 7051` = `HT7051`; `eurotest xd` = *EurotestXD*; `miernik izolacji 5 kv` = `5kv`.
 2. **Fallbacks** — `eurotset` → *eurotest*, `miernk izolacji` → *miernik izolacji*; partial matches limited to products with at least half of the words; a fixed list of 41 queries kept as a regression baseline.
@@ -452,6 +452,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+* **1.4.3** — Help tooltips rebuilt: shown by CSS next to the “?” on hover, keyboard focus and click, on every administrator template.
 * **1.4.2** — Help tooltips shown next to the “?” (also on a scrolled page). Search Console queries that differ only in accents (“pętli” / “petli”) are added up instead of stopping the import. Languages reduced to English, Polish, Ukrainian and German.
 * **1.4.1** — Google Search Console tab fixed (tables ensured, list after import, causes of errors shown to administrators); updates safe when Joomla's schema record is missing; “?” help tooltips; instant product finder; settings export / import / reset.
 * **1.4.0** — Synonym and redirect editors, actions on queries without results, popular-search suggestions and “did you mean”, filters beside the results (brand, price, sale, stock), conversion statistics, Google Search Console queries (service account or CSV), instant reindex after Gridbox changes.

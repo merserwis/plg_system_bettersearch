@@ -826,92 +826,78 @@
 
     // ================================================================ help tooltips ("?" beside the option names)
 
+    // The text sits next to its "?" and is shown by CSS (hover, keyboard focus) or by a click
+    // (class is-open): no positioning script, so no administrator template can push it away.
     function initHelp() {
         var form = document.getElementById('style-form') || document.querySelector('form[name="adminForm"]');
         if (!form) {
             return;
         }
-        var tip = document.createElement('div');
-        tip.className = 'bs-tip';
-        tip.id = 'bs-tip';
-        tip.setAttribute('role', 'tooltip');
-        tip.hidden = true;
-        document.body.appendChild(tip);
-        var owner = null;
+        var n = 0;
 
-        function hide() {
-            tip.hidden = true;
-            if (owner) {
-                owner.removeAttribute('aria-describedby');
-            }
-            owner = null;
-        }
-
-        function showTip(b) {
-            owner = b;
-            tip.innerHTML = b._tip;
-            tip.hidden = false;
-            b.setAttribute('aria-describedby', 'bs-tip');
-            var r = b.getBoundingClientRect();
-            var w = Math.min(360, window.innerWidth - 16);
-            tip.style.maxWidth = w + 'px';
-            var rtl = getComputedStyle(b).direction === 'rtl';
-            var left = rtl ? r.right - tip.offsetWidth : r.left - 8;
-            left = Math.max(8, Math.min(left, window.innerWidth - tip.offsetWidth - 8));
-            var top = r.bottom + 6;
-            if (top + tip.offsetHeight > window.innerHeight - 8) {
-                top = Math.max(8, r.top - tip.offsetHeight - 6);
-            }
-            // document coordinates (position: absolute): the administrator template may make the
-            // body a containing block, which turns "fixed" into "moves with the page"
-            var origin = tip.offsetParent ? tip.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
-            tip.style.left = (left - origin.left) + 'px';
-            tip.style.top = (top - origin.top) + 'px';
+        function closeAll(except) {
+            form.querySelectorAll('.bs-help-wrap.is-open').forEach(function (w) {
+                if (w !== except) {
+                    w.classList.remove('is-open');
+                    w.querySelector('.bs-help').setAttribute('aria-expanded', 'false');
+                }
+            });
         }
 
         function add(scope) {
             scope.querySelectorAll('.control-group').forEach(function (g) {
                 var head = g.querySelector('.control-label');
                 var desc = g.querySelector('[id$="-desc"]');
-                if (!head || !desc || !desc.textContent.trim() || head.querySelector('.bs-help')) {
+                if (!head || !desc || !desc.textContent.trim() || head.querySelector('.bs-help-wrap')) {
                     return;
                 }
+                var wrap = document.createElement('span');
+                wrap.className = 'bs-help-wrap';
                 var b = document.createElement('button');
                 b.type = 'button';
                 b.className = 'bs-help';
                 b.textContent = '?';
                 b.setAttribute('aria-label', T.HELP || '?');
-                b._tip = (desc.querySelector('.form-text') || desc).innerHTML;
-                head.appendChild(b);
-                b.addEventListener('mouseenter', function () {
-                    showTip(b);
-                });
-                b.addEventListener('focus', function () {
-                    showTip(b);
-                });
-                b.addEventListener('mouseleave', hide);
-                b.addEventListener('blur', hide);
-                b.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    if (owner === b) {
-                        hide();
-                    } else {
-                        showTip(b);
-                    }
-                });
+                b.setAttribute('aria-expanded', 'false');
+                var tip = document.createElement('span');
+                tip.className = 'bs-help-tip';
+                tip.id = 'bs-help-tip-' + (++n);
+                tip.innerHTML = (desc.querySelector('.form-text') || desc).innerHTML;
+                b.setAttribute('aria-describedby', tip.id);
+                wrap.appendChild(b);
+                wrap.appendChild(tip);
+                head.appendChild(wrap);
             });
         }
 
+        form.addEventListener('click', function (e) {
+            var b = e.target.closest && e.target.closest('.bs-help');
+            if (!b) {
+                if (!(e.target.closest && e.target.closest('.bs-help-tip'))) {
+                    closeAll(null);
+                }
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            var wrap = b.parentNode;
+            var open = !wrap.classList.contains('is-open');
+            closeAll(wrap);
+            wrap.classList.toggle('is-open', open);
+            b.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeAll(null);
+                if (document.activeElement && document.activeElement.classList.contains('bs-help')) {
+                    document.activeElement.blur();
+                }
+            }
+        });
         add(form);
         document.addEventListener('subform-row-add', function (e) {
             add((e.detail && e.detail.row) || e.target);
         });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                hide();
-            }
-        });
-        window.addEventListener('scroll', hide, true);
     }
 
     // ================================================================ settings file, reset
