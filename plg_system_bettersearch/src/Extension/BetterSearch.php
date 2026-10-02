@@ -44,7 +44,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.4.1';
+    public const VERSION = '1.4.2';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -1577,10 +1577,15 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $values[] = '(' . $db->quote($q) . ', ' . max(0, $clicks) . ', ' . max(0, $impressions) . ', ' . round(max(0, $position), 2) . ', ' . $now . ')';
         }
         foreach (array_chunk($values, 500) as $chunk) {
-            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_gsc') . ' (query, clicks, impressions, position, updated_at) VALUES ' . implode(', ', $chunk))->execute();
+            // the table compares text without accents ("pętli" = "petli"): such queries are added up
+            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_gsc') . ' (query, clicks, impressions, position, updated_at) VALUES ' . implode(', ', $chunk)
+                . ' ON DUPLICATE KEY UPDATE position = IF(impressions + VALUES(impressions) > 0, (position * impressions + VALUES(position) * VALUES(impressions)) / (impressions + VALUES(impressions)), position),'
+                . ' clicks = clicks + VALUES(clicks), impressions = impressions + VALUES(impressions)')->execute();
         }
 
-        return $this->gscResult(true, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_GSC_DONE', count($values)), $source, count($values));
+        $saved = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_gsc'))->loadResult();
+
+        return $this->gscResult(true, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_GSC_DONE', $saved), $source, $saved);
     }
 
     private function gscResult(bool $ok, string $message, string $source = '', int $rows = 0): array

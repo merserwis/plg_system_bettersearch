@@ -857,12 +857,16 @@
             tip.style.maxWidth = w + 'px';
             var rtl = getComputedStyle(b).direction === 'rtl';
             var left = rtl ? r.right - tip.offsetWidth : r.left - 8;
-            tip.style.left = Math.max(8, Math.min(left, window.innerWidth - tip.offsetWidth - 8)) + 'px';
+            left = Math.max(8, Math.min(left, window.innerWidth - tip.offsetWidth - 8));
             var top = r.bottom + 6;
             if (top + tip.offsetHeight > window.innerHeight - 8) {
                 top = Math.max(8, r.top - tip.offsetHeight - 6);
             }
-            tip.style.top = top + 'px';
+            // document coordinates (position: absolute): the administrator template may make the
+            // body a containing block, which turns "fixed" into "moves with the page"
+            var origin = tip.offsetParent ? tip.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+            tip.style.left = (left - origin.left) + 'px';
+            tip.style.top = (top - origin.top) + 'px';
         }
 
         function add(scope) {

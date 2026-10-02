@@ -6,7 +6,7 @@
     <creationDate>2026-10-02</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.4.1</version>
+    <version>1.4.2</version>
     <description>MOD_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Module\BetterSearch</namespace>
     <files>
@@ -24,22 +24,6 @@
         <language tag="uk-UA">uk-UA/mod_bettersearch.sys.ini</language>
         <language tag="de-DE">de-DE/mod_bettersearch.ini</language>
         <language tag="de-DE">de-DE/mod_bettersearch.sys.ini</language>
-        <language tag="cs-CZ">cs-CZ/mod_bettersearch.ini</language>
-        <language tag="cs-CZ">cs-CZ/mod_bettersearch.sys.ini</language>
-        <language tag="sk-SK">sk-SK/mod_bettersearch.ini</language>
-        <language tag="sk-SK">sk-SK/mod_bettersearch.sys.ini</language>
-        <language tag="lt-LT">lt-LT/mod_bettersearch.ini</language>
-        <language tag="lt-LT">lt-LT/mod_bettersearch.sys.ini</language>
-        <language tag="fr-FR">fr-FR/mod_bettersearch.ini</language>
-        <language tag="fr-FR">fr-FR/mod_bettersearch.sys.ini</language>
-        <language tag="hi-IN">hi-IN/mod_bettersearch.ini</language>
-        <language tag="hi-IN">hi-IN/mod_bettersearch.sys.ini</language>
-        <language tag="zh-CN">zh-CN/mod_bettersearch.ini</language>
-        <language tag="zh-CN">zh-CN/mod_bettersearch.sys.ini</language>
-        <language tag="ar-AA">ar-AA/mod_bettersearch.ini</language>
-        <language tag="ar-AA">ar-AA/mod_bettersearch.sys.ini</language>
-        <language tag="es-ES">es-ES/mod_bettersearch.ini</language>
-        <language tag="es-ES">es-ES/mod_bettersearch.sys.ini</language>
     </languages>
     <config>
         <fields name="params">
