@@ -182,12 +182,58 @@
             }));
         });
 
+        // the list of results is fixed to the window: no section below it (or a scrolling table) hides it
+        function place() {
+            if (found.hidden) {
+                return;
+            }
+            var r = input.getBoundingClientRect();
+            var below = window.innerHeight - r.bottom - 8;
+            found.style.position = 'fixed';
+            found.style.left = r.left + 'px';
+            found.style.width = Math.max(r.width, 280) + 'px';
+            found.style.right = 'auto';
+            if (below < 160 && r.top > below) {
+                found.style.top = 'auto';
+                found.style.bottom = (window.innerHeight - r.top + 2) + 'px';
+                found.style.maxHeight = Math.min(320, r.top - 8) + 'px';
+            } else {
+                found.style.bottom = 'auto';
+                found.style.top = (r.bottom + 2) + 'px';
+                found.style.maxHeight = Math.min(320, below) + 'px';
+            }
+        }
+        window.addEventListener('scroll', place, true);
+        window.addEventListener('resize', place);
+
+        function show(items) {
+            found.innerHTML = items.length ? items.map(function (t) {
+                titles[t.id] = t;
+                return '<li><button type="button" data-add="' + t.id + '">' + esc(t.title)
+                    + (t.sku ? ' <small>' + esc(t.sku) + '</small>' : '') + ' <small class="text-muted">#' + t.id + ' · ' + esc(t.app)
+                    + (t.published ? '' : ' · ' + esc(T.PICKER_UNPUBLISHED)) + '</small></button></li>';
+            }).join('') : '<li class="bs-picker-empty">' + esc(T.PICKER_EMPTY) + '</li>';
+            found.hidden = false;
+            place();
+        }
+
         function search() {
             var q = input.value.trim();
             if (!q) {
                 found.hidden = true;
                 return;
             }
+            // every product is loaded once per page and filtered here: no request per keystroke
+            allProducts().then(function (list) {
+                if (input.value.trim() === q) {
+                    show(filterProducts(list, q));
+                }
+            }).catch(function () {
+                serverSearch(q);
+            });
+        }
+
+        function serverSearch(q) {
             call('products', { q: q }).then(function (data) {
                 var items = data.items || [];
                 found.innerHTML = items.length ? items.map(function (t) {
@@ -197,15 +243,21 @@
                         + (t.published ? '' : ' · ' + esc(T.PICKER_UNPUBLISHED)) + '</small></button></li>';
                 }).join('') : '<li class="bs-picker-empty">' + esc(T.PICKER_EMPTY) + '</li>';
                 found.hidden = false;
+                place();
             }).catch(function (err) {
                 found.innerHTML = '<li class="bs-picker-empty">' + esc(err.message) + '</li>';
                 found.hidden = false;
+                place();
             });
         }
 
         input.addEventListener('input', function () {
             clearTimeout(timer);
-            timer = setTimeout(search, 250);
+            timer = setTimeout(search, 60);
+        });
+        input.addEventListener('focus', function () {
+            allProducts().catch(function () {
+            });
         });
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
@@ -241,6 +293,52 @@
         });
 
         loadTitles();
+    }
+
+    // ---------------------------------------------------------------- all products, filtered in the browser
+
+    var productList = null;
+
+    function allProducts() {
+        if (!productList) {
+            productList = call('products_all').then(function (r) {
+                return (r.items || []).map(function (p) {
+                    var t = { id: p[0], title: p[1], sku: p[2], app: (r.apps || {})[p[3]] || '', published: p[4] };
+                    t.key = fold(t.title + ' ' + t.sku + ' ' + t.id);
+                    t.compact = t.key.replace(/ /g, '');
+                    return t;
+                });
+            });
+            productList.catch(function () {
+                productList = null;
+            });
+        }
+        return productList;
+    }
+
+    // lower case, without diacritics, separators as spaces ("MI-3155" = "mi 3155" = "mi3155")
+    function fold(s) {
+        return String(s || '').toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+
+    function filterProducts(list, q) {
+        var words = fold(q).split(' ').filter(Boolean);
+        if (!words.length) {
+            return [];
+        }
+        var compact = words.join('');
+        var out = [];
+        for (var i = 0; i < list.length && out.length < 40; i++) {
+            var p = list[i];
+            var ok = String(p.id) === q.trim() || p.compact.indexOf(compact) >= 0 || words.every(function (w) {
+                return p.key.indexOf(w) >= 0;
+            });
+            if (ok) {
+                out.push(p);
+            }
+        }
+        return out;
     }
 
     function initPickers(scope) {
@@ -726,7 +824,159 @@
         refresh();
     }
 
+    // ================================================================ help tooltips ("?" beside the option names)
+
+    function initHelp() {
+        var form = document.getElementById('style-form') || document.querySelector('form[name="adminForm"]');
+        if (!form) {
+            return;
+        }
+        var tip = document.createElement('div');
+        tip.className = 'bs-tip';
+        tip.id = 'bs-tip';
+        tip.setAttribute('role', 'tooltip');
+        tip.hidden = true;
+        document.body.appendChild(tip);
+        var owner = null;
+
+        function hide() {
+            tip.hidden = true;
+            if (owner) {
+                owner.removeAttribute('aria-describedby');
+            }
+            owner = null;
+        }
+
+        function showTip(b) {
+            owner = b;
+            tip.innerHTML = b._tip;
+            tip.hidden = false;
+            b.setAttribute('aria-describedby', 'bs-tip');
+            var r = b.getBoundingClientRect();
+            var w = Math.min(360, window.innerWidth - 16);
+            tip.style.maxWidth = w + 'px';
+            var rtl = getComputedStyle(b).direction === 'rtl';
+            var left = rtl ? r.right - tip.offsetWidth : r.left - 8;
+            tip.style.left = Math.max(8, Math.min(left, window.innerWidth - tip.offsetWidth - 8)) + 'px';
+            var top = r.bottom + 6;
+            if (top + tip.offsetHeight > window.innerHeight - 8) {
+                top = Math.max(8, r.top - tip.offsetHeight - 6);
+            }
+            tip.style.top = top + 'px';
+        }
+
+        function add(scope) {
+            scope.querySelectorAll('.control-group').forEach(function (g) {
+                var head = g.querySelector('.control-label');
+                var desc = g.querySelector('[id$="-desc"]');
+                if (!head || !desc || !desc.textContent.trim() || head.querySelector('.bs-help')) {
+                    return;
+                }
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'bs-help';
+                b.textContent = '?';
+                b.setAttribute('aria-label', T.HELP || '?');
+                b._tip = (desc.querySelector('.form-text') || desc).innerHTML;
+                head.appendChild(b);
+                b.addEventListener('mouseenter', function () {
+                    showTip(b);
+                });
+                b.addEventListener('focus', function () {
+                    showTip(b);
+                });
+                b.addEventListener('mouseleave', hide);
+                b.addEventListener('blur', hide);
+                b.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (owner === b) {
+                        hide();
+                    } else {
+                        showTip(b);
+                    }
+                });
+            });
+        }
+
+        add(form);
+        document.addEventListener('subform-row-add', function (e) {
+            add((e.detail && e.detail.row) || e.target);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                hide();
+            }
+        });
+        window.addEventListener('scroll', hide, true);
+    }
+
+    // ================================================================ settings file, reset
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-bs-settings]');
+        if (!b) {
+            return;
+        }
+        e.preventDefault();
+        var action = b.getAttribute('data-bs-settings');
+        var form = b.closest('form');
+        if (action === 'export') {
+            call('settings_export', {}, form).then(function (r) {
+                var blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = r.name;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    URL.revokeObjectURL(a.href);
+                    a.remove();
+                }, 1000);
+                Joomla.renderMessages({ message: [fmt(T.TOOLS_SETTINGS_EXPORTED, [r.name])] });
+            }).catch(function (err) {
+                Joomla.renderMessages({ error: [err.message] });
+            });
+        } else if (action === 'reset') {
+            if (window.confirm(T.TOOLS_SETTINGS_RESET_CONFIRM)) {
+                call('settings_reset', { _post: { reset: '1' } }).then(function () {
+                    window.location.reload();
+                }).catch(function (err) {
+                    Joomla.renderMessages({ error: [err.message] });
+                });
+            }
+        }
+    });
+
+    document.addEventListener('change', function (e) {
+        if (!e.target.classList || !e.target.classList.contains('bs-settings-file')) {
+            return;
+        }
+        var file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file) {
+            return;
+        }
+        if (file.size > 1048576) {
+            Joomla.renderMessages({ error: [T.TOOLS_SETTINGS_TOO_BIG] });
+            return;
+        }
+        if (!window.confirm(T.TOOLS_SETTINGS_IMPORT_CONFIRM)) {
+            return;
+        }
+        file.text().then(function (text) {
+            return call('settings_import', { _post: { data: text } });
+        }).then(function (r) {
+            Joomla.renderMessages({ message: [fmt(T.TOOLS_SETTINGS_IMPORTED, [r.count])] });
+            setTimeout(function () {
+                window.location.reload();
+            }, 900);
+        }).catch(function (err) {
+            Joomla.renderMessages({ error: [err.message] });
+        });
+    });
+
     function start() {
+        initHelp();
         initPickers(document);
         document.querySelectorAll('.bs-tools').forEach(function (root) {
             if (root.querySelector('.bs-gsc-out')) {

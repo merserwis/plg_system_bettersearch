@@ -44,7 +44,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.4.0';
+    public const VERSION = '1.4.1';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -339,6 +339,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 }
             }
         } catch (\Throwable $e) {
+            try {
+                $this->ensureTables();
+            } catch (\Throwable $ignored) {
+            }
         }
     }
 
@@ -1029,7 +1033,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             }
         } catch (\Throwable $e) {
             $this->logError($e);
-            $data = ['error' => JDEBUG ? $e->getMessage() : Text::_('PLG_SYSTEM_BETTERSEARCH_T_UNAVAILABLE')];
+            // administrators (checked in adminTask) see the cause; visitors get a general message
+            $admin = str_starts_with($task, 'admin_') && $app->isClient('administrator') && $app->getIdentity()?->authorise('core.manage', 'com_plugins');
+            $data  = ['error' => JDEBUG || $admin ? Text::sprintf('PLG_SYSTEM_BETTERSEARCH_ERR_ADMIN', $e->getMessage()) : Text::_('PLG_SYSTEM_BETTERSEARCH_T_UNAVAILABLE')];
         }
 
         if (method_exists($event, 'addResult')) {
@@ -1308,6 +1314,140 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
+    // ================================================================ tables, product list, settings file
+
+    /** The tables of the install script (CREATE TABLE IF NOT EXISTS), e.g. after an update that skipped them. */
+    private function ensureTables(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        $db   = $this->db();
+        $file = JPATH_PLUGINS . '/system/bettersearch/sql/install.mysql.utf8.sql';
+        foreach (is_file($file) ? $db->splitSql((string) file_get_contents($file)) : [] as $statement) {
+            if (stripos(trim($statement), 'CREATE TABLE IF NOT EXISTS') === 0) {
+                $db->setQuery($statement)->execute();
+            }
+        }
+    }
+
+    /** Every product (id, title, code, app, published) for the instant filter of the product pickers. */
+    private function allProducts(): array
+    {
+        $db   = $this->db();
+        $rows = $db->setQuery($db->createQuery()
+            ->select(['p.id', 'p.title', 'p.published', 'p.app_id', 'd.sku'])
+            ->from($db->quoteName('#__gridbox_pages', 'p'))
+            ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
+            ->where('p.app_id > 0')
+            ->where('p.page_category <> ' . $db->quote('trashed'))
+            ->order('p.title ASC'), 0, 30000)->loadRowList() ?: [];
+        $apps = [];
+        foreach ($rows as $row) {
+            $apps[(int) $row[3]] = true;
+        }
+
+        return [
+            'items' => array_map(fn ($r) => [(int) $r[0], (string) $r[1], (string) $r[4], (int) $r[3], (int) $r[2]], $rows),
+            'apps'  => array_map(fn ($id) => $this->store()->appTitle($id), array_combine(array_keys($apps), array_keys($apps))),
+        ];
+    }
+
+    /** Names of the settings a settings file may carry (form fields of the manifest; not the Google key). */
+    private function settingNames(): array
+    {
+        $xml   = @simplexml_load_file(JPATH_PLUGINS . '/system/bettersearch/bettersearch.xml');
+        $names = [];
+        foreach ($xml ? $xml->xpath('//config/fields[@name="params"]/fieldset/field') : [] as $field) {
+            $type = (string) $field['type'];
+            if (!in_array($type, ['note', 'spacer', 'bstools', 'bspreview', 'bsdict'], true)) {
+                $names[(string) $field['name']] = $type;
+            }
+        }
+        unset($names['gsc_key']);
+
+        return $names;
+    }
+
+    /** The settings of the form (also unsaved) as a file; the Search Console key is never exported. */
+    private function exportSettings(): array
+    {
+        $params = array_intersect_key($this->params->toArray(), $this->settingNames());
+        ksort($params);
+
+        return ['name' => 'better-search-settings-' . gmdate('Y-m-d') . '.json', 'data' => [
+            'extension' => 'plg_system_bettersearch', 'version' => self::VERSION, 'exported' => gmdate('c'), 'params' => $params]];
+    }
+
+    /** Settings from a file: known settings with plain values only; saved at once (other settings stay). */
+    private function importSettings(string $raw): array
+    {
+        if ($raw === '' || strlen($raw) > 1048576) {
+            return ['error' => Text::_('PLG_SYSTEM_BETTERSEARCH_SETTINGS_ERR_FILE')];
+        }
+        $file = json_decode($raw, true);
+        if (!is_array($file) || ($file['extension'] ?? '') !== 'plg_system_bettersearch' || !is_array($file['params'] ?? null)) {
+            return ['error' => Text::_('PLG_SYSTEM_BETTERSEARCH_SETTINGS_ERR_FILE')];
+        }
+        $names = $this->settingNames();
+        $clean = function ($value, int $depth) use (&$clean) {
+            if (is_scalar($value) || $value === null) {
+                return is_string($value) ? mb_substr($value, 0, 200000) : $value;
+            }
+            if (is_array($value) && $depth < 5 && count($value) <= 5000) {
+                $out = [];
+                foreach ($value as $k => $v) {
+                    if (is_int($k) || preg_match('/^[A-Za-z0-9_\-]{1,64}$/', (string) $k)) {
+                        $c = $clean($v, $depth + 1);
+                        if ($c !== false) {
+                            $out[$k] = $c;
+                        }
+                    }
+                }
+
+                return $out;
+            }
+
+            return false;
+        };
+        $imported = [];
+        foreach ($file['params'] as $key => $value) {
+            if (isset($names[$key]) && ($v = $clean($value, 0)) !== false) {
+                $imported[$key] = $v;
+            }
+        }
+        if (!$imported) {
+            return ['error' => Text::_('PLG_SYSTEM_BETTERSEARCH_SETTINGS_ERR_EMPTY')];
+        }
+        $params = array_merge(($this->readSavedParams() ?? new Registry())->toArray(), $imported);
+        $this->saveParams($params);
+
+        return ['ok' => true, 'count' => count($imported)];
+    }
+
+    /** All settings back to their defaults (the Search Console connection stays). */
+    private function resetSettings(): array
+    {
+        $saved = ($this->readSavedParams() ?? new Registry())->toArray();
+        $this->saveParams(array_intersect_key($saved, array_flip(['gsc_key', 'gsc_property'])));
+
+        return ['ok' => true];
+    }
+
+    private function saveParams(array $params): void
+    {
+        $db = $this->db();
+        $db->setQuery($db->createQuery()
+            ->update($db->quoteName('#__extensions'))
+            ->set($db->quoteName('params') . ' = ' . $db->quote(json_encode($params, JSON_UNESCAPED_UNICODE)))
+            ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+            ->where($db->quoteName('folder') . ' = ' . $db->quote('system'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote('bettersearch')))->execute();
+        $this->cleanCaches();
+    }
+
     // ================================================================ Google Search Console
 
     /** Once a day, after a page response: the queries of the last days from Search Console. */
@@ -1361,8 +1501,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if (!$pkey || !openssl_sign($unsigned, $signature, $pkey, OPENSSL_ALGO_SHA256)) {
             return $this->gscResult(false, Text::_('PLG_SYSTEM_BETTERSEARCH_GSC_ERR_KEY'));
         }
-        $http = HttpFactory::getHttp();
         try {
+            $http     = HttpFactory::getHttp();
             $response = $http->post($tokenUri, http_build_query(['grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => $unsigned . '.' . $b64($signature)]), ['Content-Type' => 'application/x-www-form-urlencoded'], 20);
             $token = json_decode((string) $response->body, true)['access_token'] ?? '';
@@ -1450,7 +1590,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         } catch (\Throwable $e) {
         }
 
-        return ['ok' => $ok, 'message' => $message, 'rows' => $rows];
+        // "count", not "rows": the list of queries is merged into the same answer under "rows"
+        return ['ok' => $ok, 'message' => $message, 'count' => $rows];
     }
 
     /** Search Console queries for the report, with what this search finds for each. */
@@ -1542,7 +1683,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export'], true)) {
             $this->params = new Registry($form['params']);
         }
 
@@ -1596,9 +1737,33 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 return ['ok' => true] + $this->stats();
 
             case 'conversions':
+                $this->ensureTables();
+
                 return $this->conversions(max(1, min(366, $input->getInt('days', 30))));
 
+            case 'products_all':
+                return $this->allProducts();
+
+            case 'settings_export':
+                return $this->exportSettings();
+
+            case 'settings_import':
+                if (!$user->authorise('core.edit', 'com_plugins')) {
+                    return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
+                }
+
+                return $this->importSettings((string) $input->post->get('data', '', 'raw'));
+
+            case 'settings_reset':
+                if (!$user->authorise('core.edit', 'com_plugins')) {
+                    return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
+                }
+
+                return $this->resetSettings();
+
             case 'gsc':
+                $this->ensureTables();
+
                 return $this->gscList($input->getInt('check', 0) === 1);
 
             case 'gsc_fetch':
@@ -1609,6 +1774,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 if (is_array($form) && isset($form['params']) && is_array($form['params'])) {
                     $this->params = new Registry($form['params']);
                 }
+                $this->ensureTables();
 
                 return $this->gscFetch() + $this->gscList(false);
 
@@ -1616,6 +1782,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 if (!$user->authorise('core.edit', 'com_plugins')) {
                     return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
                 }
+
+                $this->ensureTables();
 
                 return $this->gscImport((string) $input->post->get('csv', '', 'raw')) + $this->gscList(false);
 

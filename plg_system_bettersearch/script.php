@@ -29,6 +29,17 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
 
         try {
             $db = Factory::getContainer()->get(DatabaseInterface::class);
+            // every table of the install script, also on updates: a site whose schema record was
+            // missing (Joomla then skips the update scripts) still gets the tables of new versions
+            $sql = $parent->getParent()->getPath('source') . '/sql/install.mysql.utf8.sql';
+            foreach (is_file($sql) ? $db->splitSql((string) file_get_contents($sql)) : [] as $statement) {
+                if (stripos(trim($statement), 'CREATE TABLE IF NOT EXISTS') === 0) {
+                    try {
+                        $db->setQuery($statement)->execute();
+                    } catch (\Throwable $e) {
+                    }
+                }
+            }
             $this->fulltextIndex($db);
             Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_ADMINISTRATOR)
                 || Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_PLUGINS . '/system/bettersearch');
