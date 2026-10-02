@@ -15,6 +15,7 @@ namespace Merserwis\Plugin\System\BetterSearch\Render;
 
 use Joomla\CMS\Application\CMSApplicationInterface;
 use Joomla\CMS\Component\ComponentHelper;
+use Joomla\CMS\Language\Associations;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Database\DatabaseInterface;
@@ -118,7 +119,7 @@ final class Store
     private function visible($query, string $alias = 'p'): void
     {
         $db   = $this->db;
-        $now  = $db->quote(gmdate('Y-m-d H:i:s'));
+        $now  = $db->quote((new \DateTime('now', self::siteZone()))->format('Y-m-d H:i:s'));
         $null = $db->quote($db->getNullDate());
         $lang = $this->app->getLanguage()->getTag();
         $query->where("$alias.published = 1")
@@ -248,10 +249,9 @@ final class Store
         ];
     }
 
-    /** Price after the store sales: every applicable sale is computed from the regular price and the last one wins (Gridbox's rule). */
+    /** Price after the store sales: the first applicable sale (lowest id) is computed from the regular price, later ones are skipped (Gridbox's rule). */
     private function salePrice(float $price, int $productId, string $variation, array $categories): float
     {
-        $result = $price;
         foreach ($this->sales() as $sale) {
             if (empty($sale->discount)) {
                 continue;
@@ -263,11 +263,11 @@ final class Store
                 default    => false,
             };
             if ($applies) {
-                $result = $price - ($sale->unit === '%' ? $price * ((float) $sale->discount / 100) : (float) $sale->discount);
+                return $price - ($sale->unit === '%' ? $price * ((float) $sale->discount / 100) : (float) $sale->discount);
             }
         }
 
-        return $result;
+        return $price;
     }
 
     private function sales(): array
@@ -278,8 +278,7 @@ final class Store
         $this->sales = [];
         try {
             $db    = $this->db;
-            $tz    = new \DateTimeZone((string) $this->app->get('offset', 'UTC') ?: 'UTC');
-            $now   = $db->quote((new \DateTime('now', $tz))->format('Y-m-d H:i:s'));
+            $now   = $db->quote((new \DateTime('now', self::siteZone()))->format('Y-m-d H:i:s'));
             $null  = $db->quote($db->getNullDate());
             $query = $db->createQuery()
                 ->select('*')
@@ -336,30 +335,40 @@ final class Store
             return null;
         }
 
-        $list     = is_object($store->currencies ?? null) ? (array) ($store->currencies->list ?? []) : [];
-        $currency = null;
+        // the same choice as Gridbox (StoreHelper::setCurrency): the default currency, the first one of
+        // the page language (only with Associations on), the first one matching the switcher cookie
+        $list     = is_object($store->currencies ?? null) ? array_values(array_filter((array) ($store->currencies->list ?? []), 'is_object')) : [];
+        $default  = null;
         foreach ($list as $item) {
             if (!empty($item->default)) {
-                $currency = $item;
+                $default = $item;
+                break;
             }
         }
-        $lang = $this->app->getLanguage()->getTag();
-        foreach ($list as $item) {
-            if (($item->language ?? '') === $lang) {
-                $currency = $item;
+        $currency = $default;
+        if (Associations::isEnabled()) {
+            $lang = $this->app->getLanguage()->getTag();
+            foreach ($list as $item) {
+                if (($item->language ?? '') === $lang) {
+                    $currency = $item;
+                    break;
+                }
             }
         }
         $code = $this->app->getInput()->cookie->getString('gridbox-currency', '');
-        foreach ($list as $item) {
-            if ($code !== '' && ($item->code ?? '') === $code) {
-                $currency = $item;
+        if ($code !== '') {
+            foreach ($list as $item) {
+                if ((string) ($item->code ?? '') === $code) {
+                    $currency = $item;
+                    break;
+                }
             }
         }
 
         $this->currency = $currency ?? (is_object($store->currency ?? null) ? $store->currency : null);
 
-        // with automatic exchange rates Gridbox takes the rate from the fetched rates, not from the stored currency
-        if ($this->currency && !empty($store->currencies->auto) && isset($this->currency->code)) {
+        // with automatic exchange rates Gridbox replaces the rate of every non-default currency with the fetched one
+        if ($this->currency && $this->currency !== $default && !empty($store->currencies->auto) && isset($this->currency->code)) {
             try {
                 $query = $this->db->createQuery()
                     ->select($this->db->quoteName('key'))
@@ -642,5 +651,15 @@ final class Store
         $path = implode('/', array_map('rawurlencode', $parts));
 
         return ($absolute || $this->preview ? rtrim(Uri::root(), '/') : Uri::root(true)) . '/' . $path;
+    }
+
+    /** Gridbox compares publishing dates with the time of the site's time zone (DateHelper::make()). */
+    private static function siteZone(): \DateTimeZone
+    {
+        try {
+            return new \DateTimeZone((string) \Joomla\CMS\Factory::getApplication()->get('offset', 'UTC') ?: 'UTC');
+        } catch (\Throwable $e) {
+            return new \DateTimeZone('UTC');
+        }
     }
 }
