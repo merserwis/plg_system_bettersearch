@@ -51,3 +51,14 @@
 .bs-stats-table th:nth-child(2),.bs-stats-table td:nth-child(2),.bs-stats-table th:nth-child(3),.bs-stats-table td:nth-child(3){width:7rem;text-align:right}
 .bs-stats-table th:nth-child(4),.bs-stats-table td:nth-child(4){width:11rem;white-space:nowrap}
 .bs-stats-wrap{max-height:28rem;overflow:auto}
+
+/* 1.4.0: dictionary editors, report actions */
+.bs-dict{margin:-.5rem 0 1rem}
+.bs-dict-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 8px}
+.bs-dict-bar .bs-dict-filter{max-width:16rem}
+.bs-dict-table td{vertical-align:middle}
+.bs-dict-table td:nth-child(2){width:1%;text-align:center;white-space:nowrap}
+.bs-dict[data-bs-dict="redirects"] .bs-dict-table td:nth-child(2){width:auto;text-align:start}
+.bs-actions{white-space:nowrap;text-align:end}
+.bs-actions .btn{padding:.1rem .45rem;font-size:.8rem}
+.bs-gsc-status p{margin:.25rem 0 .5rem}

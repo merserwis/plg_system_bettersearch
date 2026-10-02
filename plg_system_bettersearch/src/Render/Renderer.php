@@ -136,6 +136,25 @@ final class Renderer
         }
 
         $opt = 0;
+        // a redirect set for this phrase: the first option of the panel
+        if (!empty($result['redirect'])) {
+            $r     = $result['redirect'];
+            $html .= '<div class="bs-section bs-section-go"><ul class="bs-cats" role="presentation"><li role="presentation"><a class="bs-opt bs-go" role="option" id="bs-opt-' . $opt
+                . '" style="--i:' . $opt++ . '" href="' . $esc($r['url']) . '"><span class="bs-cat-name">' . $esc($r['label']) . '</span><span class="bs-go-arrow" aria-hidden="true">→</span></a></li></ul></div>';
+        }
+        // popular searches that start like the typed text
+        if (!empty($result['popular'])) {
+            $html .= '<div class="bs-section bs-section-pop">';
+            if ($this->bool('live_section_titles', true)) {
+                $html .= '<div class="bs-section-title">' . $esc($this->text('text_popular', 'PLG_SYSTEM_BETTERSEARCH_T_POPULAR')) . '</div>';
+            }
+            $html .= '<ul class="bs-pop" role="presentation">';
+            foreach ($result['popular'] as $phrase) {
+                $html .= '<li role="presentation"><a class="bs-opt bs-sugg" role="option" id="bs-opt-' . $opt . '" style="--i:' . $opt++ . '" href="#" data-bs-q="' . $esc($phrase) . '">'
+                    . '<span class="bs-sugg-icon" aria-hidden="true"></span><span class="bs-sugg-text">' . $this->mark($phrase) . '</span></a></li>';
+            }
+            $html .= '</ul></div>';
+        }
         if ($categories && $this->bool('live_categories', true)) {
             $all   = $this->store->categories();
             $html .= '<div class="bs-section bs-section-cats">';
@@ -183,6 +202,12 @@ final class Renderer
 
         if (!$items && !$categories) {
             $html .= '<div class="bs-empty">' . $this->fmt($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), ['%s' => '<b>' . $esc($q) . '</b>']) . '</div>';
+            if (!empty($result['suggest'])) {
+                $links = array_map(fn ($phrase) => '<a href="#" class="bs-opt bs-sugg-inline" role="option" id="bs-opt-' . $opt . '" data-bs-q="' . $esc($phrase) . '">'
+                    . $esc($phrase) . '</a>', $result['suggest']);
+                $opt  += count($links);
+                $html .= '<div class="bs-note bs-didyoumean">' . $esc($this->text('text_did_you_mean', 'PLG_SYSTEM_BETTERSEARCH_T_DID_YOU_MEAN')) . ' ' . implode(', ', $links) . '</div>';
+            }
         }
 
         $out = '<div class="bs-live-body">' . $html . '</div>';
@@ -225,7 +250,7 @@ final class Renderer
 
         $price = $this->bool('live_show_price', true) ? $this->price($row) : '';
 
-        return '<li role="presentation"><a class="bs-opt bs-item" role="option" id="bs-opt-' . $n . '" style="--i:' . $n . '" href="' . $esc($row->link) . '">' . $image
+        return '<li role="presentation"><a class="bs-opt bs-item" role="option" id="bs-opt-' . $n . '" style="--i:' . $n . '" href="' . $esc($row->link) . '" data-bs-id="' . (int) $row->id . '">' . $image
             . '<span class="bs-info"><span class="bs-title">' . $this->mark($row->title) . '</span>'
             . ($meta ? '<span class="bs-meta">' . implode('<span class="bs-dot">·</span>', $meta) . '</span>' : '')
             . $excerpt . '</span>' . $price . '</a></li>';
@@ -296,6 +321,15 @@ final class Renderer
 .bs-live .bs-cat{gap:8px;align-items:baseline;flex-wrap:wrap}
 .bs-live .bs-cat-name{font-weight:600}
 .bs-live .bs-cat-path{font-size:.85em;color:var(--bs-muted)}
+.bs-live .bs-pop{list-style:none;margin:0;padding:0}
+.bs-live .bs-sugg{gap:10px;align-items:center}
+.bs-live .bs-sugg-icon{flex:0 0 auto;width:12px;height:12px;border:2px solid var(--bs-muted);border-radius:50%;position:relative;opacity:.8}
+.bs-live .bs-sugg-icon::after{content:'';position:absolute;width:2px;height:6px;background:var(--bs-muted);inset-inline-end:-4px;bottom:-5px;transform:rotate(-45deg)}
+.bs-live .bs-go{gap:8px;align-items:center;font-weight:600}
+.bs-live .bs-go-arrow{margin-inline-start:auto;color:var(--bs-accent, inherit)}
+[dir=rtl] .bs-live .bs-go-arrow{transform:scaleX(-1)}
+.bs-live .bs-didyoumean a{font-weight:600;color:var(--bs-accent, inherit)}
+.bs-live .bs-didyoumean .bs-opt{display:inline;padding:0}
 .bs-live .bs-note{padding:8px 16px;font-size:.9em;color:var(--bs-muted);border-bottom:1px solid var(--bs-border)}
 .bs-live .bs-empty{padding:24px 16px;text-align:center;color:var(--bs-muted)}
 .bs-live .bs-all{justify-content:center;font-weight:700;background:var(--bs-accent);color:#fff;padding:12px 16px;border-radius:0}
@@ -410,6 +444,14 @@ CSS;
             $html .= $this->chips($state['chips'], 'bsr-cats');
         }
 
+        // brand, price, sale, stock: beside the results (or above them)
+        $facets = $this->facets($state);
+        $side   = $facets !== '' && $this->str('page_facets_position', 'side', ['side', 'top']) === 'side';
+        if ($facets !== '') {
+            $html .= $side ? '<div class="bsr-layout">' . $facets . '<div class="bsr-main">' : $facets;
+        }
+        $close = $side ? '</div></div>' : '';
+
         // toolbar: count + sorting
         $html .= '<div class="bsr-toolbar">';
         if ($this->bool('page_count', true)) {
@@ -431,14 +473,74 @@ CSS;
 
         if (!$total) {
             $html .= '<div class="bsr-empty">' . $this->fmt($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), ['%s' => '<b>' . $esc($q) . '</b>']) . '</div>';
+            if (!empty($result['suggest'])) {
+                $links = array_map(fn ($phrase) => '<a href="' . $esc(($state['queryUrl'] ?? fn ($x) => '#')($phrase)) . '"' . $this->nofollow() . '>' . $esc($phrase) . '</a>', $result['suggest']);
+                $html .= '<p class="bsr-note bsr-didyoumean">' . $esc($this->text('text_did_you_mean', 'PLG_SYSTEM_BETTERSEARCH_T_DID_YOU_MEAN')) . ' ' . implode(', ', $links) . '</p>';
+            }
 
-            return $html . '</div>';
+            return $html . $close . '</div>';
         }
 
         $html .= '<ul class="bsr-grid">' . $this->cards($result['items'], $state) . '</ul>';
         $html .= $this->pagination($state, $total);
 
-        return $html . '</div>';
+        return $html . $close . '</div>';
+    }
+
+    /** The filter panel of the results page (a plain GET form: works without JavaScript). */
+    private function facets(array $state): string
+    {
+        $f = $state['facets'] ?? [];
+        if (!$f) {
+            return '';
+        }
+        $esc    = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        $vars   = $state['facetVars'] ?? [];
+        $open   = $vars || $this->device !== 'mobile';
+        $html   = '<details class="bsr-facets"' . ($open ? ' open' : '') . '><summary>' . $esc($this->text('text_filters', 'PLG_SYSTEM_BETTERSEARCH_T_FILTERS'))
+            . ($vars ? ' <span class="bsr-facets-n">' . count($vars) . '</span>' : '') . '</summary>';
+        $html  .= '<form method="get" action="' . $esc($state['action']) . '">';
+        foreach ($state['hidden'] as $name => $value) {
+            if (!array_key_exists($name, $vars)) {
+                $html .= '<input type="hidden" name="' . $esc($name) . '" value="' . $esc($value) . '">';
+            }
+        }
+        if ($state['sort'] !== (string) $this->params->get('default_sort', 'relevance')) {
+            $html .= '<input type="hidden" name="bs_sort" value="' . $esc($state['sort']) . '">';
+        }
+
+        if (isset($f['brand'])) {
+            $label = $f['brand']['label'] !== '' ? $f['brand']['label'] : $this->text('text_brand', 'PLG_SYSTEM_BETTERSEARCH_T_BRAND');
+            $html .= '<div class="bsr-facet"><label class="bsr-facet-title" for="' . $esc($state['action'] === '#' ? 'bsr-brand-p' : 'bsr-brand') . '">' . $esc($label) . '</label>'
+                . '<select name="bs_brand" id="' . ($state['action'] === '#' ? 'bsr-brand-p' : 'bsr-brand') . '" onchange="this.form.submit()"><option value="">' . $esc($this->text('text_all_brands', 'PLG_SYSTEM_BETTERSEARCH_T_ALL')) . '</option>';
+            foreach ($f['brand']['values'] as $value => $count) {
+                $html .= '<option value="' . $esc($value) . '"' . (mb_strtolower((string) $value) === mb_strtolower($f['brand']['active']) ? ' selected' : '') . '>' . $esc($value) . ' (' . (int) $count . ')</option>';
+            }
+            $html .= '</select></div>';
+        }
+        if (isset($f['price'])) {
+            $pr    = $f['price'];
+            $fmt   = fn ($v) => $v === null ? '' : rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
+            $html .= '<div class="bsr-facet bsr-facet-price"><span class="bsr-facet-title">' . $esc($this->text('text_price_filter', 'PLG_SYSTEM_BETTERSEARCH_T_PRICE'))
+                . ($pr['symbol'] !== '' ? ' (' . $esc($pr['symbol']) . ')' : '') . '</span><div class="bsr-price-range">'
+                . '<input type="number" inputmode="decimal" min="0" step="any" name="bs_min" value="' . $esc($fmt($pr['from'])) . '" placeholder="' . $esc($fmt($pr['min'])) . '" aria-label="' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_PRICE_FROM')) . '">'
+                . '<span aria-hidden="true">–</span>'
+                . '<input type="number" inputmode="decimal" min="0" step="any" name="bs_max" value="' . $esc($fmt($pr['to'])) . '" placeholder="' . $esc($fmt($pr['max'])) . '" aria-label="' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_PRICE_TO')) . '">'
+                . '<button type="submit">' . $esc($this->text('text_apply', 'PLG_SYSTEM_BETTERSEARCH_T_APPLY')) . '</button></div></div>';
+        }
+        foreach (['sale' => ['text_sale_only', 'PLG_SYSTEM_BETTERSEARCH_T_SALE_ONLY'], 'stock' => ['text_stock_only', 'PLG_SYSTEM_BETTERSEARCH_T_STOCK_ONLY']] as $flag => [$key, $lang]) {
+            if (isset($f[$flag])) {
+                $html .= '<label class="bsr-facet bsr-check"><input type="checkbox" name="bs_' . $flag . '" value="1"' . ($f[$flag]['active'] ? ' checked' : '')
+                    . ' onchange="this.form.submit()"> <span>' . $esc($this->text($key, $lang)) . ' <span class="bsr-chip-count">' . (int) $f[$flag]['count'] . '</span></span></label>';
+            }
+        }
+        $html .= '<noscript><button type="submit">OK</button></noscript></form>';
+        if ($vars) {
+            $clear = array_fill_keys(array_keys($vars), null);
+            $html .= '<a class="bsr-clear" href="' . $esc(($state['url'])($clear + ['bs_page' => null])) . '"' . $this->nofollow() . '>' . $esc($this->text('text_clear_filters', 'PLG_SYSTEM_BETTERSEARCH_T_CLEAR_FILTERS')) . '</a>';
+        }
+
+        return $html . '</details>';
     }
 
     /** Cards of one page of results (also used by "load more"). */
@@ -462,7 +564,7 @@ CSS;
     private function card(object $row, bool $eager): string
     {
         $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-        $html = '<li class="bsr-card"><a class="bsr-cover" href="' . $esc($row->link) . '" aria-label="' . $esc($row->title) . '" tabindex="-1"></a>';
+        $html = '<li class="bsr-card" data-bs-id="' . (int) $row->id . '"><a class="bsr-cover" href="' . $esc($row->link) . '" aria-label="' . $esc($row->title) . '" tabindex="-1"></a>';
 
         if ($this->bool('page_image', true) && $this->str('page_image_position', 'top', ['top', 'left', 'right', 'none']) !== 'none') {
             $width = $this->str('page_image_position', 'top', ['top', 'left', 'right']) === 'top'
@@ -534,8 +636,8 @@ CSS;
 
         if ($mode !== 'numbers' && $page < $pages) {
             // only the search parameters: the page's own (option, view…) must not reach the AJAX request
-            $search = http_build_query(array_filter(['query' => $state['query'], 'bs_sort' => $state['sort'], 'bs_cat' => $state['cat'] ?: null,
-                'bs_app' => $state['app'] ?: null], fn ($v) => $v !== null), '', '&', PHP_QUERY_RFC3986);
+            $search = http_build_query(array_filter(array_merge(['query' => $state['query'], 'bs_sort' => $state['sort'], 'bs_cat' => $state['cat'] ?: null,
+                'bs_app' => $state['app'] ?: null], $state['facetVars'] ?? []), fn ($v) => $v !== null), '', '&', PHP_QUERY_RFC3986);
             $html .= '<div class="bsr-more-wrap"><button type="button" class="bsr-more" data-page="' . ($page + 1) . '" data-pages="' . $pages . '" data-search="'
                 . $esc($search) . '">' . $esc($this->text('text_load_more', 'PLG_SYSTEM_BETTERSEARCH_T_LOAD_MORE')) . '</button></div>';
         }
@@ -676,6 +778,28 @@ CSS;
 #S .bs-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #S .bsr-price .bs-from{font-weight:400;font-size:.8em;color:var(--bsr-text)}
 #S .bsr-stock{font-size:.85em}
+#S .bsr-layout{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:24px;align-items:start}
+#S .bsr-main{min-width:0}
+#S .bsr-facets{border:1px solid var(--bsr-border);border-radius:var(--bsr-radius);background:var(--bsr-card-bg);padding:12px 14px;margin:0 0 16px}
+#S .bsr-layout .bsr-facets{margin:0;position:sticky;top:16px}
+#S .bsr-facets summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+#S .bsr-facets summary::-webkit-details-marker{display:none}
+#S .bsr-facets summary::after{content:'';margin-inline-start:auto;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s}
+#S .bsr-facets[open] summary::after{transform:rotate(-135deg)}
+#S .bsr-facets-n{background:var(--bsr-accent);color:#fff;border-radius:999px;padding:0 7px;font-size:.8em;line-height:1.6}
+#S .bsr-facets form{display:flex;flex-direction:column;gap:14px;margin:12px 0 0}
+#S > .bsr-facets form{flex-direction:row;flex-wrap:wrap;align-items:flex-end}
+#S .bsr-facet{display:flex;flex-direction:column;gap:6px;margin:0}
+#S .bsr-facet-title{font-weight:600;font-size:.92em}
+#S .bsr-facets select,#S .bsr-facets input[type=number]{padding:6px 8px;border:1px solid var(--bsr-border);border-radius:6px;background:#fff;font:inherit;min-height:0;height:auto;width:100%;max-width:100%;color:#111}
+#S .bsr-price-range{display:flex;gap:6px;align-items:center}
+#S .bsr-price-range input{width:0;flex:1 1 0;min-width:0}
+#S .bsr-facets button{padding:6px 10px;border:1px solid var(--bsr-accent);background:var(--bsr-accent);color:#fff;border-radius:6px;font:inherit;cursor:pointer;line-height:1.2}
+#S .bsr-check{flex-direction:row;align-items:center;gap:8px;cursor:pointer}
+#S .bsr-check input{margin:0;width:16px;height:16px;accent-color:var(--bsr-accent)}
+#S .bsr-clear{display:inline-block;margin-top:12px;font-size:.9em;color:var(--bsr-accent)}
+#S .bsr-didyoumean a{color:var(--bsr-accent);font-weight:600}
+@media (max-width:860px){#S .bsr-layout{grid-template-columns:1fr;gap:12px}#S .bsr-layout .bsr-facets{position:static}}
 #S .bs-stock-in{color:#15803d}#S .bs-stock-out{color:#b91c1c}
 #S .bsr-btn{position:relative;z-index:2;display:inline-block;padding:8px 14px;border-radius:6px;background:var(--bsr-accent);color:#fff;text-decoration:none;font-weight:600;font-size:.92em}
 #S .bsr-btn:hover{filter:brightness(1.08)}

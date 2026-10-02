@@ -26,7 +26,7 @@ final class Admin
         }
         self::$done = true;
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
-        $v  = fn (string $file) => '1.3.1-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
+        $v  = fn (string $file) => \Merserwis\Plugin\System\BetterSearch\Extension\BetterSearch::VERSION . '-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
         $wa->registerAndUseStyle('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/css/admin.css', ['version' => $v('media/plg_system_bettersearch/css/admin.css')]);
         $wa->registerAndUseScript('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/js/admin.js', ['version' => $v('media/plg_system_bettersearch/js/admin.js')], ['defer' => true]);
         $wa->registerAndUseScript('plg_system_bettersearch.preview', 'media/plg_system_bettersearch/js/preview.js', ['version' => $v('media/plg_system_bettersearch/js/preview.js')], ['defer' => true]);
@@ -35,7 +35,8 @@ final class Admin
             'TOOLS_PENDING', 'TOOLS_CHECKED', 'TOOLS_COMPLETE', 'TOOLS_APPS', 'TOOLS_CONFIG_CHANGED', 'TOOLS_DONE', 'TOOLS_REBUILD_CONFIRM',
             'TOOLS_WORKING', 'TOOLS_RESULTS', 'TOOLS_MODE', 'TOOLS_GROUPS', 'TOOLS_SCORE', 'TOOLS_WHY', 'TOOLS_TOP', 'TOOLS_ZERO', 'TOOLS_RECENT',
             'TOOLS_SEARCHES', 'TOOLS_RESULTS_COL', 'TOOLS_LAST', 'TOOLS_CLEAR_CONFIRM', 'TOOLS_SAVE_FIRST', 'TOOLS_NO_DATA', 'TOOLS_PINNED',
-            'TOOLS_CORRECTED', 'TOOLS_THUMBS_REMOVED', 'TOOLS_CACHE_CLEARED', 'PREVIEW_UPDATING', 'PREVIEW_COUNT'];
+            'TOOLS_CORRECTED', 'TOOLS_THUMBS_REMOVED', 'TOOLS_CACHE_CLEARED', 'PREVIEW_UPDATING', 'PREVIEW_COUNT',
+            'TOOLS_REDIRECTED', 'TOOLS_ZERO_HELP', 'TOOLS_CONV_TOTAL', 'TOOLS_CONV_QUERY', 'TOOLS_CONV_CLICKS', 'TOOLS_CONV_CTR', 'TOOLS_CONV_CARTS', 'TOOLS_CONV_CART_RATE', 'TOOLS_CONV_PRODUCTS', 'TOOLS_ADD_SYNONYM', 'TOOLS_ADD_REDIRECT', 'TOOLS_SYN_PROMPT', 'TOOLS_RED_PROMPT', 'TOOLS_DICT_ADDED', 'TOOLS_DICT_WORDS', 'TOOLS_DICT_ONEWAY', 'TOOLS_DICT_ALSO', 'TOOLS_DICT_PHRASES', 'TOOLS_DICT_URL', 'TOOLS_DICT_LABEL', 'TOOLS_DICT_FILTER', 'TOOLS_DICT_ADD', 'TOOLS_DICT_TEXT', 'TOOLS_DICT_TABLE', 'TOOLS_DICT_COUNT', 'TOOLS_GSC_LAST', 'TOOLS_GSC_NONE', 'TOOLS_GSC_QUERY', 'TOOLS_GSC_IMPR', 'TOOLS_GSC_POS', 'TOOLS_GSC_FOUND'];
         $texts = [];
         foreach ($keys as $k) {
             $texts[$k] = Text::_('PLG_SYSTEM_BETTERSEARCH_' . $k);

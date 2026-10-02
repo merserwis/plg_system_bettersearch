@@ -18,22 +18,35 @@
     }
 
     // tasks that change something are sent as POST; the others as GET
-    var WRITES = { sync: 1, clearlog: 1, clearthumbs: 1, clearcache: 1 };
+    var WRITES = { sync: 1, clearlog: 1, clearthumbs: 1, clearcache: 1, gsc_import: 1 };
+
+    function fmt(text, values) {
+        var i = 0;
+        return String(text || '').replace(/%[sd]/g, function () {
+            return values[i++];
+        });
+    }
 
     function call(task, params, form) {
         var url = opts.ajax + '&task=admin_' + task;
+        var post = (params && params._post) || null;
         Object.keys(params || {}).forEach(function (k) {
-            url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+            if (k !== '_post') {
+                url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+            }
         });
         var init = { credentials: 'same-origin', headers: { 'Accept': 'application/json' } };
-        if (WRITES[task]) {
+        if (WRITES[task] || post) {
             init.method = 'POST';
             init.body = new FormData();
+            Object.keys(post || {}).forEach(function (k) {
+                init.body.append(k, post[k]);
+            });
         }
         if (form) {
             init.method = 'POST';
             // only the plugin settings: the form's own option/task fields would redirect the request
-            init.body = new FormData();
+            init.body = init.body || new FormData();
             new FormData(form).forEach(function (value, key) {
                 if (key.indexOf('jform[params]') === 0) {
                     init.body.append(key, value);
@@ -234,6 +247,266 @@
         (scope || document).querySelectorAll('.bs-picker').forEach(initPicker);
     }
 
+    // ================================================================ dictionary editors (synonyms, redirects)
+
+    function actionButtons(q) {
+        return '<button type="button" class="btn btn-sm btn-outline-primary" data-bs-addsyn="' + esc(q) + '">' + esc(T.TOOLS_ADD_SYNONYM) + '</button> '
+            + '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-addred="' + esc(q) + '">' + esc(T.TOOLS_ADD_REDIRECT) + '</button>';
+    }
+
+    // "add synonym" / "redirect" from a report: a prompt, then a new line in the dictionary of the form
+    document.addEventListener('click', function (e) {
+        var syn = e.target.closest && e.target.closest('[data-bs-addsyn]');
+        var red = e.target.closest && e.target.closest('[data-bs-addred]');
+        if (!syn && !red) {
+            return;
+        }
+        e.preventDefault();
+        var q = (syn || red).getAttribute(syn ? 'data-bs-addsyn' : 'data-bs-addred');
+        var answer = window.prompt(fmt(syn ? T.TOOLS_SYN_PROMPT : T.TOOLS_RED_PROMPT, [q]), '');
+        if (!answer || !answer.trim()) {
+            return;
+        }
+        document.dispatchEvent(new CustomEvent('bs-dict-add', { detail: syn
+            ? { mode: 'synonyms', left: q + ', ' + answer.trim() }
+            : { mode: 'redirects', left: q, url: answer.trim() } }));
+        (syn || red).closest('tr').classList.add('table-success');
+        Joomla.renderMessages({ message: [T.TOOLS_DICT_ADDED] });
+    });
+
+    function initDict(root) {
+        var mode = root.getAttribute('data-bs-dict');
+        var area = document.querySelector('[name="jform[params][' + root.getAttribute('data-target') + ']"]');
+        if (!area) {
+            return;
+        }
+        var group = area.closest('.control-group') || area.parentNode;
+        var rows = [];
+        var asText = false;
+
+        function parse() {
+            rows = area.value.split(/\r?\n/).filter(function (l) {
+                return l.trim() !== '';
+            }).map(function (line) {
+                if (line.trim().charAt(0) === '#') {
+                    return { raw: line };
+                }
+                if (mode === 'redirects') {
+                    var p = line.split('=>');
+                    var right = (p.slice(1).join('=>') || '').split('|');
+                    return { left: p[0].trim(), url: (right[0] || '').trim(), label: right.slice(1).join('|').trim() };
+                }
+                var i = line.indexOf('=>');
+                return i < 0 ? { left: line.trim(), oneway: false, right: '' } : { left: line.slice(0, i).trim(), oneway: true, right: line.slice(i + 2).trim() };
+            });
+        }
+
+        function write() {
+            area.value = rows.map(function (r) {
+                if (r.raw !== undefined) {
+                    return r.raw;
+                }
+                if (mode === 'redirects') {
+                    return r.left && r.url ? r.left + ' => ' + r.url + (r.label ? ' | ' + r.label : '') : '';
+                }
+                return r.left ? (r.oneway && r.right ? r.left + ' => ' + r.right : r.left) : '';
+            }).filter(function (l) {
+                return l !== '';
+            }).join('\n');
+            area.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function draw() {
+            var filter = (root.querySelector('.bs-dict-filter') || {}).value || '';
+            var head = mode === 'redirects'
+                ? '<th>' + esc(T.TOOLS_DICT_PHRASES) + '</th><th>' + esc(T.TOOLS_DICT_URL) + '</th><th>' + esc(T.TOOLS_DICT_LABEL) + '</th>'
+                : '<th>' + esc(T.TOOLS_DICT_WORDS) + '</th><th>' + esc(T.TOOLS_DICT_ONEWAY) + '</th><th>' + esc(T.TOOLS_DICT_ALSO) + '</th>';
+            var html = '<div class="bs-dict-bar"><input type="search" class="form-control form-control-sm bs-dict-filter" placeholder="' + esc(T.TOOLS_DICT_FILTER) + '" value="' + esc(filter) + '">'
+                + '<button type="button" class="btn btn-sm btn-primary" data-dict="add">+ ' + esc(T.TOOLS_DICT_ADD) + '</button>'
+                + '<button type="button" class="btn btn-sm btn-outline-secondary" data-dict="text">' + esc(T.TOOLS_DICT_TEXT) + '</button>'
+                + '<span class="small text-muted">' + esc(fmt(T.TOOLS_DICT_COUNT, [rows.length])) + '</span></div>';
+            html += '<div class="bs-stats-wrap"><table class="table table-sm bs-dict-table"><thead><tr>' + head + '<th></th></tr></thead><tbody>';
+            rows.forEach(function (r, i) {
+                var text = JSON.stringify(r).toLowerCase();
+                if (filter && text.indexOf(filter.toLowerCase()) < 0) {
+                    return;
+                }
+                if (r.raw !== undefined) {
+                    html += '<tr data-i="' + i + '"><td colspan="3"><input class="form-control form-control-sm" data-k="raw" value="' + esc(r.raw) + '"></td>';
+                } else if (mode === 'redirects') {
+                    html += '<tr data-i="' + i + '"><td><input class="form-control form-control-sm" data-k="left" value="' + esc(r.left) + '" placeholder="sonel, sonel mierniki"></td>'
+                        + '<td><input class="form-control form-control-sm" data-k="url" value="' + esc(r.url) + '" placeholder="/oferta/…"></td>'
+                        + '<td><input class="form-control form-control-sm" data-k="label" value="' + esc(r.label) + '"></td>';
+                } else {
+                    html += '<tr data-i="' + i + '"><td><input class="form-control form-control-sm" data-k="left" value="' + esc(r.left) + '" placeholder="multimetr, miernik uniwersalny"></td>'
+                        + '<td><input type="checkbox" class="form-check-input" data-k="oneway"' + (r.oneway ? ' checked' : '') + '></td>'
+                        + '<td><input class="form-control form-control-sm" data-k="right" value="' + esc(r.right) + '"' + (r.oneway ? '' : ' disabled') + '></td>';
+                }
+                html += '<td><button type="button" class="btn btn-sm btn-link text-danger" data-dict="del" aria-label="' + esc(T.PICKER_REMOVE) + '">✕</button></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            if (!rows.length) {
+                html += '<p class="text-muted small">' + esc(T.TOOLS_NO_DATA) + '</p>';
+            }
+            root.innerHTML = html;
+            var f = root.querySelector('.bs-dict-filter');
+            if (document.activeElement === document.body && filter) {
+                f.focus();
+            }
+        }
+
+        function show() {
+            group.hidden = !asText;
+            if (asText) {
+                root.innerHTML = '<button type="button" class="btn btn-sm btn-outline-secondary" data-dict="table">' + esc(T.TOOLS_DICT_TABLE) + '</button>';
+            } else {
+                parse();
+                draw();
+            }
+        }
+
+        root.addEventListener('input', function (e) {
+            if (e.target.classList.contains('bs-dict-filter')) {
+                var pos = e.target.selectionStart;
+                draw();
+                var f = root.querySelector('.bs-dict-filter');
+                f.focus();
+                f.setSelectionRange(pos, pos);
+                return;
+            }
+            var tr = e.target.closest('tr[data-i]');
+            if (!tr) {
+                return;
+            }
+            var r = rows[parseInt(tr.dataset.i, 10)];
+            var k = e.target.dataset.k;
+            r[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+            if (k === 'oneway') {
+                tr.querySelector('[data-k="right"]').disabled = !e.target.checked;
+            }
+            write();
+        });
+        root.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-dict]');
+            if (!b) {
+                return;
+            }
+            var a = b.dataset.dict;
+            if (a === 'add') {
+                rows.unshift(mode === 'redirects' ? { left: '', url: '', label: '' } : { left: '', oneway: false, right: '' });
+                root.querySelector('.bs-dict-filter').value = '';
+                draw();
+                var first = root.querySelector('tbody input');
+                if (first) {
+                    first.focus();
+                }
+            } else if (a === 'del') {
+                rows.splice(parseInt(b.closest('tr').dataset.i, 10), 1);
+                write();
+                draw();
+            } else if (a === 'text') {
+                asText = true;
+                show();
+            } else if (a === 'table') {
+                asText = false;
+                show();
+            }
+        });
+        document.addEventListener('bs-dict-add', function (e) {
+            var d = e.detail || {};
+            if (d.mode !== mode) {
+                return;
+            }
+            parse();
+            rows.unshift(mode === 'redirects' ? { left: d.left, url: d.url, label: '' } : { left: d.left, oneway: false, right: '' });
+            write();
+            if (!asText) {
+                draw();
+            }
+        });
+        show();
+    }
+
+    // ================================================================ Google Search Console
+
+    function initGsc(root) {
+        var out = root.querySelector('.bs-gsc-out');
+        var statusBox = root.querySelector('.bs-gsc-status');
+        var form = root.closest('form');
+
+        function draw(r) {
+            var st = r.status || {};
+            statusBox.innerHTML = st.at ? '<p class="' + (st.ok ? 'text-success' : 'text-danger') + '">' + esc(st.message) + ' <span class="text-muted">('
+                + esc(fmt(T.TOOLS_GSC_LAST, [new Date(st.at * 1000).toLocaleString()])) + ')</span></p>' : '';
+            if (!r.rows || !r.rows.length) {
+                out.innerHTML = '<p class="text-muted">' + esc(T.TOOLS_GSC_NONE) + '</p>';
+                return;
+            }
+            var checked = r.rows[0].found !== undefined;
+            var rows = r.rows.slice();
+            if (checked) {
+                // what Google brings people for and this search does not find: first
+                rows.sort(function (a, b) {
+                    return (a.found === 0 ? 0 : 1) - (b.found === 0 ? 0 : 1);
+                });
+            }
+            out.innerHTML = '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_GSC_QUERY) + '</th><th>'
+                + esc(T.TOOLS_CONV_CLICKS) + '</th><th>' + esc(T.TOOLS_GSC_IMPR) + '</th><th>' + esc(T.TOOLS_GSC_POS) + '</th>'
+                + (checked ? '<th>' + esc(T.TOOLS_GSC_FOUND) + '</th>' : '') + '<th></th></tr></thead><tbody>'
+                + rows.map(function (q) {
+                    var found = '';
+                    if (checked) {
+                        found = '<td>' + (q.found === null ? '…' : (q.found === 0 ? '<span class="badge bg-danger">0</span>' : q.found)) + '</td>';
+                    }
+                    return '<tr><td>' + esc(q.query) + '</td><td>' + esc(q.clicks) + '</td><td>' + esc(q.impressions) + '</td><td>' + esc(q.position) + '</td>' + found
+                        + '<td class="bs-actions">' + actionButtons(q.query) + '</td></tr>';
+                }).join('') + '</tbody></table></div>';
+        }
+
+        function run(task, params, withForm) {
+            out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+            return call(task, params || {}, withForm ? form : null).then(function (r) {
+                if (r.message && r.ok === false) {
+                    Joomla.renderMessages({ error: [r.message] });
+                } else if (r.message) {
+                    Joomla.renderMessages({ message: [r.message] });
+                }
+                draw(r);
+            }).catch(function (e) {
+                out.innerHTML = '<p class="text-danger">' + esc(e.message) + '</p>';
+            });
+        }
+
+        root.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-bs-tool]');
+            if (!b) {
+                return;
+            }
+            var tool = b.dataset.bsTool;
+            if (tool === 'gsc_fetch') {
+                run('gsc_fetch', {}, true);
+            } else if (tool === 'gsc') {
+                run('gsc');
+            } else if (tool === 'gsc_check') {
+                run('gsc', { check: 1 });
+            }
+        });
+        root.querySelector('.bs-gsc-file').addEventListener('change', function (e) {
+            var file = e.target.files && e.target.files[0];
+            if (!file) {
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function () {
+                run('gsc_import', { _post: { csv: String(reader.result || '') } });
+                e.target.value = '';
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+        call('gsc').then(draw).catch(function () {
+        });
+    }
+
     // ================================================================ tools
 
     function initTools(root) {
@@ -326,15 +599,52 @@
             });
         }
 
-        function statsTable(rows) {
+        function conversions() {
+            var out = root.querySelector('.bs-conv-out');
+            var days = root.querySelector('.bs-conv-days').value;
+            out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+            call('conversions', { days: days }).then(function (r) {
+                var pct = function (a, b) {
+                    return b > 0 ? (Math.round(a / b * 1000) / 10) + ' %' : '–';
+                };
+                var html = '<p class="bs-test-sum">' + esc(fmt(T.TOOLS_CONV_TOTAL, [r.searches, r.clicks, r.carts])) + '</p>';
+                if (!r.queries.length) {
+                    out.innerHTML = html + '<p class="text-muted">' + esc(T.TOOLS_NO_DATA) + '</p>';
+                    return;
+                }
+                html += '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_CONV_QUERY) + '</th><th>'
+                    + esc(T.TOOLS_SEARCHES) + '</th><th>' + esc(T.TOOLS_CONV_CLICKS) + '</th><th>' + esc(T.TOOLS_CONV_CTR) + '</th><th>' + esc(T.TOOLS_CONV_CARTS)
+                    + '</th><th>' + esc(T.TOOLS_CONV_CART_RATE) + '</th></tr></thead><tbody>'
+                    + r.queries.map(function (q) {
+                        var s = parseInt(q.searches, 10) || 0, c = parseInt(q.clicks, 10) || 0, k = parseInt(q.carts, 10) || 0;
+                        return '<tr><td><a href="#" data-bs-try="' + esc(q.query) + '">' + esc(q.query) + '</a></td><td>' + (s || '–') + '</td><td>' + c + '</td><td>'
+                            + pct(c, s) + '</td><td>' + k + '</td><td>' + pct(k, c) + '</td></tr>';
+                    }).join('') + '</tbody></table></div>';
+                if (r.items.length) {
+                    html += '<h4 class="mt-3">' + esc(T.TOOLS_CONV_PRODUCTS) + '</h4><div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th></th><th>'
+                        + esc(T.TOOLS_CONV_CLICKS) + '</th><th>' + esc(T.TOOLS_CONV_CARTS) + '</th></tr></thead><tbody>'
+                        + r.items.map(function (i) {
+                            return '<tr><td>' + esc(i.title) + ' <small class="text-muted">#' + esc(i.item_id) + '</small></td><td>' + esc(i.clicks) + '</td><td>' + esc(i.carts) + '</td></tr>';
+                        }).join('') + '</tbody></table></div>';
+                }
+                out.innerHTML = html;
+            }).catch(function (e) {
+                out.innerHTML = '<p class="text-danger">' + esc(e.message) + '</p>';
+            });
+        }
+
+        function statsTable(rows, actions) {
             if (!rows.length) {
                 return '<p class="text-muted">' + esc(T.TOOLS_NO_DATA) + '</p>';
             }
             return '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th></th><th>' + esc(T.TOOLS_SEARCHES)
-                + '</th><th>' + esc(T.TOOLS_RESULTS_COL) + '</th><th>' + esc(T.TOOLS_LAST) + '</th></tr></thead><tbody>'
+                + '</th><th>' + esc(T.TOOLS_RESULTS_COL) + '</th><th>' + esc(T.TOOLS_LAST) + '</th>' + (actions ? '<th></th>' : '') + '</tr></thead><tbody>'
                 + rows.map(function (r) {
+                    var n = parseInt(r.results, 10);
                     return '<tr><td><a href="#" data-bs-try="' + esc(r.query) + '">' + esc(r.query) + '</a></td><td>' + r.searches + '</td><td>'
-                        + (parseInt(r.results, 10) === 0 ? '<span class="badge bg-danger">0</span>' : r.results) + '</td><td><small>' + esc(r.last_at) + '</small></td></tr>';
+                        + (n === 0 ? '<span class="badge bg-danger">0</span>' : (n < 0 ? '<span class="badge bg-info">→ ' + esc(T.TOOLS_REDIRECTED) + '</span>' : r.results))
+                        + '</td><td><small>' + esc(r.last_at) + '</small></td>'
+                        + (actions ? '<td class="bs-actions">' + actionButtons(r.query) + '</td>' : '') + '</tr>';
                 }).join('') + '</tbody></table></div>';
         }
 
@@ -350,7 +660,8 @@
                         return '<button type="button" role="tab" aria-selected="' + (t[0] === statsView) + '" class="' + (t[0] === statsView ? 'is-active' : '')
                             + '" data-bs-stats="' + t[0] + '">' + esc(t[1]) + '<span class="badge ' + (t[0] === 'zero' && t[2].length ? 'bg-danger' : 'bg-secondary') + '">'
                             + t[2].length + '</span></button>';
-                    }).join('') + '</div>' + statsTable(tabs.filter(function (t) { return t[0] === statsView; })[0][2]);
+                    }).join('') + '</div>' + (statsView === 'zero' ? '<p class="small text-muted">' + esc(T.TOOLS_ZERO_HELP) + '</p>' : '')
+                        + statsTable(tabs.filter(function (t) { return t[0] === statsView; })[0][2], statsView === 'zero');
                 };
                 draw();
                 out.onclick = function (e) {
@@ -393,6 +704,8 @@
                 if (window.confirm(T.TOOLS_CLEAR_CONFIRM)) {
                     stats('clearlog');
                 }
+            } else if (tool === 'conversions') {
+                conversions();
             } else if (tool === 'clearthumbs') {
                 call('clearthumbs').then(function (r) {
                     Joomla.renderMessages({ message: [T.TOOLS_THUMBS_REMOVED.replace('%d', r.removed)] });
@@ -415,7 +728,14 @@
 
     function start() {
         initPickers(document);
-        document.querySelectorAll('.bs-tools').forEach(initTools);
+        document.querySelectorAll('.bs-tools').forEach(function (root) {
+            if (root.querySelector('.bs-gsc-out')) {
+                initGsc(root);
+            } else {
+                initTools(root);
+            }
+        });
+        document.querySelectorAll('[data-bs-dict]').forEach(initDict);
         // rows added to a subform (rules, boosts) bring new pickers
         document.addEventListener('subform-row-add', function (e) {
             var row = (e.detail && e.detail.row) || e.target;

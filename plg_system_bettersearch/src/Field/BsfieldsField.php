@@ -35,6 +35,10 @@ class BsfieldsField extends ListField
                 if (in_array($field->field_type, self::SKIP, true)) {
                     continue;
                 }
+                // the brand filter: fields with a list of values only
+                if ((string) $this->element['selectonly'] === 'true' && !in_array($field->field_type, ['select', 'radio', 'checkbox'], true)) {
+                    continue;
+                }
                 $label     = trim((string) $field->label) !== '' ? $field->label : '#' . $field->id;
                 $options[] = (object) ['value' => (int) $field->id, 'text' => $field->app . ' › ' . $label . ' [' . $field->field_type . ']'];
             }
