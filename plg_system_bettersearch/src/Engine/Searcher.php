@@ -422,7 +422,7 @@ final class Searcher
     private function visibility($query, array $apps): void
     {
         $db   = $this->db;
-        $now  = $db->quote(gmdate('Y-m-d H:i:s'));
+        $now  = $db->quote((new \DateTime('now', self::siteZone()))->format('Y-m-d H:i:s'));
         $null = $db->quote($db->getNullDate());
 
         $query->where('p.published = 1')
@@ -840,5 +840,15 @@ final class Searcher
         $this->subscriptionHidden = array_values(array_filter($this->subscriptionHidden));
 
         return $this->subscriptionHidden;
+    }
+
+    /** Gridbox compares publishing dates with the time of the site's time zone (DateHelper::make()). */
+    private static function siteZone(): \DateTimeZone
+    {
+        try {
+            return new \DateTimeZone((string) \Joomla\CMS\Factory::getApplication()->get('offset', 'UTC') ?: 'UTC');
+        } catch (\Throwable $e) {
+            return new \DateTimeZone('UTC');
+        }
     }
 }
