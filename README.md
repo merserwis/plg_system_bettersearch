@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.4.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.4.1-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -38,6 +38,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Google Search Console (new in 1.4.0):** the queries people use on Google, fetched daily with a service account or imported from a CSV export, next to what this search finds for them — queries with no results here first, with the same synonym and redirect buttons.
 * **Instant reindex (new in 1.4.0):** saving, publishing or trashing a page or product in Gridbox updates the index right after that request.
 * **A module for any place:** `mod_bettersearch` — a search field with the same live results, for places without a Gridbox search element.
+* **Help where you need it (1.4.1):** a “?” beside every option shows its description on hover, click or keyboard focus.
 * **Administrator menu entry:** *Better Search for Gridbox* appears in the Joomla 6 administrator menu and opens the plugin settings directly.
 
 ---
@@ -142,6 +143,7 @@ The **Index & tools** tab of the plugin:
 * **Test search** — the results of any query **as a guest sees them**, with the score of each result and its reasons (e.g. `mi3155:title exact +15.0`, `phrase +23.3`, `views +2.9`, `pinned by rule`), the search mode and how the query was understood. It uses the settings of the form **before they are saved**, so weights, rules and boosts can be tried out first.
 * **Search statistics** — most searched queries, queries without results and recent ones, as tabs with one full-width table each (counts on the tabs); a click on a query runs it in the test console. Queries without results have *Synonym* and *Redirect* buttons that add an entry to the dictionaries of the form (save the settings to use it).
 * **Conversions** (1.4.0) — for the last 7 / 30 / 90 / 365 days: searches, clicks on results, click rate, products put into the cart and cart rate per query, and the products most often clicked and put into the cart.
+* **Settings file** (1.4.1) — export the settings of the form to a JSON file, import them (known settings only, saved at once) or reset everything to the defaults; the Search Console key is never exported and a reset keeps it.
 * **Google Search Console** (1.4.0, own tab) — fetch now, import a CSV file, show, and *check here*: each Google query searched with this search as a guest, those with no results listed first.
 
 ---
@@ -394,7 +396,7 @@ The live results of the module field use the settings of the plugin.
 
 ## 🧪 Verification & Testing
 
-Versions 1.0.0 to 1.4.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
+Versions 1.0.0 to 1.4.1 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
 
 1. **Model codes** — `MI 3155`, `MI3155`, `MI-3155`, `mi.3155` and `metrel mi 3155` return the same product first; `MPI 530` = `MPI530`; `ht 7051` = `HT7051`; `eurotest xd` = *EurotestXD*; `miernik izolacji 5 kv` = `5kv`.
 2. **Fallbacks** — `eurotset` → *eurotest*, `miernk izolacji` → *miernik izolacji*; partial matches limited to products with at least half of the words; a fixed list of 41 queries kept as a regression baseline.
@@ -452,6 +454,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+* **1.4.1** — Google Search Console tab fixed (tables ensured, list after import, causes of errors shown to administrators); updates safe when Joomla's schema record is missing; “?” help tooltips; instant product finder; settings export / import / reset.
 * **1.4.0** — Synonym and redirect editors, actions on queries without results, popular-search suggestions and “did you mean”, filters beside the results (brand, price, sale, stock), conversion statistics, Google Search Console queries (service account or CSV), instant reindex after Gridbox changes.
 * **1.3.1** — Store sales: the first applicable sale wins (as in Gridbox). Currency choice as in Gridbox (language currency with Associations, automatic rates). Publishing dates in the site time zone.
 * **1.3.0** — The regular price is crossed out in the live results. SEO tab: robots, canonical address, title and description with the query, SearchResultsPage structured data, nofollow on sorting/filters/pages, OpenSearch, optional SearchAction. Translations into 11 languages, right-to-left layouts.
