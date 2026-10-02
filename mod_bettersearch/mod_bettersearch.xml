@@ -6,17 +6,40 @@
     <creationDate>2026-10-01</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
     <description>MOD_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Module\BetterSearch</namespace>
     <files>
         <folder module="mod_bettersearch">services</folder>
         <folder>src</folder>
         <folder>tmpl</folder>
+        <folder>language</folder>
     </files>
     <languages folder="language">
         <language tag="en-GB">en-GB/mod_bettersearch.ini</language>
         <language tag="en-GB">en-GB/mod_bettersearch.sys.ini</language>
+        <language tag="pl-PL">pl-PL/mod_bettersearch.ini</language>
+        <language tag="pl-PL">pl-PL/mod_bettersearch.sys.ini</language>
+        <language tag="uk-UA">uk-UA/mod_bettersearch.ini</language>
+        <language tag="uk-UA">uk-UA/mod_bettersearch.sys.ini</language>
+        <language tag="de-DE">de-DE/mod_bettersearch.ini</language>
+        <language tag="de-DE">de-DE/mod_bettersearch.sys.ini</language>
+        <language tag="cs-CZ">cs-CZ/mod_bettersearch.ini</language>
+        <language tag="cs-CZ">cs-CZ/mod_bettersearch.sys.ini</language>
+        <language tag="sk-SK">sk-SK/mod_bettersearch.ini</language>
+        <language tag="sk-SK">sk-SK/mod_bettersearch.sys.ini</language>
+        <language tag="lt-LT">lt-LT/mod_bettersearch.ini</language>
+        <language tag="lt-LT">lt-LT/mod_bettersearch.sys.ini</language>
+        <language tag="fr-FR">fr-FR/mod_bettersearch.ini</language>
+        <language tag="fr-FR">fr-FR/mod_bettersearch.sys.ini</language>
+        <language tag="hi-IN">hi-IN/mod_bettersearch.ini</language>
+        <language tag="hi-IN">hi-IN/mod_bettersearch.sys.ini</language>
+        <language tag="zh-CN">zh-CN/mod_bettersearch.ini</language>
+        <language tag="zh-CN">zh-CN/mod_bettersearch.sys.ini</language>
+        <language tag="ar-AA">ar-AA/mod_bettersearch.ini</language>
+        <language tag="ar-AA">ar-AA/mod_bettersearch.sys.ini</language>
+        <language tag="es-ES">es-ES/mod_bettersearch.ini</language>
+        <language tag="es-ES">es-ES/mod_bettersearch.sys.ini</language>
     </languages>
     <config>
         <fields name="params">

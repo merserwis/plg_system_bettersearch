@@ -6,13 +6,14 @@
     <creationDate>2026-10-01</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
         <folder plugin="bettersearch">services</folder>
         <folder>src</folder>
         <folder>sql</folder>
+        <folder>language</folder>
         <filename>script.php</filename>
     </files>
     <scriptfile>script.php</scriptfile>
@@ -40,6 +41,26 @@
         <language tag="en-GB">en-GB/plg_system_bettersearch.sys.ini</language>
         <language tag="pl-PL">pl-PL/plg_system_bettersearch.ini</language>
         <language tag="pl-PL">pl-PL/plg_system_bettersearch.sys.ini</language>
+        <language tag="uk-UA">uk-UA/plg_system_bettersearch.ini</language>
+        <language tag="uk-UA">uk-UA/plg_system_bettersearch.sys.ini</language>
+        <language tag="de-DE">de-DE/plg_system_bettersearch.ini</language>
+        <language tag="de-DE">de-DE/plg_system_bettersearch.sys.ini</language>
+        <language tag="cs-CZ">cs-CZ/plg_system_bettersearch.ini</language>
+        <language tag="cs-CZ">cs-CZ/plg_system_bettersearch.sys.ini</language>
+        <language tag="sk-SK">sk-SK/plg_system_bettersearch.ini</language>
+        <language tag="sk-SK">sk-SK/plg_system_bettersearch.sys.ini</language>
+        <language tag="lt-LT">lt-LT/plg_system_bettersearch.ini</language>
+        <language tag="lt-LT">lt-LT/plg_system_bettersearch.sys.ini</language>
+        <language tag="fr-FR">fr-FR/plg_system_bettersearch.ini</language>
+        <language tag="fr-FR">fr-FR/plg_system_bettersearch.sys.ini</language>
+        <language tag="hi-IN">hi-IN/plg_system_bettersearch.ini</language>
+        <language tag="hi-IN">hi-IN/plg_system_bettersearch.sys.ini</language>
+        <language tag="zh-CN">zh-CN/plg_system_bettersearch.ini</language>
+        <language tag="zh-CN">zh-CN/plg_system_bettersearch.sys.ini</language>
+        <language tag="ar-AA">ar-AA/plg_system_bettersearch.ini</language>
+        <language tag="ar-AA">ar-AA/plg_system_bettersearch.sys.ini</language>
+        <language tag="es-ES">es-ES/plg_system_bettersearch.ini</language>
+        <language tag="es-ES">es-ES/plg_system_bettersearch.sys.ini</language>
     </languages>
     <config>
         <fields name="params" addfieldprefix="Merserwis\Plugin\System\BetterSearch\Field">
@@ -475,6 +496,48 @@
                     <option value="shadow">PLG_SYSTEM_BETTERSEARCH_HOVER_SHADOW</option>
                     <option value="zoom">PLG_SYSTEM_BETTERSEARCH_HOVER_ZOOM</option>
                     <option value="border">PLG_SYSTEM_BETTERSEARCH_HOVER_BORDER</option>
+                </field>
+            </fieldset>
+
+            <!-- ============================================================ SEO -->
+            <fieldset name="seo" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_SEO">
+                <field name="seo_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_SEO_NOTE" />
+                <field name="seo_robots" type="list" default="noindex_follow" label="PLG_SYSTEM_BETTERSEARCH_SEO_ROBOTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_ROBOTS_DESC">
+                    <option value="noindex_follow">PLG_SYSTEM_BETTERSEARCH_SEO_ROBOTS_NOINDEX_FOLLOW</option>
+                    <option value="noindex_nofollow">PLG_SYSTEM_BETTERSEARCH_SEO_ROBOTS_NOINDEX_NOFOLLOW</option>
+                    <option value="index_follow">PLG_SYSTEM_BETTERSEARCH_SEO_ROBOTS_INDEX_FOLLOW</option>
+                    <option value="keep">PLG_SYSTEM_BETTERSEARCH_SEO_ROBOTS_KEEP</option>
+                </field>
+                <field name="seo_canonical" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_CANONICAL_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_CANONICAL_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="seo_title" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="seo_title_pattern" type="text" default="" maxlength="200" showon="seo_title:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_PATTERN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_PATTERN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_T_SEO_TITLE" translateHint="true" />
+                <field name="seo_description" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_DESCRIPTION_LABEL">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="seo_description_pattern" type="text" default="" maxlength="300" showon="seo_description:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_DESCRIPTION_PATTERN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_PATTERN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_T_SEO_DESCRIPTION" translateHint="true" />
+                <field name="seo_nofollow" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_NOFOLLOW_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_NOFOLLOW_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="seo_jsonld" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_JSONLD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_JSONLD_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="seo_opensearch" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="seo_opensearch_name" type="text" default="" maxlength="16" showon="seo_opensearch:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_NAME_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_NAME_DESC" />
+                <field name="seo_sitelinks" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SEO_SITELINKS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_SITELINKS_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
                 </field>
             </fieldset>
 

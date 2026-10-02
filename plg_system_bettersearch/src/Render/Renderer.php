@@ -33,6 +33,15 @@ final class Renderer
 
     private ?Normalizer $norm = null;
 
+    /** @var array<int, array{name: string, url: string}> the result cards rendered (structured data) */
+    private array $listed = [];
+
+    /** @return array<int, array{name: string, url: string}> */
+    public function listed(): array
+    {
+        return $this->listed;
+    }
+
     /** @var array<string, string> folded form of single characters (mark()) */
     private array $charMap = [];
 
@@ -88,6 +97,12 @@ final class Renderer
     private function fmt(string $text, array $values): string
     {
         return strtr($text, array_map('strval', $values));
+    }
+
+    /** rel="nofollow" for links that only re-sort or filter one search (SEO setting). */
+    private function nofollow(): string
+    {
+        return $this->bool('seo_nofollow', true) ? ' rel="nofollow"' : '';
     }
 
     /** A text setting, else the language string. */
@@ -252,7 +267,7 @@ final class Renderer
 
         $css = '.bs-live{' . $this->vars($vars) . '}';
         $css .= <<<CSS
-.bs-live{position:absolute;box-sizing:border-box;background:var(--bs-bg);color:var(--bs-text);border:1px solid var(--bs-border);border-radius:var(--bs-radius);box-shadow:var(--bs-shadow);font-size:var(--bs-font);line-height:1.35;z-index:var(--bs-z);overflow:hidden;display:none;flex-direction:column;text-align:left;opacity:0}
+.bs-live{position:absolute;box-sizing:border-box;background:var(--bs-bg);color:var(--bs-text);border:1px solid var(--bs-border);border-radius:var(--bs-radius);box-shadow:var(--bs-shadow);font-size:var(--bs-font);line-height:1.35;z-index:var(--bs-z);overflow:hidden;display:none;flex-direction:column;text-align:start;opacity:0}
 .bs-live *{box-sizing:border-box}
 .bs-live a,.bs-live span,.bs-live div,.bs-live li,.bs-live b,.bs-live del,.bs-live ul{font-size:inherit;line-height:inherit;font-family:inherit;font-weight:inherit;font-style:normal;letter-spacing:normal;text-transform:none;text-decoration:none;color:inherit;margin:0;padding:0;border:0;background:none;text-align:inherit}
 .bs-live.is-open{display:flex}
@@ -266,14 +281,16 @@ final class Renderer
 .bs-live .bs-opt{display:flex;gap:12px;align-items:center;padding:8px 16px;color:inherit;text-decoration:none;outline:none}
 .bs-live .bs-opt:hover,.bs-live .bs-opt.is-active{background:var(--bs-hover)}
 .bs-live .bs-opt.is-active{box-shadow:inset 3px 0 0 var(--bs-accent)}
+[dir=rtl] .bs-live .bs-opt.is-active,.bs-live[dir=rtl] .bs-opt.is-active{box-shadow:inset -3px 0 0 var(--bs-accent)}
 .bs-live .bs-img{flex:0 0 var(--bs-img);width:var(--bs-img);height:var(--bs-img);display:flex;align-items:center;justify-content:center;background:var(--bs-img-bg);border-radius:var(--bs-img-radius);overflow:hidden}
 .bs-live .bs-img img{width:100%;height:100%;object-fit:var(--bs-img-fit);display:block}
 .bs-live .bs-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
 .bs-live .bs-title{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:var(--bs-lines);overflow:hidden}
 .bs-live .bs-meta{font-size:.85em;color:var(--bs-muted);display:flex;flex-wrap:wrap;gap:0 6px}
 .bs-live .bs-excerpt{font-size:.85em;color:var(--bs-muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-.bs-live .bs-price{flex:0 0 auto;text-align:right;white-space:nowrap;font-weight:700;display:flex;flex-direction:column;align-items:flex-end}
-.bs-live .bs-price del{font-weight:400;font-size:.85em;color:var(--bs-muted)}
+.bs-live .bs-price{flex:0 0 auto;text-align:end;white-space:nowrap;font-weight:700;display:flex;flex-direction:column;align-items:flex-end}
+.bs-live .bs-price del{font-weight:400;font-size:.85em;color:var(--bs-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.bs-live .bs-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .bs-live .bs-price .bs-from{font-weight:400;font-size:.8em;color:var(--bs-muted)}
 .bs-live mark{background:var(--bs-hl-bg);color:var(--bs-hl-color);font-weight:800;padding:0}
 .bs-live .bs-cat{gap:8px;align-items:baseline;flex-wrap:wrap}
@@ -297,7 +314,7 @@ CSS;
         $css .= $this->liveAnimationCss();
 
         if ($pos === 'right') {
-            $css .= '.bs-live .bs-item{flex-direction:row-reverse}.bs-live .bs-item .bs-price{align-items:flex-start;text-align:left}';
+            $css .= '.bs-live .bs-item{flex-direction:row-reverse}.bs-live .bs-item .bs-price{align-items:flex-start;text-align:start}';
         } elseif ($pos === 'top') {
             $css .= '.bs-live .bs-item{flex-direction:column;align-items:stretch;text-align:center}.bs-live .bs-item .bs-img{width:100%;height:auto;aspect-ratio:1/1;flex-basis:auto}.bs-live .bs-item .bs-price{align-items:center;text-align:center}';
         }
@@ -435,6 +452,7 @@ CSS;
         foreach ($slice as $item) {
             if (isset($data[$item['id']])) {
                 $html .= $this->card($data[$item['id']], $state['page'] === 1 && $index++ < $this->deviceColumns());
+                $this->listed[] = ['name' => (string) $data[$item['id']]->title, 'url' => (string) $data[$item['id']]->link];
             }
         }
 
@@ -494,7 +512,7 @@ CSS;
         $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         $html = '<nav class="bsr-chips ' . $class . '">';
         foreach ($chips as $chip) {
-            $html .= '<a class="bsr-chip' . ($chip['active'] ? ' is-active' : '') . '" href="' . $esc($chip['url']) . '"'
+            $html .= '<a class="bsr-chip' . ($chip['active'] ? ' is-active' : '') . '" href="' . $esc($chip['url']) . '"' . $this->nofollow()
                 . ($chip['active'] ? ' aria-current="true"' : '') . '>' . $esc($chip['title'])
                 . ' <span class="bsr-chip-count">' . (int) $chip['count'] . '</span></a>';
         }
@@ -523,7 +541,7 @@ CSS;
         }
         if ($mode !== 'loadmore') {
             $html .= '<nav class="bsr-pages" aria-label="' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_PAGES')) . '">';
-            $link  = fn (int $p, string $label, string $class = '') => '<a class="bsr-page' . $class . '" href="' . $esc($url(['bs_page' => $p > 1 ? $p : null])) . '"'
+            $link  = fn (int $p, string $label, string $class = '') => '<a class="bsr-page' . $class . '" href="' . $esc($url(['bs_page' => $p > 1 ? $p : null])) . '"' . $this->nofollow()
                 . ($p === $page ? ' aria-current="page"' : '') . '>' . $label . '</a>';
             if ($page > 1) {
                 $html .= $link($page - 1, '&lsaquo;', ' bsr-prev');
@@ -615,13 +633,13 @@ CSS;
             '--bsr-accent'     => $this->color('page_accent', 'var(--primary, #1a73e8)'),
             '--bsr-hl-bg'      => $this->color('highlight_bg', 'transparent'),
             '--bsr-hl-color'   => $this->color('highlight_color', 'inherit'),
-            '--bsr-align'      => $this->str('page_align', 'left', ['left', 'center']),
+            '--bsr-align'      => $this->str('page_align', 'left', ['left', 'center']) === 'center' ? 'center' : 'start',
             '--bsr-max'        => $this->int('page_max_width', 0, 0, 3000) > 0 ? $this->int('page_max_width', 0, 0, 3000) . 'px' : 'none',
         ];
 
         $css  = $s . '{' . $this->vars($vars) . '}';
         $css .= str_replace('#S', $s, <<<CSS
-#S{box-sizing:border-box;width:100%;max-width:var(--bsr-max);margin:0 auto;font-size:var(--bsr-font);text-align:left}
+#S{box-sizing:border-box;width:100%;max-width:var(--bsr-max);margin:0 auto;font-size:var(--bsr-font);text-align:start}
 #S *{box-sizing:border-box}
 #S a,#S span,#S div,#S li,#S p,#S b,#S del,#S ul,#S nav,#S h2,#S h3,#S h4,#S label,#S select,#S button{font-family:inherit;letter-spacing:normal;text-transform:none}
 #S a,#S span,#S b,#S del,#S li,#S p,#S label,#S div,#S ul,#S nav,#S form{font-size:inherit;line-height:inherit;font-weight:inherit;color:inherit}
@@ -650,11 +668,12 @@ CSS;
 #S .bsr-title a{color:inherit;text-decoration:none}
 #S .bsr-excerpt{margin:0;color:var(--bsr-text);font-size:.92em;line-height:1.45}
 #S .bsr-foot{margin-top:auto;padding-top:6px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
-#S .bsr-foot .bsr-btn{margin-left:auto}
+#S .bsr-foot .bsr-btn{margin-inline-start:auto}
 #S .bsr-center .bsr-foot{justify-content:center;flex-direction:column}
-#S .bsr-center .bsr-foot .bsr-btn{margin-left:0}
+#S .bsr-center .bsr-foot .bsr-btn{margin-inline-start:0}
 #S .bsr-price{font-weight:700;font-size:1.1em;color:var(--bsr-price);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
-#S .bsr-price del{font-weight:400;font-size:.85em;color:var(--bsr-text)}
+#S .bsr-price del{font-weight:400;font-size:.85em;color:var(--bsr-text);text-decoration:line-through;text-decoration-thickness:1px}
+#S .bs-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #S .bsr-price .bs-from{font-weight:400;font-size:.8em;color:var(--bsr-text)}
 #S .bsr-stock{font-size:.85em}
 #S .bs-stock-in{color:#15803d}#S .bs-stock-out{color:#b91c1c}
@@ -719,7 +738,11 @@ CSS);
         $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         $from = $p['from'] ? '<span class="bs-from">' . $esc($this->text('text_price_from', 'PLG_SYSTEM_BETTERSEARCH_T_PRICE_FROM')) . '</span> ' : '';
 
-        return '<span class="' . $class . '">' . ($p['sale'] ? '<del>' . $esc($p['regular']) . '</del>' : '') . '<span>' . $from . '<b>' . $esc($p['price']) . '</b></span></span>';
+        // the regular price crossed out, the current one in bold; both named for screen readers
+        $old = $p['sale'] ? '<del><span class="bs-sr">' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_PRICE_REGULAR')) . ' </span>' . $esc($p['regular']) . '</del>' : '';
+        $now = $p['sale'] ? '<span class="bs-sr">' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_PRICE_SALE')) . ' </span>' : '';
+
+        return '<span class="' . $class . '">' . $old . '<span>' . $now . $from . '<b>' . $esc($p['price']) . '</b></span></span>';
     }
 
     private function stock(object $row): string
