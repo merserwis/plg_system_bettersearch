@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.2.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.3.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -26,6 +26,8 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Live preview in the settings (new in 1.1.0):** the live results and the results page rendered from the settings in the form, before you save — real products, at desktop, tablet and phone width.
 * **Results page in the Gridbox results element:** category and app filters with counts, sorting (best match, name, price, newest, most viewed), page numbers and/or *load more*, grid or list. Gridbox does no search work on that page at all.
 * **Full visual control:** width (as the field / at least / fixed), height, alignment and distance of the live results; list or grid; image left / right / top, size, proportions, fit, shape and background; columns for desktop / tablet / phone; card colours, border, radius, padding, shadow and hover effect; text alignment; what each result shows; every text shown on the site.
+* **SEO of the results page (new in 1.3.0):** robots `noindex, follow` by default, a canonical address of the query alone (no sorting, filters, page numbers or tracking parameters — it also replaces a theme's canonical that points to the home page), a title and meta description with the query and the number of results, schema.org `SearchResultsPage` with the products listed, `rel="nofollow"` on sorting, filter and page links, an OpenSearch description (browsers can search the shop from the address bar), `X-Robots-Tag: noindex` on the search endpoints, an optional WebSite SearchAction on the home page.
+* **12 languages (new in 1.3.0):** English, Polish, Ukrainian, German, Czech, Slovak, Lithuanian, French, Hindi, Chinese (Simplified), Arabic and Spanish — chosen automatically by the language of the administrator (settings) and of the site (texts shown to shoppers); any other language falls back to English, text by text. Right-to-left layouts are supported.
 * **Prices like in the store:** sale prices, active store sales and variations (“from …”), in the currency picked in Gridbox's currency switcher, formatted like Gridbox.
 * **Fast WebP thumbnails:** a 64 px result image is a ~1.5 KB WebP copy instead of a full-size photo — made once, kept on the server, EXIF rotation and transparency preserved.
 * **Search statistics:** most searched queries, **queries without results** (what shoppers miss) and recent ones — no personal data.
@@ -61,7 +63,7 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ## 🚀 Installation & Package Structure
 
-1. Download `pkg_bettersearch-1.2.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
+1. Download `pkg_bettersearch-1.3.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
 2. In the Joomla administrator go to **System → Install → Extensions** and upload the package.
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
@@ -78,6 +80,40 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 Uninstalling the package removes all three extensions and the plugin's tables (index, state, statistics).
 
 **Updates:** the package registers the update server `https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/update.xml`, so new releases appear in *System → Update → Extensions*. Joomla verifies each download against the SHA-256 checksum in `update.xml`.
+
+---
+
+## 🔎 SEO
+
+Internal search results are thin, ever-changing pages that search engines advise against indexing, while their links lead robots to the products. The *SEO* tab sets how the results page presents itself:
+
+| What | Default | Why |
+|---|---|---|
+| Robots | `noindex, follow` | Results stay out of the index; the product links are still followed. With `index, follow` sorted, filtered, further and empty pages still get `noindex, follow`. |
+| Canonical address | the query alone | `/szukaj?query=mi%203155` for every sorted, filtered or paged view and for addresses with tracking or unknown parameters; replaces a theme's canonical (often the home page). |
+| Title | “Search results for “{query}” ({count})” | In the browser tab, in shared links and for search engines; the site name is added as set in the Global Configuration. Patterns with `{query}`, `{count}`, `{site}`. |
+| Meta description | “{count} results for “{query}” in {site}: …” | Same patterns. Open Graph / Twitter titles and descriptions of the theme are updated too. |
+| Structured data | `SearchResultsPage` + `ItemList` | The products shown, with their positions, names and canonical addresses. |
+| `rel="nofollow"` | on sorting, filters, pages | Robots do not crawl the endless combinations of one search. |
+| OpenSearch | on | `<link rel="search">` on pages with a search field and an OpenSearch description, so browsers offer the shop search. |
+| WebSite SearchAction | off | On the home page only. Google stopped showing the sitelinks search box in November 2024; other services may still use it. |
+
+The live-search and “load more” answers are sent with `X-Robots-Tag: noindex, nofollow`. Every value written into the page is escaped for its place; the structured data cannot close its script element.
+
+---
+
+## 🌍 Languages
+
+| Language | Joomla tag | | Language | Joomla tag |
+|---|---|---|---|---|
+| English | `en-GB` | | French | `fr-FR` |
+| Polish | `pl-PL` | | Hindi | `hi-IN` |
+| Ukrainian | `uk-UA` | | Chinese (Simplified) | `zh-CN` |
+| German | `de-DE` | | Arabic | `ar-AA` |
+| Czech | `cs-CZ` | | Spanish | `es-ES` |
+| Slovak | `sk-SK` | | Lithuanian | `lt-LT` |
+
+The settings follow the language of the administrator, the texts on the site (no results, sorting, buttons, prices) the language of the site page. Joomla loads English first and the translation over it, so any language without a translation — or a text a translation lacks — shows English. The files are installed for the languages the site has and also kept in the plugin folder, so a language added later is found too. Every text shown on the site can still be replaced in the *Texts & images* tab.
 
 ---
 
@@ -267,6 +303,22 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Shadow | None | None / Soft / Strong |
 | Pointer over a card | Lift | Nothing / Lift / Shadow / Zoom the image / Accent border |
 
+### SEO
+
+| Option | Default | Description |
+|---|---|---|
+| Robots | noindex, follow (recommended) | The robots meta tag of the results page. With “index” the sorted, filtered, further and empty pages still get “noindex, follow”. |
+| Canonical address | Yes | The canonical address of the results page is the page with the query only — without sorting, filters, page number or other parameters. It replaces a canonical address set by the theme (which often points to the home page). |
+| Page title with the query | Yes | The title of the results page (browser tab, search engines, shared links) names the query and the number of results. The site name is added as set in the Global Configuration. |
+| Title | *(empty)* | Empty = the text of the site language. `{query}` = the query, `{count}` = the number of results, `{site}` = the site name. |
+| Meta description | Yes |  |
+| Description | *(empty)* | Empty = the text of the site language. `{query}` = the query, `{count}` = the number of results, `{site}` = the site name. |
+| nofollow on sorting, filters and pages | Yes | Links that only re-sort or filter one search get rel=“nofollow”, so search engine robots do not crawl their endless combinations instead of the shop. |
+| Structured data of the results | Yes | schema.org SearchResultsPage with the list of the products shown (name and address). |
+| OpenSearch | Yes | Browsers can add the shop search to their search engines (and search the shop straight from the address bar). |
+| OpenSearch name | *(empty)* | At most 16 characters. Empty = the site name. |
+| Search box data on the home page | No | schema.org WebSite with a SearchAction on the home page. Google no longer shows a search box from it (since November 2024); other services may still read it. |
+
 ### Texts & images
 
 | Option | Default | Description |
@@ -313,7 +365,7 @@ The live results of the module field use the settings of the plugin.
 
 ## 🧪 Verification & Testing
 
-Versions 1.0.0 to 1.2.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
+Versions 1.0.0 to 1.3.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
 
 1. **Model codes** — `MI 3155`, `MI3155`, `MI-3155`, `mi.3155` and `metrel mi 3155` return the same product first; `MPI 530` = `MPI530`; `ht 7051` = `HT7051`; `eurotest xd` = *EurotestXD*; `miernik izolacji 5 kv` = `5kv`.
 2. **Fallbacks** — `eurotset` → *eurotest*, `miernk izolacji` → *miernik izolacji*; partial matches limited to products with at least half of the words; a fixed list of 41 queries kept as a regression baseline.
@@ -323,8 +375,9 @@ Versions 1.0.0 to 1.2.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8
 6. **Administrator** — all tabs, product pickers with search and drag-and-drop order inside repeatable rows, saving through the form, index tools, test console and statistics.
 7. **Package** — fresh install (tables and full-text index created, plugin enabled), update over 1.0.0 keeping settings and index, uninstall without leftovers, reinstall.
 8. **Code health** — no PHP warnings, notices or deprecated Joomla API calls from the extension with full error reporting.
-9. **1.2.0** — penetration tests on the live results, the results page, the module and the administrator tools: XSS payloads (also through POST), SQL and full-text operator injection, LIKE wildcards, CSRF without a token, administrator tasks as a guest, path traversal in image paths, CSS injection through colour settings, long and many-word queries; store sales (global, category, parent category, order of sales); an unpublished product disappearing from cached results within a minute; chips against their result pages; load more; the Gridbox items filter on a Gridbox page; parallel requests running one index check; expired cache files removed; update 1.1.0 → 1.2.0 with settings and index kept.
-10. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
+9. **1.3.0** — sale prices in the live results and on the results page (regular price crossed out, both named for screen readers); title, description, robots, canonical (sorted page 2 with tracking parameters → the query alone), JSON-LD positions on page 2, nofollow on all filter and page links, OpenSearch document (content type, short name, template), SearchAction only on the home page; XSS payloads and `{query}`/`$1` tokens in the query through title, description, canonical and JSON-LD; every translation checked for the same keys, placeholders and HTML as English and parsed by PHP; the administrator in other languages.
+10. **1.2.0** — penetration tests on the live results, the results page, the module and the administrator tools: XSS payloads (also through POST), SQL and full-text operator injection, LIKE wildcards, CSRF without a token, administrator tasks as a guest, path traversal in image paths, CSS injection through colour settings, long and many-word queries; store sales (global, category, parent category, order of sales); an unpublished product disappearing from cached results within a minute; chips against their result pages; load more; the Gridbox items filter on a Gridbox page; parallel requests running one index check; expired cache files removed; update 1.1.0 → 1.2.0 with settings and index kept.
+11. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
 
 Quick check on your site: open the search results page and look for `<div class="bettersearch-results"` in the page source.
 
@@ -367,6 +420,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+* **1.3.0** — The regular price is crossed out in the live results. SEO tab: robots, canonical address, title and description with the query, SearchResultsPage structured data, nofollow on sorting/filters/pages, OpenSearch, optional SearchAction. Translations into 11 languages, right-to-left layouts.
 * **1.2.0** — Security, correctness and performance release after a code review with penetration tests: current visibility of cached results, bounded resource use, Gridbox items filter no longer broken, searches with `<`, ordered candidates before the limit, store sales priced as Gridbox does, far fewer database queries, cheaper thumbnails and index upkeep, cache clean-up.
 * **1.1.0** — Live preview in the settings. Appearing effects of the live results panel and of the results inside it. Phones: the keyboard opens with the first tap on the search field. Search statistics as tabs.
 * **1.0.0** — First release.

@@ -37,12 +37,13 @@ use Merserwis\Plugin\System\BetterSearch\Engine\Indexer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Normalizer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Searcher;
 use Merserwis\Plugin\System\BetterSearch\Render\Renderer;
+use Merserwis\Plugin\System\BetterSearch\Render\Seo;
 use Merserwis\Plugin\System\BetterSearch\Render\Store;
 use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.2.0';
+    public const VERSION = '1.3.0';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -83,6 +84,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private ?array $indexState = null;
 
     private ?string $resultsUrlMemo = null;
+
+    /** What the results page showed, for its title, description and structured data. */
+    private ?array $seoInfo = null;
+
+    /** Parameters of the results page address that name the page itself (the rest is filtering or noise). */
+    private const CANONICAL_VARS = ['option', 'view', 'id', 'Itemid', 'lang', 'query'];
 
     public static function getSubscribedEvents(): array
     {
@@ -190,6 +197,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $body    = $new;
                 $changed = true;
             }
+            try {
+                $body    = $this->resultsSeo($body, $this->query);
+                $changed = true;
+            } catch (\Throwable $e) {
+                $this->logError($e);
+            }
         }
 
         $wanted = $this->query !== null || (bool) $this->params->get('load_everywhere', 0)
@@ -204,6 +217,15 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             // results page without live search: the script still runs "load more"
             $body    = substr($body, 0, $pos) . $this->assets(false) . substr($body, $pos);
             $changed = true;
+        }
+
+        // OpenSearch link and SearchAction: in the head of every page that has a search field
+        if ($wanted && ($pos = stripos($body, '</head>')) !== false) {
+            $head = $this->headSeo();
+            if ($head !== '') {
+                $body    = substr($body, 0, $pos) . $head . substr($body, $pos);
+                $changed = true;
+            }
         }
 
         if ($changed) {
@@ -286,7 +308,159 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $renderer->setHighlight($result['groups']);
         $id = 'bsr-' . substr(md5($query . microtime()), 0, 8);
 
-        return '<style>' . $renderer->pageCss($id) . '</style>' . $renderer->page($state['result'], $state, $id);
+        $html = '<style>' . $renderer->pageCss($id) . '</style>' . $renderer->page($state['result'], $state, $id);
+        $this->seoInfo = ['total' => (int) $state['result']['total'], 'cards' => $renderer->listed(), 'page' => (int) $state['page'],
+            'perPage' => $perPage, 'filtered' => $cat > 0 || $appId > 0 || $page > 1 || $input->getCmd('bs_sort', '') !== ''];
+
+        return $html;
+    }
+
+    // ================================================================ SEO
+
+    /** Title, description, robots, canonical address and structured data of the results page. */
+    private function resultsSeo(string $body, string $query): string
+    {
+        $p    = $this->params;
+        $app  = $this->getApplication();
+        $seo  = new Seo($body);
+        $info = $this->seoInfo ?? ['total' => 0, 'cards' => [], 'page' => 1, 'perPage' => 24, 'filtered' => false];
+        if (!$seo->hasHead()) {
+            return $body;
+        }
+        $site      = (string) $app->get('sitename', '');
+        $canonical = $this->canonicalUrl($query);
+
+        // robots: search results are thin content, kept out of the index but their links followed
+        $robots = (string) $p->get('seo_robots', 'noindex_follow');
+        if ($robots !== 'keep') {
+            $value = ['noindex_follow' => 'noindex, follow', 'noindex_nofollow' => 'noindex, nofollow', 'index_follow' => 'index, follow'][$robots] ?? 'noindex, follow';
+            if ($robots === 'index_follow' && ($info['filtered'] || $info['total'] === 0)) {
+                // sorted, filtered, further pages and empty results are never worth indexing
+                $value = 'noindex, follow';
+            }
+            $seo->meta('robots', $value);
+        }
+
+        $title = '';
+        if ($p->get('seo_title', 1)) {
+            $pattern = trim((string) $p->get('seo_title_pattern', '')) ?: Text::_('PLG_SYSTEM_BETTERSEARCH_T_SEO_TITLE');
+            $title   = Seo::fill($pattern, $query, $info['total'], $site);
+            if ($info['page'] > 1) {
+                $title .= ' – ' . Text::sprintf('PLG_SYSTEM_BETTERSEARCH_T_SEO_PAGE', $info['page']);
+            }
+            // the site name as Joomla adds it to every title, unless the pattern places it itself
+            if ($site !== '' && !str_contains($pattern, '{site}')) {
+                $mode  = (int) $app->get('sitename_pagetitles', 0);
+                $title = $mode === 1 ? Text::sprintf('JPAGETITLE', $site, $title) : ($mode === 2 ? Text::sprintf('JPAGETITLE', $title, $site) : $title);
+            }
+            $seo->title($title);
+            $seo->metaIfPresent('og:title', $title);
+            $seo->metaIfPresent('twitter:title', $title, 'name');
+        }
+
+        if ($p->get('seo_description', 1)) {
+            $pattern     = trim((string) $p->get('seo_description_pattern', '')) ?: Text::_('PLG_SYSTEM_BETTERSEARCH_T_SEO_DESCRIPTION');
+            $description = Seo::fill($pattern, $query, $info['total'], $site);
+            $seo->meta('description', $description);
+            $seo->metaIfPresent('og:description', $description);
+        }
+
+        if ($p->get('seo_canonical', 1)) {
+            $seo->canonical($canonical);
+            $seo->metaIfPresent('og:url', $canonical);
+        }
+
+        if ($p->get('seo_jsonld', 1) && $info['cards']) {
+            $host  = Uri::getInstance()->toString(['scheme', 'host', 'port']);
+            $items = [];
+            foreach ($info['cards'] as $i => $card) {
+                $items[] = ['@type' => 'ListItem', 'position' => ($info['page'] - 1) * $info['perPage'] + $i + 1,
+                    'url' => $this->absolute($card['url'], $host), 'name' => $card['name']];
+            }
+            $seo->jsonLd(['@context' => 'https://schema.org', '@type' => 'SearchResultsPage', 'name' => $title !== '' ? $title : $query,
+                'url' => $canonical, 'inLanguage' => $app->getLanguage()->getTag(),
+                'mainEntity' => ['@type' => 'ItemList', 'numberOfItems' => $info['total'], 'itemListElement' => $items]]);
+        }
+
+        return $seo->body();
+    }
+
+    /** The results page of this query alone: no sorting, filters, page number or unknown parameters. */
+    private function canonicalUrl(string $query): string
+    {
+        $uri  = Uri::getInstance();
+        $vars = [];
+        foreach ($uri->getQuery(true) as $k => $v) {
+            if (in_array($k, self::CANONICAL_VARS, true) && is_scalar($v) && $k !== 'query') {
+                $vars[$k] = (string) $v;
+            }
+        }
+        $vars['query'] = $query;
+
+        return $uri->toString(['scheme', 'host', 'port', 'path']) . '?' . http_build_query($vars, '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /** A root-relative or absolute address as an absolute one on this host. */
+    private function absolute(string $url, string $host): string
+    {
+        if ($url === '' || $url === '#') {
+            return $host . '/';
+        }
+
+        return preg_match('#^https?://#i', $url) ? $url : $host . '/' . ltrim($url, '/');
+    }
+
+    /** Address template of the results page for a query placeholder (OpenSearch, SearchAction). */
+    private function searchTemplate(string $placeholder): string
+    {
+        $base = $this->absolute($this->resultsUrl(), Uri::getInstance()->toString(['scheme', 'host', 'port']));
+        if (preg_match('/[?&]query=$/', $base)) {
+            return $base . $placeholder;
+        }
+
+        return $base . (str_contains($base, '?') ? '&' : '?') . 'query=' . $placeholder;
+    }
+
+    /** OpenSearch link and (optional) WebSite SearchAction on pages with a search field. */
+    private function headSeo(): string
+    {
+        $p    = $this->params;
+        $app  = $this->getApplication();
+        $html = '';
+        $site = (string) $app->get('sitename', '');
+        if ($p->get('seo_opensearch', 1)) {
+            $name  = trim((string) $p->get('seo_opensearch_name', '')) ?: $site;
+            $html .= '<link rel="search" type="application/opensearchdescription+xml" title="' . Seo::attr($name) . '" href="'
+                . Seo::attr(Uri::root(true) . '/index.php?option=com_ajax&plugin=bettersearch&group=system&format=raw&task=opensearch') . '">';
+        }
+        if ($p->get('seo_sitelinks', 0)) {
+            $menu   = $app->getMenu();
+            $active = $menu ? $menu->getActive() : null;
+            $home   = $menu ? $menu->getDefault($app->getLanguage()->getTag()) : null;
+            if ($active && $home && (int) $active->id === (int) $home->id) {
+                $json = json_encode(['@context' => 'https://schema.org', '@type' => 'WebSite', 'url' => Uri::root(), 'name' => $site,
+                    'potentialAction' => ['@type' => 'SearchAction', 'target' => ['@type' => 'EntryPoint', 'urlTemplate' => $this->searchTemplate('{search_term_string}')],
+                        'query-input' => 'required name=search_term_string']], Seo::JSON_FLAGS);
+                if (is_string($json)) {
+                    $html .= '<script type="application/ld+json">' . $json . '</script>';
+                }
+            }
+        }
+
+        return $html;
+    }
+
+    /** OpenSearch description document (format=raw). */
+    private function openSearch(): string
+    {
+        $app  = $this->getApplication();
+        $site = (string) $app->get('sitename', '');
+        $name = trim((string) $this->params->get('seo_opensearch_name', '')) ?: $site;
+        $app->getDocument()->setMimeEncoding('application/opensearchdescription+xml');
+        $app->setHeader('Cache-Control', 'public, max-age=86400', true);
+        $icon = is_file(JPATH_ROOT . '/favicon.ico') ? rtrim(Uri::root(), '/') . '/favicon.ico' : '';
+
+        return Seo::openSearchXml($name, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_T_OPENSEARCH_DESC', $site), $this->searchTemplate('{searchTerms}'), $icon);
     }
 
     /**
@@ -467,8 +641,14 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $this->params = $this->savedParams() ?? $this->params;
 
         try {
+            if ($app->isClient('site')) {
+                // answers of the search endpoints are not pages: never indexed
+                $app->setHeader('X-Robots-Tag', 'noindex, nofollow', true);
+            }
             if (str_starts_with($task, 'admin_')) {
                 $data = $this->adminTask(substr($task, 6));
+            } elseif ($task === 'opensearch' && $app->isClient('site') && $this->params->get('seo_opensearch', 1)) {
+                $data = $this->openSearch();
             } elseif ($task === 'live' && $app->isClient('site')) {
                 $data = $this->liveResults(trim((string) $input->get('q', '', 'raw')));
             } elseif ($task === 'more' && $app->isClient('site')) {
