@@ -30,7 +30,13 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **12 languages (new in 1.3.0):** English, Polish, Ukrainian, German, Czech, Slovak, Lithuanian, French, Hindi, Chinese (Simplified), Arabic and Spanish — chosen automatically by the language of the administrator (settings) and of the site (texts shown to shoppers); any other language falls back to English, text by text. Right-to-left layouts are supported.
 * **Prices like in the store:** sale prices, active store sales and variations (“from …”), in the currency picked in Gridbox's currency switcher, formatted like Gridbox.
 * **Fast WebP thumbnails:** a 64 px result image is a ~1.5 KB WebP copy instead of a full-size photo — made once, kept on the server, EXIF rotation and transparency preserved.
-* **Search statistics:** most searched queries, **queries without results** (what shoppers miss) and recent ones — no personal data.
+* **Search statistics:** most searched queries, **queries without results** (what shoppers miss) and recent ones — no personal data. **(1.4.0)** Each query without results has two buttons: *Synonym* (the phrase will also find another word) and *Redirect* (the phrase opens a page).
+* **Synonym and redirect editors (new in 1.4.0):** a table editor for the synonym dictionary (two-way groups or one-way “also finds”) and for **redirects** — a phrase (written in any way) that opens a chosen page, e.g. a brand page, instead of the results; the live results show it as the first option. Both can still be edited as text.
+* **Suggestions (new in 1.4.0):** popular searches that start like the typed text above the live results, and **“Did you mean…”** when nothing is found — from what other shoppers searched successfully.
+* **Filters beside the results (new in 1.4.0):** brand (any Gridbox list field), price from–to in the visitor's currency (current price after sales), *sale only*, *in stock only* — with counts, as a sidebar (folded on phones) or above the results; plain links and a GET form, works without JavaScript.
+* **Conversions (new in 1.4.0):** clicks on results and products put into the cart after such a click, per query and per product, with click and cart rates (a first-party cookie links the cart to the query; no personal data).
+* **Google Search Console (new in 1.4.0):** the queries people use on Google, fetched daily with a service account or imported from a CSV export, next to what this search finds for them — queries with no results here first, with the same synonym and redirect buttons.
+* **Instant reindex (new in 1.4.0):** saving, publishing or trashing a page or product in Gridbox updates the index right after that request.
 * **A module for any place:** `mod_bettersearch` — a search field with the same live results, for places without a Gridbox search element.
 * **Administrator menu entry:** *Better Search for Gridbox* appears in the Joomla 6 administrator menu and opens the plugin settings directly.
 
@@ -134,7 +140,9 @@ The **Index & tools** tab of the plugin:
 
 * **Search index** — indexed products / pages, products waiting for indexing, searched apps, time of the last check and of the last complete update. **Update index** (new and changed products) and **Rebuild everything** (every product again; the search keeps working meanwhile) with a progress bar; **Clear cache**; **Delete small images**.
 * **Test search** — the results of any query **as a guest sees them**, with the score of each result and its reasons (e.g. `mi3155:title exact +15.0`, `phrase +23.3`, `views +2.9`, `pinned by rule`), the search mode and how the query was understood. It uses the settings of the form **before they are saved**, so weights, rules and boosts can be tried out first.
-* **Search statistics** — most searched queries, queries without results and recent ones, as tabs with one full-width table each (counts on the tabs); a click on a query runs it in the test console.
+* **Search statistics** — most searched queries, queries without results and recent ones, as tabs with one full-width table each (counts on the tabs); a click on a query runs it in the test console. Queries without results have *Synonym* and *Redirect* buttons that add an entry to the dictionaries of the form (save the settings to use it).
+* **Conversions** (1.4.0) — for the last 7 / 30 / 90 / 365 days: searches, clicks on results, click rate, products put into the cart and cart rate per query, and the products most often clicked and put into the cart.
+* **Google Search Console** (1.4.0, own tab) — fetch now, import a CSV file, show, and *check here*: each Google query searched with this search as a guest, those with no results listed first.
 
 ---
 
@@ -156,8 +164,10 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Update the index automatically | Yes | Gridbox saves products without notifying other extensions. The plugin compares the products with the index after a visitor's page has been sent and indexes new and changed ones. |
 | Check every (minutes) | `10` | How often the index is compared with Gridbox. A changed product can be found under its new name after at most this time. |
 | Products per check | `300` | At most this many products are indexed in one automatic check; the rest follows in the next ones. |
+| Update the index right after a change | Yes | When a Gridbox page or product is saved, published, unpublished or trashed (in the Gridbox editor or the lists), the changed items are indexed again right after that request, so the search shows the change at once instead of after the next check. |
 | Cache results (minutes) | `15` | Results of the same query are kept for this time. Every index update and every change of settings starts afresh. 0 = no cache. |
 | Search statistics | Yes | Counts the queries of the results page (no personal data): most searched, without results. See tab “Index & tools”. |
+| Conversion statistics | Yes | Count clicks on search results and products put into the cart after such a click, per query (Tools → Conversions). A first-party cookie (bs_src: product id → query, for 30 days) links the cart to the search; no personal data is stored. |
 
 ### Search engine
 
@@ -178,6 +188,8 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Partial matches | Yes | When no product has all the words, show the products with most of them (with a note). |
 | Cut weak matches (%) | `15` | Results scoring below this percentage of the best result are left out (e.g. products that only mention the word deep in the description). 0 = keep all. |
 | Synonyms | *(empty)* | One group per line, comma separated: `multimetr, miernik uniwersalny` — each finds the others. One-way: `rcd => wyłącznik różnicowoprądowy`. Lines starting with # are ignored. |
+| Redirects | *(empty)* | One per line: phrases (comma-separated) => address, optionally \| label. A search for exactly that phrase (written in any way: “MI-3155” = “mi 3155”) opens the address instead of the results page; the live results show it as the first option. Addresses: a path on this site (/oferta/…) or an http(s) address. |
+| “Did you mean…” | Yes | When nothing is found, suggest searches with results that are written almost the same (from the search statistics). |
 | Ignored words | `i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in` | Comma separated. Ignored unless the query has nothing else, and never inside a model code (“A 1199”). |
 | Product code (SKU) | `12` |  |
 | Name | `10` |  |
@@ -208,6 +220,9 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Start after characters | `2` |  |
 | Delay (ms) | `220` | Pause in typing before the results are asked for. |
 | Products shown | `8` |  |
+| Suggest popular searches | Yes | Above the live results: searches with results that start like the typed text, most searched first (from the search statistics). A click searches for it. |
+| Number of suggestions | `4` |  |
+| Suggest after … searches | `2` | A phrase is suggested only when it was searched at least this many times (a one-off typo is not suggested to others). |
 | Group by app | Yes | With several searched apps (store, blog…): one section each. |
 | Items of other apps | `3` |  |
 | Matching categories | Yes | Categories whose name matches the query, above the products. |
@@ -264,6 +279,12 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Categories in the filter | The product's own category | The product's own category / Top-level category |
 | Categories in the filter (max) | `12` |  |
 | App filter | Yes |  |
+| Filters beside the results | Yes | Brand, price range, sale only and in stock only. Each filter shows how many results it leaves; filters that would change nothing are not shown. |
+| Position of the filters | Beside the results (above them on phones) | Beside the results (above them on phones) / Above the results |
+| Brand field | — no brand filter — | The Gridbox product field with the brand (a list field, e.g. “Manufacturer”). Empty = no brand filter. |
+| Price filter | Yes | From–to, in the visitor’s currency, using the current price (after sales). |
+| “Sale only” filter | Yes | Products with a sale price or an active store sale. |
+| “In stock only” filter | Yes | Products in stock (as indexed). |
 | Results per page | `24` |  |
 | More results | Button and page numbers | Page numbers / “Load more” button / Button and page numbers |
 | Layout | Grid | Grid / List |
@@ -346,6 +367,14 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | WebP quality | `80` |  |
 | Time for new small images per page view (s) | `0.5` | New images are converted while a page is built; after this time the originals are used and the next page view continues. Live results get at most 0.25 s. |
 
+### Google Search Console
+
+| Option | Default | Description |
+|---|---|---|
+| Search Console property | *(empty)* | As in Search Console: “sc-domain:example.com” for a domain property, or the full address (https://www.example.com/) for a URL-prefix property. |
+| Service account key (JSON) | *(empty)* | The JSON key file of the service account (read-only access is enough). It is stored in the plugin settings in the database; anyone who may edit plugins can see it. |
+| Days of data | `28` |  |
+
 ### Module (mod_bettersearch)
 
 | Option | Default | Description |
@@ -365,7 +394,7 @@ The live results of the module field use the settings of the plugin.
 
 ## 🧪 Verification & Testing
 
-Versions 1.0.0 to 1.3.1 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
+Versions 1.0.0 to 1.4.0 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8.0 and **Gridbox 2.20.3.1**, with **636 real products** of a measurement equipment store (179 categories, product codes, prices, variations, a select field and a text field), a blog app, unpublished and registered-only products.
 
 1. **Model codes** — `MI 3155`, `MI3155`, `MI-3155`, `mi.3155` and `metrel mi 3155` return the same product first; `MPI 530` = `MPI530`; `ht 7051` = `HT7051`; `eurotest xd` = *EurotestXD*; `miernik izolacji 5 kv` = `5kv`.
 2. **Fallbacks** — `eurotset` → *eurotest*, `miernk izolacji` → *miernik izolacji*; partial matches limited to products with at least half of the words; a fixed list of 41 queries kept as a regression baseline.
@@ -375,10 +404,11 @@ Versions 1.0.0 to 1.3.1 were tested on **Joomla 6.1.3 with PHP 8.5.10**, MySQL 8
 6. **Administrator** — all tabs, product pickers with search and drag-and-drop order inside repeatable rows, saving through the form, index tools, test console and statistics.
 7. **Package** — fresh install (tables and full-text index created, plugin enabled), update over 1.0.0 keeping settings and index, uninstall without leftovers, reinstall.
 8. **Code health** — no PHP warnings, notices or deprecated Joomla API calls from the extension with full error reporting.
-9. **1.3.1** — overlapping store sales (a store-wide sale and a later category sale): the first applicable sale wins, as in Gridbox; ranking identical to 1.3.0 in all 41 test queries.
-10. **1.3.0** — sale prices in the live results and on the results page (regular price crossed out, both named for screen readers); title, description, robots, canonical (sorted page 2 with tracking parameters → the query alone), JSON-LD positions on page 2, nofollow on all filter and page links, OpenSearch document (content type, short name, template), SearchAction only on the home page; XSS payloads and `{query}`/`$1` tokens in the query through title, description, canonical and JSON-LD; every translation checked for the same keys, placeholders and HTML as English and parsed by PHP; the administrator in other languages.
-11. **1.2.0** — penetration tests on the live results, the results page, the module and the administrator tools: XSS payloads (also through POST), SQL and full-text operator injection, LIKE wildcards, CSRF without a token, administrator tasks as a guest, path traversal in image paths, CSS injection through colour settings, long and many-word queries; store sales (global, category, parent category, order of sales); an unpublished product disappearing from cached results within a minute; chips against their result pages; load more; the Gridbox items filter on a Gridbox page; parallel requests running one index check; expired cache files removed; update 1.1.0 → 1.2.0 with settings and index kept.
-12. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
+9. **1.4.0** — on 636 products: brand filter on the *Producent* list field (21 brands with counts, 1 result for a single-product brand), price range in złoty, in stock only, a forged brand value (escaped, no results); redirects of two phrases written differently (302 to the page), an address with `javascript:` rejected; popular-search suggestions and a suggestion click in a real browser; “did you mean” in the live results and on the results page; a click counted through the page script and a cart addition counted through the cookie, an unknown product refused; a Search Console CSV (Polish headings, comma decimals) imported and checked, a service account request signed and sent to Google (refused for a test account, with a clear message); a renamed product searchable right after a Gridbox request. Ranking identical to 1.3.1 in all 41 test queries; no PHP warnings.
+10. **1.3.1** — overlapping store sales (a store-wide sale and a later category sale): the first applicable sale wins, as in Gridbox; ranking identical to 1.3.0 in all 41 test queries.
+11. **1.3.0** — sale prices in the live results and on the results page (regular price crossed out, both named for screen readers); title, description, robots, canonical (sorted page 2 with tracking parameters → the query alone), JSON-LD positions on page 2, nofollow on all filter and page links, OpenSearch document (content type, short name, template), SearchAction only on the home page; XSS payloads and `{query}`/`$1` tokens in the query through title, description, canonical and JSON-LD; every translation checked for the same keys, placeholders and HTML as English and parsed by PHP; the administrator in other languages.
+12. **1.2.0** — penetration tests on the live results, the results page, the module and the administrator tools: XSS payloads (also through POST), SQL and full-text operator injection, LIKE wildcards, CSRF without a token, administrator tasks as a guest, path traversal in image paths, CSS injection through colour settings, long and many-word queries; store sales (global, category, parent category, order of sales); an unpublished product disappearing from cached results within a minute; chips against their result pages; load more; the Gridbox items filter on a Gridbox page; parallel requests running one index check; expired cache files removed; update 1.1.0 → 1.2.0 with settings and index kept.
+13. **1.1.0** — on an emulated phone (touch, iPhone User-Agent) a tap on the search field focuses the full-screen field within the tap itself and typing shows results; every appearing effect in the browser; the live preview for the live results (desktop, tablet, phone full screen, grid) and the results page, following unsaved form changes; statistics tabs with long queries. Ranking identical to 1.0.0 for all 41 regression queries; updating from 1.0.0 keeps all settings and the index.
 
 Quick check on your site: open the search results page and look for `<div class="bettersearch-results"` in the page source.
 
@@ -402,7 +432,8 @@ The plugin always uses its settings as saved in the database, even when the site
 * **Privacy:** statistics store only the query text, counts and the time of the last search — no IP addresses, no user data; bots are not counted.
 * **Fast:** cached results per query; index updates run after the response has been sent; one small script without dependencies, loaded only on pages with a search field; lazy-loaded WebP thumbnails.
 * **Robust on phones:** device-specific values are set from the User-Agent as well as with `@media` rules, because some sites strip `@media` rules from the HTML served to phones.
-
+* **Conversions without personal data (1.4.0):** a click is counted per day, query and product; the cookie `bs_src` (first-party, 30 days, `SameSite=Lax`) holds only product numbers and queries, so that a product put into the cart can be linked to its query. Bots are not counted; unknown products are refused. Switch it off with *Conversion statistics*.
+* **Search Console key (1.4.0):** the service account key is stored in the plugin settings (database), read-only access to Search Console is enough; the request to Google is signed on the server (OpenSSL), nothing is sent from the visitor's browser. Redirect addresses are limited to paths of the site and http(s) addresses.
 ---
 
 ## 📋 Requirements
@@ -421,6 +452,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+* **1.4.0** — Synonym and redirect editors, actions on queries without results, popular-search suggestions and “did you mean”, filters beside the results (brand, price, sale, stock), conversion statistics, Google Search Console queries (service account or CSV), instant reindex after Gridbox changes.
 * **1.3.1** — Store sales: the first applicable sale wins (as in Gridbox). Currency choice as in Gridbox (language currency with Associations, automatic rates). Publishing dates in the site time zone.
 * **1.3.0** — The regular price is crossed out in the live results. SEO tab: robots, canonical address, title and description with the query, SearchResultsPage structured data, nofollow on sorting/filters/pages, OpenSearch, optional SearchAction. Translations into 11 languages, right-to-left layouts.
 * **1.2.0** — Security, correctness and performance release after a code review with penetration tests: current visibility of cached results, bounded resource use, Gridbox items filter no longer broken, searches with `<`, ordered candidates before the limit, store sales priced as Gridbox does, far fewer database queries, cheaper thumbnails and index upkeep, cache clean-up.
