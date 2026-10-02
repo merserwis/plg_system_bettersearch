@@ -26,6 +26,29 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
      * script again when the schema record of an extension is missing; ALTER TABLE ADD would then
      * fail on an existing column and stop the whole update.)
      */
+    /**
+     * Since 1.4.2 the extension ships English, Polish, Ukrainian and German only: the files of the
+     * other languages installed by 1.3.0–1.4.1 are removed (Joomla keeps them on an update).
+     */
+    private function removeDroppedLanguages(): void
+    {
+        foreach (['ar-AA', 'cs-CZ', 'es-ES', 'fr-FR', 'hi-IN', 'lt-LT', 'sk-SK', 'zh-CN'] as $tag) {
+            foreach ([JPATH_ADMINISTRATOR . '/language/' . $tag . '/plg_system_bettersearch', JPATH_SITE . '/language/' . $tag . '/mod_bettersearch',
+                JPATH_PLUGINS . '/system/bettersearch/language/' . $tag . '/plg_system_bettersearch', JPATH_SITE . '/modules/mod_bettersearch/language/' . $tag . '/mod_bettersearch'] as $base) {
+                foreach (['.ini', '.sys.ini'] as $ext) {
+                    if (is_file($base . $ext)) {
+                        @unlink($base . $ext);
+                    }
+                }
+            }
+            foreach ([JPATH_PLUGINS . '/system/bettersearch/language/' . $tag, JPATH_SITE . '/modules/mod_bettersearch/language/' . $tag] as $dir) {
+                if (is_dir($dir) && !(new \FilesystemIterator($dir))->valid()) {
+                    @rmdir($dir);
+                }
+            }
+        }
+    }
+
     private function upgradeColumns($db): void
     {
         try {
@@ -65,6 +88,7 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
                 }
             }
             $this->upgradeColumns($db);
+            $this->removeDroppedLanguages();
             $this->fulltextIndex($db);
             Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_ADMINISTRATOR)
                 || Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_PLUGINS . '/system/bettersearch');

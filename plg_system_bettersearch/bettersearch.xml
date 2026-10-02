@@ -6,7 +6,7 @@
     <creationDate>2026-10-02</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.4.1</version>
+    <version>1.4.2</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -45,22 +45,6 @@
         <language tag="uk-UA">uk-UA/plg_system_bettersearch.sys.ini</language>
         <language tag="de-DE">de-DE/plg_system_bettersearch.ini</language>
         <language tag="de-DE">de-DE/plg_system_bettersearch.sys.ini</language>
-        <language tag="cs-CZ">cs-CZ/plg_system_bettersearch.ini</language>
-        <language tag="cs-CZ">cs-CZ/plg_system_bettersearch.sys.ini</language>
-        <language tag="sk-SK">sk-SK/plg_system_bettersearch.ini</language>
-        <language tag="sk-SK">sk-SK/plg_system_bettersearch.sys.ini</language>
-        <language tag="lt-LT">lt-LT/plg_system_bettersearch.ini</language>
-        <language tag="lt-LT">lt-LT/plg_system_bettersearch.sys.ini</language>
-        <language tag="fr-FR">fr-FR/plg_system_bettersearch.ini</language>
-        <language tag="fr-FR">fr-FR/plg_system_bettersearch.sys.ini</language>
-        <language tag="hi-IN">hi-IN/plg_system_bettersearch.ini</language>
-        <language tag="hi-IN">hi-IN/plg_system_bettersearch.sys.ini</language>
-        <language tag="zh-CN">zh-CN/plg_system_bettersearch.ini</language>
-        <language tag="zh-CN">zh-CN/plg_system_bettersearch.sys.ini</language>
-        <language tag="ar-AA">ar-AA/plg_system_bettersearch.ini</language>
-        <language tag="ar-AA">ar-AA/plg_system_bettersearch.sys.ini</language>
-        <language tag="es-ES">es-ES/plg_system_bettersearch.ini</language>
-        <language tag="es-ES">es-ES/plg_system_bettersearch.sys.ini</language>
     </languages>
     <config>
         <fields name="params" addfieldprefix="Merserwis\Plugin\System\BetterSearch\Field">
