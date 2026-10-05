@@ -21,11 +21,21 @@ namespace Merserwis\Plugin\System\BetterSearch\Engine;
 
 final class Params
 {
-    /** Unit as written => dimension of the token. */
+    /**
+     * Unit as written => dimension of the token, or [dimension, factor to the base unit]. Pressure is
+     * kept in pascals (1 bar = 100 000 Pa, 1 psi = 6894.757 Pa), flow in m³/h (1 l/min = 0.06 m³/h).
+     */
     private const UNITS = [
-        'VA' => 'va', 'Wh' => 'wh', 'Ah' => 'ah', 'Hz' => 'hz', 'dB' => 'db', 'lx' => 'lx', 'Pa' => 'pa', 'bar' => 'bar',
+        'VA' => 'va', 'Wh' => 'wh', 'Ah' => 'ah', 'Hz' => 'hz', 'dB' => 'db', 'lx' => 'lx', 'lux' => 'lx',
+        'Pa' => 'pa', 'hPa' => ['pa', 100.0], 'bar' => ['pa', 1e5], 'psi' => ['pa', 6894.757], 'PSI' => ['pa', 6894.757],
+        '%RH' => 'rh', '%rH' => 'rh', '%Rh' => 'rh', '% RH' => 'rh', '% rH' => 'rh', '% Rh' => 'rh', 'ppm' => 'ppm',
+        'm/s' => 'ms', 'm³/h' => 'flow', 'm3/h' => 'flow', 'l/min' => ['flow', 0.06], 'L/min' => ['flow', 0.06], 'l/h' => ['flow', 0.001],
+        'W/m²' => 'wm2', 'W/m2' => 'wm2',
         'Ω' => 'ohm', 'Ohm' => 'ohm', 'ohm' => 'ohm', 'OHM' => 'ohm', '°C' => 'c', '℃' => 'c', 'V' => 'v', 'A' => 'a', 'W' => 'w', 'F' => 'f', 'm' => 'm',
     ];
+
+    /** Kinds that take no SI prefix (a "k" or "m" before them is part of another word). */
+    private const NO_PREFIX = ['c', 'db', 'rh', 'ppm', 'flow', 'wm2'];
 
     private const PREFIX = ['G' => 1e9, 'g' => 1e9, 'M' => 1e6, 'k' => 1e3, 'K' => 1e3, 'm' => 1e-3, 'c' => 1e-2, 'µ' => 1e-6, 'μ' => 1e-6, 'u' => 1e-6, 'n' => 1e-9, 'p' => 1e-12];
 
@@ -36,6 +46,12 @@ final class Params
 
     /** Words and signs between the two ends of a range. */
     private const SEP = '(?:\.{2,3}|…|–|—|-|−|÷|~|\bto\b|\bdo\b|\bbis\b)';
+
+    /**
+     * Designations of standards: "PN-EN 62446", "PN-HD 60364-6", "IEC 61010-1", "EN 61557-1:2007", "BS 7671".
+     * A bare "PN 16" is a nominal pressure (PN 16 bar), not a standard.
+     */
+    private const STANDARD = '/(?<![\p{L}\d])(?:PN[\s\-]+(?:EN|HD|IEC|ISO)|EN|IEC|ISO|HD|DIN|VDE|BS|UL|IEEE|ANSI|NFPA|CEI|NEN|CSA|GOST|ГОСТ|ДСТУ)(?:[\s\-]+(?:EN|IEC|ISO|HD|VDE))*[\s\-:]*\d{3,}(?:[\-:.\/]\d+)*(?![\p{L}\d])/u';
 
     /** Tokens of one item at most (a long description lists many values). */
     private const MAX_TOKENS = 160;
@@ -163,8 +179,17 @@ final class Params
 
         $unit = self::unitPattern($isQuery);
 
+        // numbers of standards are no values: "PN-EN 62446 do 1000 V" is a test up to 1000 V, not 62446…1000 V
+        if (preg_match_all(self::STANDARD, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+            foreach ($all as $m) {
+                $blank($m);
+            }
+        }
+
+        // a number glued to a code with a hyphen is part of a model name ("C-4A", "APS-1102A",
+        // "M10-522-10 260V"), not a value; "DC-150 kHz" is a band from DC
         // ranges: "-20…+50 °C", "0-600 V", "od -10 do 40°C", "1 mA ... 10 A"
-        $range = '/(?<![\p{L}\d.,])(?:od\s+|from\s+|von\s+)?(?<n1>' . self::NUM . ')\s*(?:' . $unit . ')?\s*' . self::SEP
+        $range = '/(?<![\p{L}\d.,])(?:(?<![\p{L}\d]-)|(?<=DC-)|(?<=AC-))(?:od\s+|from\s+|von\s+)?(?<n1>' . self::NUM . ')\s*(?:' . $unit . ')?\s*' . self::SEP
             . '\s*\+?(?<n2>' . self::NUM . ')\s*' . str_replace(['(?<prefix>', '(?<unit>'], ['(?<bprefix>', '(?<bunit>'], $unit) . '/u';
         if (preg_match_all($range, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($all as $m) {
@@ -182,10 +207,19 @@ final class Params
                 if ($a === null || $b === null) {
                     continue;
                 }
+                // a range of positive values is written from the lower end: "12345 do 1000 V" (no unit
+                // after the first number) is some other number followed by a value, which the single
+                // values below find; falling to negative values is a range ("0 ~ -32 V", "+25 do -100 °C")
+                if ($u1 === null && $a > $b && $b >= 0) {
+                    continue;
+                }
                 $alts = [];
+                $o1   = $u1 ? $u1['offset'] : $u2['offset'];
                 foreach ($u2['factors'] as $i => $f2) {
                     $f1 = $u1 ? ($u1['factors'][$i] ?? $u1['factors'][0]) : $f2;
-                    $alts[] = [min($a * $f1, $b * $f2), max($a * $f1, $b * $f2)];
+                    $lo = self::round($a * $f1 + $o1);
+                    $hi = self::round($b * $f2 + $u2['offset']);
+                    $alts[] = [min($lo, $hi), max($lo, $hi)];
                 }
                 $params[] = self::param($u2['dim'], $alts[0][0], $alts[0][1], $m[0][0], $alts);
                 $blank($m);
@@ -193,7 +227,7 @@ final class Params
         }
 
         // single values, also lists sharing one unit: "1000 V", "230/400 V", "1,5kV", "200 GΩ"
-        $single = '/(?<![\p{L}\d.,])(' . self::NUM . '(?:\s*\/\s*' . self::NUM . ')*)\s*' . $unit . '/u';
+        $single = '/(?<![\p{L}\d.,])(?:(?<![\p{L}\d]-)|(?<=DC-)|(?<=AC-))(' . self::NUM . '(?:\s*\/\s*' . self::NUM . ')*)\s*' . $unit . '/u';
         if (preg_match_all($single, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($all as $m) {
                 $u = self::unitOf($m, '', $isQuery);
@@ -205,7 +239,7 @@ final class Params
                     if ($n === null) {
                         continue;
                     }
-                    $alts = array_map(fn ($f) => [$n * $f, $n * $f], $u['factors']);
+                    $alts = array_map(fn ($f) => [self::round($n * $f + $u['offset']), self::round($n * $f + $u['offset'])], $u['factors']);
                     $params[] = self::param($u['dim'], $alts[0][0], $alts[0][1], $m[0][0], $alts);
                 }
                 $blank($m);
@@ -220,7 +254,7 @@ final class Params
     {
         $units = array_keys(self::UNITS);
         usort($units, fn ($a, $b) => strlen($b) <=> strlen($a));
-        $alt = implode('|', array_map(fn ($u) => preg_quote($u, '/'), $units)) . '|°\s?C|o\s?C';
+        $alt = implode('|', array_map(fn ($u) => preg_quote($u, '/'), $units)) . '|°\s?C|o\s?C|°\s?F|℉';
 
         // a unit ends the token ("1000 VAC" = 1000 V AC; "mm²" is an area, not a length)
         return '(?<prefix>[GgMkKmcµμunp]?)(?<unit>' . ($isQuery ? '(?i:' . $alt . ')' : $alt) . ')(?:AC|DC|ac|dc|RMS|rms|~)?(?![\p{L}\d²³])';
@@ -234,18 +268,26 @@ final class Params
         if ($unit === '' || ($m[$g . 'unit'][1] ?? -1) < 0) {
             return null;
         }
-        $key = preg_replace('/\s+/u', '', $unit) ?? $unit;
+        $key    = preg_replace('/\s+/u', '', $unit) ?? $unit;
+        $base   = 1.0;
+        $offset = 0.0;
         if (preg_match('/^(°C|oC|℃)$/iu', $key)) {
             $dim = 'c';
+        } elseif (preg_match('/^(°F|℉)$/iu', $key)) {
+            // Fahrenheit as Celsius: (F − 32) × 5/9
+            [$dim, $base, $offset] = ['c', 5 / 9, -160 / 9];
         } else {
             $dim = self::UNITS[$key] ?? null;
             if ($dim === null && $isQuery) {
                 foreach (self::UNITS as $u => $d) {
-                    if (strcasecmp($u, $key) === 0) {
+                    if (strcasecmp(preg_replace('/\s+/u', '', $u) ?? $u, $key) === 0) {
                         $dim = $d;
                         break;
                     }
                 }
+            }
+            if (is_array($dim)) {
+                [$dim, $base] = $dim;
             }
         }
         if ($dim === null) {
@@ -256,10 +298,11 @@ final class Params
             return null;
         }
         if ($prefix === '') {
-            return ['dim' => $dim, 'factors' => [1.0]];
+            return ['dim' => $dim, 'factors' => [$base], 'offset' => $offset];
         }
-        // no prefixes for temperature, decibels, IP; centi only for metres
-        if (in_array($dim, ['c', 'db'], true) || ($prefix === 'c' && $dim !== 'm')) {
+        // no prefixes for temperature, decibels, humidity, ppm, flow; none on a unit that already has
+        // one ("hPa", "psi"); centi only for metres
+        if (in_array($dim, self::NO_PREFIX, true) || $offset !== 0.0 || in_array($key, ['hPa', 'psi', 'PSI'], true) || ($prefix === 'c' && $dim !== 'm')) {
             return null;
         }
         $factor = self::PREFIX[$prefix] ?? null;
@@ -268,10 +311,21 @@ final class Params
         }
         // a query in lower case: "mohm" may be milliohm or megaohm
         if ($isQuery && $prefix === 'm' && $dim === 'ohm') {
-            return ['dim' => $dim, 'factors' => [1e-3, 1e6]];
+            return ['dim' => $dim, 'factors' => [1e-3, 1e6], 'offset' => 0.0];
         }
 
-        return ['dim' => $dim, 'factors' => [$factor]];
+        return ['dim' => $dim, 'factors' => [$factor * $base], 'offset' => 0.0];
+    }
+
+    /** Converted values to 6 significant digits (°F → °C, psi → Pa give long fractions). */
+    private static function round(float $v): float
+    {
+        if ($v == 0.0) {
+            return 0.0;
+        }
+        $digits = 6 - (int) ceil(log10(abs($v)));
+
+        return round($v, max(-12, min(12, $digits)));
     }
 
     private static function number(string $raw): ?float

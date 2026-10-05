@@ -2,6 +2,21 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.5.1 — 2026-10-05
+
+The technical values are read by the same rules as in Better Categories for Gridbox 1.6.0.
+
+### 🐞 Fixes
+
+- **Numbers of standards and model names are no longer read as values.** “Tests to PN-EN 62446 up to 1000 V DC” was indexed as the voltage range 1000…62 446 V, so the product was found for any voltage up to 62 kV. Designations of standards (PN-EN, PN-HD, EN, IEC, ISO, DIN, VDE, BS, UL…), numbers glued to a model name with a hyphen (“C-4A”, “APS-1102A”) and “ranges” written from a larger number down to a smaller positive one (“5 700~1000 A” in a table) are skipped. “PN 16 bar”, “DC-150 kHz” and ranges to negative values (“0 ~ -32 V”) still read as values.
+
+### 🌡️ HVACR values
+
+- New units in products and queries: **relative humidity** (%RH), **air velocity** (m/s), **flow** (m³/h; l/min and l/h converted), **concentration** (ppm) and **irradiance** (W/m²).
+- **Pressure in any unit is one value:** Pa, hPa, kPa, MPa, mbar, bar and psi — “16 bar” finds “1,6 MPa” and “232 psi”.
+- **°F is converted to °C**: “68 °F” finds “20 °C”.
+- The index format changed: after the update every product is indexed again (automatically, or at once with *Update index*).
+
 ## 1.5.0 — 2026-10-05
 
 Technical values searched as values, featured products for chosen phrases, pages in the results, recent searches, availability with the delivery time, buttons to the cart and to a quote, and a regular e-mail report of what shoppers search for.

@@ -46,7 +46,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.5.0';
+    public const VERSION = '1.5.1';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
