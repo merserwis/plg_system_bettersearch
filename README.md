@@ -452,6 +452,8 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 ## 📝 Changelog
 
+The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
+
 * **1.4.3** — Help tooltips rebuilt: shown by CSS next to the “?” on hover, keyboard focus and click, on every administrator template.
 * **1.4.2** — Help tooltips shown next to the “?” (also on a scrolled page). Search Console queries that differ only in accents (“pętli” / “petli”) are added up instead of stopping the import. Languages reduced to English, Polish, Ukrainian and German.
 * **1.4.1** — Google Search Console tab fixed (tables ensured, list after import, causes of errors shown to administrators); updates safe when Joomla's schema record is missing; “?” help tooltips; instant product finder; settings export / import / reset.
