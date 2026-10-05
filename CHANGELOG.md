@@ -2,6 +2,14 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.5.3 — 2026-10-05
+
+### 🏷️ Product badges in the results
+
+- The badges set on the products in Gridbox — e.g. **“New!”, “Recommended”, “Bestseller”** — now appear in the search results, in their own colours and in the order set on the product: in the top corner of the cards on the results page and above the name in the live results. The sale badge shows the discount as on the product (“- 15%”); a product without a sale price gets none.
+- *Featured* from a query rule stays first, next to them.
+- New options on the *Products* tab: **Product badges** (results page and live results, one of them, or hidden) and **Badges per product at most** (3).
+
 ## 1.5.2 — 2026-10-05
 
 ### 🐞 Fixes

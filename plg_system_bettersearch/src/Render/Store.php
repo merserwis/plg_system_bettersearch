@@ -187,6 +187,7 @@ final class Store
 
         $cats     = $this->categories();
         $delivery = $this->deliveryField > 0 ? $this->fieldValues(array_keys($rows), $this->deliveryField) : [];
+        $badges   = $this->badges(array_keys($rows));
         $out      = [];
         foreach ($ids as $id) {
             $row = $rows[$id] ?? null;
@@ -220,7 +221,69 @@ final class Store
             $this->stockInfo($row);
             $row->delivery   = $delivery[$row->id] ?? '';
             $row->featured   = false;
+            $row->badges     = $row->isProduct ? $this->badgeTexts($badges[$row->id] ?? [], $row) : [];
             $out[$id]        = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Gridbox store badges of the products ("New", "Recommended", "Bestseller", the sale badge), in
+     * the order set on each product.
+     *
+     * @param int[] $ids
+     *
+     * @return array<int, object[]> product id => badges (title, color, type)
+     */
+    private function badges(array $ids): array
+    {
+        if (!$ids) {
+            return [];
+        }
+        $out = [];
+        try {
+            $query = $this->db->createQuery()
+                ->select(['bm.product_id', 'b.title', 'b.color', 'b.type'])
+                ->from($this->db->quoteName('#__gridbox_store_badges_map', 'bm'))
+                ->innerJoin($this->db->quoteName('#__gridbox_store_badges', 'b') . ' ON b.id = bm.badge_id')
+                ->where('bm.product_id IN (' . implode(',', array_map('intval', $ids)) . ')')
+                ->order('bm.product_id ASC, bm.order_list ASC, bm.id ASC');
+            foreach ($this->db->setQuery($query)->loadObjectList() ?: [] as $row) {
+                $out[(int) $row->product_id][] = $row;
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Badges as shown: title and colour; the sale badge shows the discount as Gridbox does
+     * ("- 15%" from the product's price and sale price).
+     *
+     * @return array<int, array{title: string, color: string}>
+     */
+    private function badgeTexts(array $badges, object $row): array
+    {
+        $out = [];
+        foreach ($badges as $badge) {
+            $title = trim((string) $badge->title);
+            if ((string) $badge->type === 'sale') {
+                $price = (float) $row->price;
+                $sale  = trim((string) $row->sale_price);
+                if ($price <= 0 || $sale === '' || (float) $sale >= $price) {
+                    // no discount on the product itself: Gridbox would show "- 0%", left out here
+                    continue;
+                }
+                $title = '- ' . round(100 - ((float) $sale * 100 / $price)) . '%';
+            }
+            if ($title === '') {
+                continue;
+            }
+            $color = trim((string) $badge->color);
+            $out[] = ['title' => $title, 'color' => preg_match('/^(#[0-9a-f]{3,8}|rgba?\([0-9.,\s%]+\))$/i', $color) ? $color : ''];
         }
 
         return $out;
