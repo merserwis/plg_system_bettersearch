@@ -18,7 +18,7 @@
     }
 
     // tasks that change something are sent as POST; the others as GET
-    var WRITES = { sync: 1, clearlog: 1, clearthumbs: 1, clearcache: 1, gsc_import: 1 };
+    var WRITES = { sync: 1, clearlog: 1, clearthumbs: 1, clearcache: 1, gsc_import: 1, report_send: 1 };
 
     function fmt(text, values) {
         var i = 0;
@@ -81,6 +81,7 @@
         var input = root.querySelector('.bs-picker-input');
         var found = root.querySelector('.bs-picker-found');
         var multiple = root.dataset.multiple === '1';
+        var scope = root.dataset.scope || 'products';
         var timer = 0;
 
         function ids() {
@@ -224,7 +225,7 @@
                 return;
             }
             // every product is loaded once per page and filtered here: no request per keystroke
-            allProducts().then(function (list) {
+            allProducts(scope).then(function (list) {
                 if (input.value.trim() === q) {
                     show(filterProducts(list, q));
                 }
@@ -234,7 +235,7 @@
         }
 
         function serverSearch(q) {
-            call('products', { q: q }).then(function (data) {
+            call('products', { q: q, scope: scope }).then(function (data) {
                 var items = data.items || [];
                 found.innerHTML = items.length ? items.map(function (t) {
                     titles[t.id] = t;
@@ -256,7 +257,7 @@
             timer = setTimeout(search, 60);
         });
         input.addEventListener('focus', function () {
-            allProducts().catch(function () {
+            allProducts(scope).catch(function () {
             });
         });
         input.addEventListener('keydown', function (e) {
@@ -297,11 +298,13 @@
 
     // ---------------------------------------------------------------- all products, filtered in the browser
 
-    var productList = null;
+    var productLists = {};
 
-    function allProducts() {
+    function allProducts(scope) {
+        scope = scope || 'products';
+        var productList = productLists[scope];
         if (!productList) {
-            productList = call('products_all').then(function (r) {
+            productList = productLists[scope] = call('products_all', { scope: scope }).then(function (r) {
                 return (r.items || []).map(function (p) {
                     var t = { id: p[0], title: p[1], sku: p[2], app: (r.apps || {})[p[3]] || '', published: p[4] };
                     t.key = fold(t.title + ' ' + t.sku + ' ' + t.id);
@@ -310,7 +313,7 @@
                 });
             });
             productList.catch(function () {
-                productList = null;
+                delete productLists[scope];
             });
         }
         return productList;
@@ -531,39 +534,67 @@
         var out = root.querySelector('.bs-gsc-out');
         var statusBox = root.querySelector('.bs-gsc-status');
         var form = root.closest('form');
+        // the order of the table: sorted by the database (all queries), "found" sorted here (the rows shown)
+        var view = { sort: 'impressions', dir: 'desc', limit: 200, filter: '', checked: false };
+        var last = null;
+        var COLS = [['query', T.TOOLS_GSC_QUERY, 'asc'], ['clicks', T.TOOLS_CONV_CLICKS, 'desc'], ['impressions', T.TOOLS_GSC_IMPR, 'desc'],
+            ['ctr', T.TOOLS_GSC_CTR, 'desc'], ['position', T.TOOLS_GSC_POS, 'asc']];
+
+        function params(extra) {
+            var p = { sort: view.sort === 'found' ? 'impressions' : view.sort, dir: view.sort === 'found' ? 'desc' : view.dir, limit: view.limit, filter: view.filter };
+            Object.keys(extra || {}).forEach(function (k) {
+                p[k] = extra[k];
+            });
+            return p;
+        }
 
         function draw(r) {
+            last = r;
             var st = r.status || {};
             statusBox.innerHTML = st.at ? '<p class="' + (st.ok ? 'text-success' : 'text-danger') + '">' + esc(st.message) + ' <span class="text-muted">('
                 + esc(fmt(T.TOOLS_GSC_LAST, [new Date(st.at * 1000).toLocaleString()])) + ')</span></p>' : '';
+            var bar = '<div class="bs-gsc-bar"><input type="search" class="form-control form-control-sm bs-gsc-filter" placeholder="' + esc(T.TOOLS_GSC_FILTER) + '" value="' + esc(view.filter) + '">'
+                + '<label class="small">' + esc(T.TOOLS_GSC_SHOW_ROWS) + ' <select class="form-select form-select-sm bs-gsc-limit">' + [100, 200, 500, 1000].map(function (n) {
+                    return '<option value="' + n + '"' + (n === view.limit ? ' selected' : '') + '>' + n + '</option>';
+                }).join('') + '</select></label>' + (r.total !== undefined ? '<span class="small text-muted">' + esc(fmt(T.TOOLS_GSC_COUNT, [(r.rows || []).length, r.total])) + '</span>' : '') + '</div>';
             if (!r.rows || !r.rows.length) {
-                out.innerHTML = '<p class="text-muted">' + esc(T.TOOLS_GSC_NONE) + '</p>';
+                out.innerHTML = bar + '<p class="text-muted">' + esc(T.TOOLS_GSC_NONE) + '</p>';
                 return;
             }
             var checked = r.rows[0].found !== undefined;
+            view.checked = checked;
             var rows = r.rows.slice();
-            if (checked) {
-                // what Google brings people for and this search does not find: first
+            if (view.sort === 'found' && checked) {
+                // what Google brings people for and this search finds least: first (or last)
+                var f = function (q) {
+                    return q.found === null ? 1e9 : q.found;
+                };
                 rows.sort(function (a, b) {
-                    return (a.found === 0 ? 0 : 1) - (b.found === 0 ? 0 : 1);
+                    return (view.dir === 'asc' ? f(a) - f(b) : f(b) - f(a)) || (b.impressions - a.impressions);
                 });
             }
-            out.innerHTML = '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_GSC_QUERY) + '</th><th>'
-                + esc(T.TOOLS_CONV_CLICKS) + '</th><th>' + esc(T.TOOLS_GSC_IMPR) + '</th><th>' + esc(T.TOOLS_GSC_POS) + '</th>'
-                + (checked ? '<th>' + esc(T.TOOLS_GSC_FOUND) + '</th>' : '') + '<th></th></tr></thead><tbody>'
+            var head = function (key, label) {
+                var on = view.sort === key;
+                return '<th aria-sort="' + (on ? (view.dir === 'asc' ? 'ascending' : 'descending') : 'none') + '"><button type="button" class="bs-sort' + (on ? ' is-on' : '')
+                    + '" data-bs-sort="' + key + '">' + esc(label) + '<span class="bs-sort-arrow" aria-hidden="true">' + (on ? (view.dir === 'asc' ? '▲' : '▼') : '↕') + '</span></button></th>';
+            };
+            out.innerHTML = bar + '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table bs-gsc-table"><thead><tr>'
+                + COLS.map(function (c) {
+                    return head(c[0], c[1]);
+                }).join('') + (checked ? head('found', T.TOOLS_GSC_FOUND) : '') + '<th></th></tr></thead><tbody>'
                 + rows.map(function (q) {
                     var found = '';
                     if (checked) {
                         found = '<td>' + (q.found === null ? '…' : (q.found === 0 ? '<span class="badge bg-danger">0</span>' : q.found)) + '</td>';
                     }
-                    return '<tr><td>' + esc(q.query) + '</td><td>' + esc(q.clicks) + '</td><td>' + esc(q.impressions) + '</td><td>' + esc(q.position) + '</td>' + found
+                    return '<tr><td>' + esc(q.query) + '</td><td>' + esc(q.clicks) + '</td><td>' + esc(q.impressions) + '</td><td>' + esc(q.ctr) + ' %</td><td>' + esc(q.position) + '</td>' + found
                         + '<td class="bs-actions">' + actionButtons(q.query) + '</td></tr>';
                 }).join('') + '</tbody></table></div>';
         }
 
-        function run(task, params, withForm) {
+        function run(task, extra, withForm) {
             out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
-            return call(task, params || {}, withForm ? form : null).then(function (r) {
+            return call(task, params(extra), withForm ? form : null).then(function (r) {
                 if (r.message && r.ok === false) {
                     Joomla.renderMessages({ error: [r.message] });
                 } else if (r.message) {
@@ -589,6 +620,53 @@
                 run('gsc', { check: 1 });
             }
         });
+        // a click on a column heading sorts by it (again: the other direction)
+        out.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-bs-sort]');
+            if (!b) {
+                return;
+            }
+            var key = b.dataset.bsSort;
+            if (view.sort === key) {
+                view.dir = view.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                view.sort = key;
+                view.dir = key === 'found' ? 'asc' : COLS.filter(function (c) {
+                    return c[0] === key;
+                })[0][2];
+            }
+            if (key === 'found') {
+                draw(last);
+            } else {
+                run('gsc', view.checked ? { check: 1 } : {});
+            }
+        });
+        var filterTimer = 0;
+        out.addEventListener('input', function (e) {
+            if (!e.target.classList.contains('bs-gsc-filter')) {
+                return;
+            }
+            clearTimeout(filterTimer);
+            var value = e.target.value;
+            filterTimer = setTimeout(function () {
+                view.filter = value.trim();
+                call('gsc', params(view.checked ? { check: 1 } : {})).then(function (r) {
+                    draw(r);
+                    var input = out.querySelector('.bs-gsc-filter');
+                    if (input) {
+                        input.focus();
+                        input.setSelectionRange(input.value.length, input.value.length);
+                    }
+                }).catch(function () {
+                });
+            }, 350);
+        });
+        out.addEventListener('change', function (e) {
+            if (e.target.classList.contains('bs-gsc-limit')) {
+                view.limit = parseInt(e.target.value, 10) || 200;
+                run('gsc', view.checked ? { check: 1 } : {});
+            }
+        });
         root.querySelector('.bs-gsc-file').addEventListener('change', function (e) {
             var file = e.target.files && e.target.files[0];
             if (!file) {
@@ -601,7 +679,60 @@
             };
             reader.readAsText(file, 'UTF-8');
         });
-        call('gsc').then(draw).catch(function () {
+        call('gsc', params()).then(draw).catch(function () {
+        });
+    }
+
+    // ================================================================ e-mail report
+
+    function initReport(root) {
+        var out = root.querySelector('.bs-report-out');
+        var statusBox = root.querySelector('.bs-report-status');
+        var form = root.closest('form');
+
+        function showStatus(r) {
+            var st = r.status;
+            statusBox.innerHTML = (r.to ? '<p>' + esc(T.TOOLS_REPORT_TO) + ': <b>' + esc(r.to) + '</b></p>' : '<p class="text-danger">' + esc(T.TOOLS_REPORT_NO_TO) + '</p>')
+                + (st && st.at ? '<p class="' + (st.ok ? 'text-success' : 'text-danger') + '">' + esc(st.message) + ' <span class="text-muted">('
+                    + esc(new Date(st.at * 1000).toLocaleString()) + ')</span></p>' : '');
+        }
+
+        root.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-bs-tool]');
+            if (!b) {
+                return;
+            }
+            var tool = b.dataset.bsTool;
+            if (tool === 'report_preview') {
+                out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+                call('report_preview', {}, form).then(function (r) {
+                    showStatus(r);
+                    out.innerHTML = '<p class="small text-muted">' + esc(fmt(T.TOOLS_REPORT_PERIOD, [r.period])) + '</p><iframe class="bs-report-frame" title="' + esc(T.TOOLS_REPORT_PERIOD.replace('%s', '')) + '"></iframe>';
+                    var frame = out.querySelector('iframe');
+                    frame.srcdoc = '<!doctype html><meta charset="utf-8"><body style="margin:16px;background:#fff">' + r.html + '</body>';
+                    frame.addEventListener('load', function () {
+                        try {
+                            frame.style.height = (frame.contentDocument.body.scrollHeight + 40) + 'px';
+                        } catch (err) {
+                        }
+                    });
+                }).catch(function (err) {
+                    out.innerHTML = '<p class="text-danger">' + esc(err.message) + '</p>';
+                });
+            } else if (tool === 'report_send') {
+                if (!window.confirm(T.TOOLS_REPORT_CONFIRM)) {
+                    return;
+                }
+                b.disabled = true;
+                call('report_send', {}, form).then(function (r) {
+                    Joomla.renderMessages(r.ok ? { message: [r.message] } : { error: [r.message] });
+                    statusBox.insertAdjacentHTML('beforeend', '<p class="' + (r.ok ? 'text-success' : 'text-danger') + '">' + esc(r.message) + '</p>');
+                }).catch(function (err) {
+                    Joomla.renderMessages({ error: [err.message] });
+                }).then(function () {
+                    b.disabled = false;
+                });
+            }
         });
     }
 
@@ -680,15 +811,17 @@
                 var html = '<p class="bs-test-sum"><b>' + r.total + '</b> ' + esc(T.TOOLS_RESULTS) + ' · ' + esc(T.TOOLS_MODE) + ': <code>' + esc(r.mode) + '</code>'
                     + ' · ' + esc(T.TOOLS_GROUPS) + ': ' + r.groups.map(function (g) {
                         return '<code>' + esc(g) + '</code>';
-                    }).join(' ') + ' · ' + r.ms + ' ms'
+                    }).join(' ') + ((r.params || []).length ? ' · ' + esc(T.TOOLS_PARAMS) + ': ' + r.params.map(function (g) {
+                        return '<code>' + esc(g) + '</code>';
+                    }).join(' ') : '') + ' · ' + r.ms + ' ms'
                     + (r.corrected ? ' · ' + esc(T.TOOLS_CORRECTED) + ': <b>' + esc(r.corrected) + '</b>' : '') + '</p>';
                 if (r.rows.length) {
                     html += '<table class="table table-sm table-striped bs-test-table"><thead><tr><th>#</th><th>ID</th><th></th><th>'
                         + esc(T.TOOLS_SCORE) + '</th><th>' + esc(T.TOOLS_WHY) + '</th></tr></thead><tbody>'
                         + r.rows.map(function (row, i) {
-                            return '<tr' + (row.pinned ? ' class="table-info"' : '') + '><td>' + (i + 1) + '</td><td>' + row.id + '</td><td>' + esc(row.title)
+                            return '<tr' + (row.featured ? ' class="table-warning"' : (row.pinned ? ' class="table-info"' : '')) + '><td>' + (i + 1) + '</td><td>' + row.id + '</td><td>' + esc(row.title)
                                 + (row.sku ? '<br><small class="text-muted">' + esc(row.sku) + '</small>' : '') + '</td><td>'
-                                + (row.pinned ? esc(T.TOOLS_PINNED) : row.score.toFixed(1)) + '</td><td><small>' + row.reasons.map(esc).join('<br>') + '</small></td></tr>';
+                                + (row.featured ? esc(T.TOOLS_FEATURED) : (row.pinned ? esc(T.TOOLS_PINNED) : row.score.toFixed(1))) + '</td><td><small>' + row.reasons.map(esc).join('<br>') + '</small></td></tr>';
                         }).join('') + '</tbody></table>';
                 }
                 out.innerHTML = html;
@@ -969,7 +1102,9 @@
         initHelp();
         initPickers(document);
         document.querySelectorAll('.bs-tools').forEach(function (root) {
-            if (root.querySelector('.bs-gsc-out')) {
+            if (root.querySelector('.bs-report-out')) {
+                initReport(root);
+            } else if (root.querySelector('.bs-gsc-out')) {
                 initGsc(root);
             } else {
                 initTools(root);

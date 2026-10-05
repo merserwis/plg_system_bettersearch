@@ -69,6 +69,7 @@ final class Searcher
             'fields' => (float) $params->get('w_fields', 4),
             'cats'   => (float) $params->get('w_cats', 3),
             'body'   => (float) $params->get('w_body', 1),
+            'params' => (float) $params->get('w_params', 8),
         ], (float) $params->get('w_digits', 1.5));
     }
 
@@ -98,14 +99,27 @@ final class Searcher
             }
         }
 
+        // technical values ("1000 V", "-20…50 °C", "IP67") are compared as values, the rest as words
+        $parsed = $this->params->get('tech_params', 1) && $this->paramsColumn() ? Params::query($query) : ['params' => [], 'rest' => $query];
+        $tech   = $parsed['params'];
+        $words  = $tech ? $parsed['rest'] : $query;
+
         // 1. as typed, model codes joined ("mi 3155" = "mi3155")
         $mode   = 'exact';
-        $groups = $this->prepare($query, true);
+        $groups = $this->prepareAll($words, true, $tech);
         $items  = $this->run($groups, $phrase, $apps, $explain, false);
+
+        // 1b. no item has those values: the same text searched as words (as before values were known)
+        if (!$items && $tech) {
+            $tech   = [];
+            $words  = $query;
+            $groups = $this->prepare($query, true);
+            $items  = $this->run($groups, $phrase, $apps, $explain, false);
+        }
 
         // 2. the parts of a joined code as separate words
         if (!$items) {
-            $plain = $this->prepare($query, false);
+            $plain = $this->prepareAll($words, false, $tech);
             if (array_column($plain, 'term') !== array_column($groups, 'term')) {
                 $groups = $plain;
                 $items  = $this->run($groups, $phrase, $apps, $explain, false);
@@ -115,15 +129,15 @@ final class Searcher
 
         // 3. typos: words the index does not know, replaced by the closest known word
         $corrected = '';
-        if (!$items && $this->params->get('typo_tolerance', 1)) {
-            $fix = $this->correct($query);
-            if ($fix !== '' && $fix !== $this->norm->fold($query)) {
-                $tried = $this->prepare($fix, true);
+        if (!$items && $this->params->get('typo_tolerance', 1) && trim($words) !== '') {
+            $fix = $this->correct($words);
+            if ($fix !== '' && $fix !== $this->norm->fold($words)) {
+                $tried = $this->prepareAll($fix, true, $tech);
                 $items = $this->run($tried, $this->norm->compact($fix), $apps, $explain, false);
                 if ($items) {
                     $groups    = $tried;
                     $mode      = 'typo';
-                    $corrected = $fix;
+                    $corrected = trim($fix . ' ' . implode(' ', array_column($tech, 'text')));
                 }
             }
         }
@@ -134,24 +148,25 @@ final class Searcher
             $mode  = 'partial';
         }
 
-        // pinned products of matching rules go first, in the order set by the administrator
+        // pinned and featured products of matching rules go first, in the order set by the administrator;
+        // featured ones are also marked in the results
         $pinned = [];
         foreach ($rules as $rule) {
-            if ($rule['action'] === 'pin') {
+            if ($rule['action'] === 'pin' || $rule['action'] === 'feature') {
                 foreach ($rule['products'] as $id) {
-                    $pinned[$id] = true;
+                    $pinned[$id] = ($pinned[$id] ?? false) || $rule['action'] === 'feature';
                 }
             }
         }
         if ($pinned) {
             $visible = $this->visibleIds(array_keys($pinned), $apps);
             $order   = 0;
-            foreach (array_keys($pinned) as $id) {
+            foreach ($pinned as $id => $featured) {
                 if (!isset($visible[$id])) {
                     continue;
                 }
-                $items[$id] = array_merge($visible[$id], ['score' => 1e6 - $order++, 'pinned' => true,
-                    'reasons' => $explain ? ['pinned by rule'] : []]);
+                $items[$id] = array_merge($visible[$id], ['score' => 1e6 - $order++, 'pinned' => true, 'featured' => $featured,
+                    'reasons' => $explain ? [$featured ? 'featured by rule' : 'pinned by rule'] : []]);
             }
         }
         foreach ($hidden as $id) {
@@ -165,6 +180,7 @@ final class Searcher
         $result['total']     = count($items);
         $result['items']     = $items;
         $result['groups']    = array_column($groups, 'term');
+        $result['params']    = array_map(fn ($g) => Params::label($g['param']), array_values(array_filter($groups, fn ($g) => isset($g['param']))));
         $result['truncated'] = $this->truncated;
         $result['ms']        = round((hrtime(true) - $t0) / 1e6, 1);
 
@@ -213,6 +229,39 @@ final class Searcher
 
         // every group is one more LIKE per row: a query of more than MAX_GROUPS words is cut
         return array_slice($groups, 0, self::MAX_GROUPS);
+    }
+
+    /**
+     * Word groups of the text plus one group per technical value. A value group is found by the value
+     * (in any unit prefix or range that holds it) or by its text as one whole word ("87V").
+     */
+    private function prepareAll(string $words, bool $merge, array $tech): array
+    {
+        $groups = trim($words) !== '' ? $this->prepare($words, $merge) : [];
+        $groups = array_slice($groups, 0, max(1, self::MAX_GROUPS - count($tech)));
+        foreach (array_slice($tech, 0, self::MAX_GROUPS) as $p) {
+            $text   = $this->norm->compact($p['text']);
+            $single = $p['lo'] === $p['hi'] && !str_contains($p['text'], '/') && $text !== '' && strlen($text) <= 16;
+            $groups[] = ['term' => $single ? $text : Params::label($p), 'digits' => false, 'parts' => [$text],
+                'alts' => $single ? [['c' => $text, 'kind' => 'term']] : [], 'param' => $p];
+        }
+
+        return $groups;
+    }
+
+    /** The index has the column of technical values (added by the 1.5.0 update). */
+    private function paramsColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            try {
+                $has = (bool) $this->db->setQuery('SHOW COLUMNS FROM ' . $this->db->quoteName('#__bettersearch_items') . ' LIKE ' . $this->db->quote('t_params'))->loadRow();
+            } catch (\Throwable $e) {
+                $has = false;
+            }
+        }
+
+        return $has;
     }
 
     /** @return array<string, string[]> */
@@ -290,7 +339,25 @@ final class Searcher
         $conds  = [];
         $rank   = [];
         $ft     = $this->fulltext();
+        if (array_filter($groups, fn ($g) => isset($g['param']))) {
+            $select[] = 'i.t_params';
+        }
         foreach ($groups as $gi => $group) {
+            if (isset($group['param'])) {
+                // the value (exact token, or any range of its kind: the numbers are compared in PHP) or the text as a whole word
+                $or = [];
+                foreach (Params::likePatterns($group['param']) as $i => $pattern) {
+                    $or[] = 'i.t_params LIKE ' . $db->quote($pattern);
+                    if ($i === 0) {
+                        $rank[] = '(i.t_params LIKE ' . $db->quote($pattern) . ') * 3';
+                    }
+                }
+                foreach ($group['alts'] as $alt) {
+                    $or[] = 'i.t_main LIKE ' . $db->quote('% ' . $db->escape($alt['c'], true) . ' %', false);
+                }
+                $conds[] = '(' . implode(' OR ', $or) . ')';
+                continue;
+            }
             $or     = [];
             $bodyOr = [];
             $words  = [];
@@ -363,7 +430,8 @@ final class Searcher
             $n++;
             $row->cats = array_map('intval', array_filter(explode(',', (string) $row->cat_ids)));
             $s = $this->scorer->score($groups, $row, $phrase, $explain);
-            if ($s['matched'] === 0) {
+            // the SQL lets through every item with values of the kind: a value it does not hold excludes it
+            if ($s['matched'] === 0 || (!$partial && $s['missed'] > 0)) {
                 continue;
             }
             $score   = $s['score'];
@@ -437,7 +505,7 @@ final class Searcher
             $query->where('i.app_id IN (' . implode(',', $apps) . ')');
         }
 
-        $excluded = array_merge($this->ids($this->params->get('exclude_products', [])), $this->subscriptionHidden());
+        $excluded = array_merge($this->ids($this->params->get('exclude_products', [])), $this->ids($this->params->get('exclude_pages', [])), $this->subscriptionHidden());
         if ($excluded) {
             $query->where('i.id NOT IN (' . implode(',', array_unique($excluded)) . ')');
         }
@@ -494,6 +562,7 @@ final class Searcher
             'score'       => round($score, 3),
             'base'        => $base,
             'pinned'      => false,
+            'featured'    => false,
             'reasons'     => $reasons,
             'price'       => $row->price === null ? null : (float) $row->price,
             'title'       => (string) $row->title,
@@ -565,7 +634,8 @@ final class Searcher
                     default    => $phrase === $c,
                 };
                 if ($hit) {
-                    $out[] = ['action' => ($rule['action'] ?? 'pin') === 'hide' ? 'hide' : 'pin', 'products' => $products];
+                    $action = (string) ($rule['action'] ?? 'pin');
+                    $out[]  = ['action' => in_array($action, ['hide', 'feature'], true) ? $action : 'pin', 'products' => $products];
                     break;
                 }
             }

@@ -48,6 +48,22 @@ final class Store
     /** Administrator preview: links lead nowhere, image addresses are absolute (the site, not /administrator). */
     private bool $preview = false;
 
+    /** Name of the group of the Gridbox pages and single-page apps (app 0 of the index). */
+    private string $pagesTitle = 'Pages';
+
+    /** Gridbox field whose value is the delivery time shown with a product (0 = none). */
+    private int $deliveryField = 0;
+
+    public function setPagesTitle(string $title): void
+    {
+        $this->pagesTitle = $title;
+    }
+
+    public function setDeliveryField(int $fieldId): void
+    {
+        $this->deliveryField = max(0, $fieldId);
+    }
+
     public function setPreview(bool $preview): void
     {
         $this->preview = $preview;
@@ -147,7 +163,7 @@ final class Store
         $list  = implode(',', $ids);
         $query = $db->createQuery()
             ->select(['p.id', 'p.title', 'p.app_id', 'p.page_category', 'p.intro_image', 'p.image_alt', 'p.hits', 'p.created',
-                'i.excerpt', 'i.in_stock', 'd.sku', 'd.price', 'd.sale_price', 'd.stock', 'd.variations', 'd.product_type'])
+                'i.excerpt', 'i.in_stock', 'd.sku', 'd.price', 'd.sale_price', 'd.stock', 'd.variations', 'd.product_type', 'd.extra_options'])
             ->from($db->quoteName('#__gridbox_pages', 'p'))
             ->leftJoin($db->quoteName('#__bettersearch_items', 'i') . ' ON i.id = p.id')
             ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
@@ -169,8 +185,9 @@ final class Store
             $mapped[(int) $row->page_id][] = (int) $row->category_id;
         }
 
-        $cats = $this->categories();
-        $out  = [];
+        $cats     = $this->categories();
+        $delivery = $this->deliveryField > 0 ? $this->fieldValues(array_keys($rows), $this->deliveryField) : [];
+        $out      = [];
         foreach ($ids as $id) {
             $row = $rows[$id] ?? null;
             if (!$row) {
@@ -200,7 +217,74 @@ final class Store
             $row->isProduct  = $this->appType($row->app_id) === 'products' && $row->product_type !== null;
             // store sales on categories apply to the product's own category and its parents (as Gridbox does)
             $row->prices     = $row->isProduct ? $this->prices($row, $this->categoryPathIds($catId)) : null;
+            $this->stockInfo($row);
+            $row->delivery   = $delivery[$row->id] ?? '';
+            $row->featured   = false;
             $out[$id]        = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Stock and cart data of a card: quantity (null = not tracked), whether the product has variants or
+     * extra options to choose (then the cart button leads to the product), whether one click can put
+     * it into the Gridbox cart.
+     */
+    private function stockInfo(object $row): void
+    {
+        $row->stockQty   = null;
+        $row->hasOptions = false;
+        $row->cartable   = false;
+        if (!$row->isProduct) {
+            return;
+        }
+        $variations = json_decode((string) $row->variations);
+        $variations = is_object($variations) ? array_filter((array) $variations, 'is_object') : [];
+        $extras     = json_decode((string) ($row->extra_options ?? ''));
+        $hasExtras  = (is_object($extras) && array_filter((array) $extras)) || (is_array($extras) && $extras);
+        $row->hasOptions = $variations || $hasExtras;
+
+        // the quantity Gridbox keeps: the product's, or with variants the sum of theirs (empty = not tracked)
+        $stocks = $variations ? array_map(fn ($v) => trim((string) ($v->stock ?? '')), $variations) : [trim((string) $row->stock)];
+        if (!in_array('', $stocks, true)) {
+            $row->stockQty = (int) array_sum(array_map('floatval', $stocks));
+        }
+        $row->cartable = !$row->hasOptions && (int) $row->in_stock === 1 && $row->prices !== null
+            && in_array((string) $row->product_type, ['', 'physical', 'digital'], true);
+    }
+
+    /**
+     * Values of one Gridbox field for the given pages: option titles for list fields, plain text otherwise.
+     *
+     * @param int[] $ids
+     *
+     * @return array<int, string>
+     */
+    public function fieldValues(array $ids, int $fieldId): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids || $fieldId <= 0) {
+            return [];
+        }
+        $options = $this->fieldOptions($fieldId);
+        $out     = [];
+        try {
+            $query = $this->db->createQuery()
+                ->select(['page_id', 'value'])
+                ->from($this->db->quoteName('#__gridbox_page_fields'))
+                ->where('field_id = ' . $fieldId)
+                ->where('page_id IN (' . implode(',', $ids) . ')');
+            foreach ($this->db->setQuery($query)->loadObjectList() ?: [] as $row) {
+                $value = trim((string) $row->value);
+                $json  = json_decode($value);
+                $key   = is_array($json) ? (string) ($json[0] ?? '') : $value;
+                $label = $options ? trim($options[$key] ?? '') : trim(html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($label !== '') {
+                    $out[(int) $row->page_id] = mb_substr($label, 0, 120);
+                }
+            }
+        } catch (\Throwable $e) {
         }
 
         return $out;
@@ -243,19 +327,9 @@ final class Store
                 ];
             }
             if ($brandField > 0) {
-                $options = $this->fieldOptions($brandField);
-                $query   = $db->createQuery()
-                    ->select(['page_id', 'value'])
-                    ->from($db->quoteName('#__gridbox_page_fields'))
-                    ->where('field_id = ' . $brandField)
-                    ->where('page_id IN (' . $list . ')');
-                foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
-                    $value = trim((string) $row->value);
-                    $json  = json_decode($value);
-                    $key   = is_array($json) ? (string) ($json[0] ?? '') : $value;
-                    $label = trim($options[$key] ?? ($options ? '' : $value));
-                    if ($label !== '' && isset($out[(int) $row->page_id])) {
-                        $out[(int) $row->page_id]['brand'] = mb_substr($label, 0, 80);
+                foreach ($this->fieldValues($chunk, $brandField) as $pageId => $label) {
+                    if (isset($out[$pageId])) {
+                        $out[$pageId]['brand'] = mb_substr($label, 0, 80);
                     }
                 }
             }
@@ -670,6 +744,9 @@ final class Store
 
     public function appTitle(int $appId): string
     {
+        if ($appId === 0) {
+            return $this->pagesTitle;
+        }
         $this->loadApps();
 
         return $this->appTitles[$appId] ?? '';

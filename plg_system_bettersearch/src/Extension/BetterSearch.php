@@ -27,6 +27,8 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
+use Joomla\CMS\Mail\MailerFactoryInterface;
+use Joomla\CMS\Mail\MailHelper;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
@@ -44,7 +46,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.4.3';
+    public const VERSION = '1.5.0';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -56,6 +58,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     /** Rows kept in the conversion statistics. */
     private const EVENT_ROWS = 200000;
+
+    /** Days of searches per day kept (the e-mail report compares two periods of up to a month). */
+    private const DAILY_DAYS = 400;
+
+    /** Hour (site time) from which a due e-mail report is sent. */
+    private const REPORT_HOUR = 7;
 
     /** Default words left out of queries (Polish and English connectors). */
     private const STOPWORDS = 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
@@ -511,7 +519,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $sort    = in_array($sort, $sorts, true) ? $sort : 'relevance';
         $page    = max(1, $input->getInt('bs_page', 1));
         $cat     = max(0, $input->getInt('bs_cat', 0));
-        $appId   = max(0, $input->getInt('bs_app', 0));
+        $appId   = max(-1, $input->getInt('bs_app', 0));
         $perPage = max(1, min(200, (int) $this->params->get('page_per_page', 24)));
 
         $result = $this->search($query, $sort);
@@ -530,7 +538,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $html = '<style>' . $renderer->pageCss($id) . '</style>' . $renderer->page($state['result'], $state, $id);
         $this->seoInfo = ['total' => (int) $state['result']['total'], 'cards' => $renderer->listed(), 'page' => (int) $state['page'],
-            'perPage' => $perPage, 'filtered' => $cat > 0 || $appId > 0 || $page > 1 || $input->getCmd('bs_sort', '') !== '' || $state['facetVars']];
+            'perPage' => $perPage, 'filtered' => $cat > 0 || $appId !== 0 || $page > 1 || $input->getCmd('bs_sort', '') !== '' || $state['facetVars']];
 
         return $html;
     }
@@ -717,12 +725,15 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $appChips[] = ['title' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_ALL'), 'count' => count($items), 'active' => $appId === 0,
                 'url' => $url(['bs_app' => null, 'bs_cat' => null])];
             foreach ($appCounts as $id => $count) {
-                $appChips[] = ['title' => $store->appTitle($id), 'count' => $count, 'active' => $appId === $id,
-                    'url' => $url(['bs_app' => $id, 'bs_cat' => null])];
+                // the pages (app 0 of the index) are chosen with -1: 0 means "all"
+                $chipId     = $id === 0 ? -1 : $id;
+                $appChips[] = ['title' => $store->appTitle($id), 'count' => $count, 'active' => $appId === $chipId,
+                    'url' => $url(['bs_app' => $chipId, 'bs_cat' => null])];
             }
         }
-        if ($appId > 0) {
-            $items = array_values(array_filter($items, fn ($i) => $i['app_id'] === $appId));
+        if ($appId !== 0) {
+            $only  = $appId === -1 ? 0 : $appId;
+            $items = array_values(array_filter($items, fn ($i) => $i['app_id'] === $only));
         }
 
         // categories of the results (the product's own category, or its top category); the filter
@@ -975,7 +986,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             // only what the pages read later: ids, apps, categories, order (not titles, prices, reasons)
             $lean          = $result;
             $lean['items'] = array_map(fn ($i) => ['id' => $i['id'], 'app_id' => $i['app_id'], 'category_id' => $i['category_id'],
-                'cats' => $i['cats'], 'score' => $i['score'], 'pinned' => $i['pinned']], $result['items']);
+                'cats' => $i['cats'], 'score' => $i['score'], 'pinned' => $i['pinned'], 'featured' => !empty($i['featured'])], $result['items']);
             $cache->store($lean, $key);
         }
 
@@ -1134,7 +1145,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $page    = max(1, $input->getInt('bs_page', 2));
         $perPage = max(1, min(200, (int) $this->params->get('page_per_page', 24)));
         $result  = $this->search($query, $sort);
-        $state   = $this->filterState($result, $query, $sort, max(0, $input->getInt('bs_cat', 0)), max(0, $input->getInt('bs_app', 0)), $page, $perPage);
+        $state   = $this->filterState($result, $query, $sort, max(0, $input->getInt('bs_cat', 0)), max(-1, $input->getInt('bs_app', 0)), $page, $perPage);
 
         $renderer = $this->renderer();
         $renderer->setHighlight($result['groups']);
@@ -1237,10 +1248,20 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'mobileMax'  => max(0, (int) $p->get('live_mobile_breakpoint', 768)),
             'iconSubmit' => (bool) $p->get('icon_submit', 1),
             'track'      => (bool) $p->get('track_conversions', 1),
+            // the visitor's own last searches, kept in their browser only
+            'recent'     => (bool) $p->get('live_recent', 1),
+            'recentLimit' => max(1, min(20, (int) $p->get('live_recent_limit', 5))),
+            'cart'       => Uri::root(true) . '/index.php?option=com_gridbox&view=editor&task=store.addProductToCart',
+            'cartAfter'  => (string) $p->get('cart_after', 'cart') === 'message' ? 'message' : 'cart',
             'texts'      => [
                 'close'   => Text::_('PLG_SYSTEM_BETTERSEARCH_T_CLOSE'),
                 'loading' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_LOADING'),
                 'placeholder' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_PLACEHOLDER'),
+                'recent'  => trim((string) $p->get('text_recent', '')) ?: Text::_('PLG_SYSTEM_BETTERSEARCH_T_RECENT'),
+                'clearRecent' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_RECENT_CLEAR'),
+                'removeRecent' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_RECENT_REMOVE'),
+                'added'   => trim((string) $p->get('text_added', '')) ?: Text::_('PLG_SYSTEM_BETTERSEARCH_T_ADDED'),
+                'cartError' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_CART_ERROR'),
             ],
         ];
         $css = $live ? $this->renderer()->liveCss() : '';
@@ -1266,6 +1287,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
         if ($this->syncDue && $this->params->get('gsc_property', '') !== '' && $this->params->get('gsc_key', '') !== '') {
             $this->gscDaily();
+        }
+        if ($this->syncDue && $this->params->get('report_enabled', 0)) {
+            $this->reportCheck();
         }
         if (!$this->syncDue || !$this->params->get('auto_sync', 1)) {
             return;
@@ -1333,17 +1357,38 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
-    /** Every product (id, title, code, app, published) for the instant filter of the product pickers. */
-    private function allProducts(): array
+    /** Which pages a picker lists: the items of apps (products, posts) or the Gridbox pages and single-page apps. */
+    private function pickerScope($query, string $scope): void
     {
-        $db   = $this->db();
-        $rows = $db->setQuery($db->createQuery()
+        $db = $this->db();
+        if ($scope === 'pages') {
+            $singles = array_map('intval', $db->setQuery($db->createQuery()->select('id')->from($db->quoteName('#__gridbox_app'))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('single')))->loadColumn() ?: []);
+            $query->where('(p.app_id = 0' . ($singles ? ' OR p.app_id IN (' . implode(',', $singles) . ')' : '') . ')');
+        } else {
+            $query->where('p.app_id > 0');
+        }
+    }
+
+    /** Every product (id, title, code, app, published) for the instant filter of the product pickers. */
+    private function allProducts(string $scope = 'products'): array
+    {
+        $db    = $this->db();
+        $query = $db->createQuery()
             ->select(['p.id', 'p.title', 'p.published', 'p.app_id', 'd.sku'])
             ->from($db->quoteName('#__gridbox_pages', 'p'))
             ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
-            ->where('p.app_id > 0')
             ->where('p.page_category <> ' . $db->quote('trashed'))
-            ->order('p.title ASC'), 0, 30000)->loadRowList() ?: [];
+            ->order('p.title ASC');
+        $this->pickerScope($query, $scope);
+        $rows = $db->setQuery($query, 0, 30000)->loadRowList() ?: [];
+        if ($scope === 'pages') {
+            // single-page apps are listed under "Pages" too
+            foreach ($rows as &$row) {
+                $row[3] = 0;
+            }
+            unset($row);
+        }
         $apps = [];
         foreach ($rows as $row) {
             $apps[(int) $row[3]] = true;
@@ -1446,6 +1491,299 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             ->where($db->quoteName('folder') . ' = ' . $db->quote('system'))
             ->where($db->quoteName('element') . ' = ' . $db->quote('bettersearch')))->execute();
         $this->cleanCaches();
+    }
+
+    // ================================================================ e-mail report
+
+    /**
+     * After a page response, at most every 15 minutes: the report of the last period is sent when its
+     * day came (Monday, every other Monday or the 1st of the month, from 7:00 site time) and it was
+     * not sent yet. The first check after switching the report on only notes the time: the first
+     * report goes out at the start of the next period.
+     */
+    private function reportCheck(): void
+    {
+        $stamp = JPATH_CACHE . '/plg_system_bettersearch.report';
+        $mtime = @filemtime($stamp);
+        if ($mtime && time() - $mtime < 900) {
+            return;
+        }
+        @touch($stamp);
+        try {
+            $indexer = $this->indexer();
+            // one process at a time (the state row is claimed in one atomic UPDATE)
+            if (!$indexer->claim('report_lock', 600)) {
+                return;
+            }
+            $last = $indexer->state('report_last');
+            if ($last === null || $last === '') {
+                $indexer->setState('report_last', (string) time());
+
+                return;
+            }
+            $now    = new \DateTimeImmutable('now', self::siteZone());
+            $period = $this->reportPeriod($now, false);
+            $due    = $now->getTimestamp() >= $period['start'] + self::REPORT_HOUR * 3600 && (int) $last < $period['start'];
+            if ($due && (string) $this->params->get('report_frequency', 'weekly') === 'biweekly') {
+                // every other week: not when the previous Monday's report went out
+                $due = (int) $last < $period['start'] - 7 * 86400 + self::REPORT_HOUR * 3600;
+            }
+            if (!$due) {
+                return;
+            }
+            if (function_exists('fastcgi_finish_request') && !(defined('JDEBUG') && JDEBUG)) {
+                @fastcgi_finish_request();
+            }
+            // noted before sending: a failing mail server is not asked again every few minutes (the status shows the error)
+            $indexer->setState('report_last', (string) time());
+            $this->sendReport(false);
+        } catch (\Throwable $e) {
+            $this->logError($e);
+        }
+    }
+
+    /**
+     * The period of the report that is due now (or was due last): the previous week, two weeks or
+     * calendar month, as days of the site's time zone [from, to).
+     *
+     * @return array{from: string, to: string, start: int, label: string, days: int}
+     */
+    private function reportPeriod(\DateTimeImmutable $now, bool $last): array
+    {
+        $frequency = (string) $this->params->get('report_frequency', 'weekly');
+        if ($frequency === 'monthly') {
+            $start = $now->modify('first day of this month')->setTime(0, 0);
+            $from  = $start->modify('-1 month');
+        } else {
+            $start = $now->modify('monday this week')->setTime(0, 0);
+            $from  = $start->modify($frequency === 'biweekly' ? '-14 days' : '-7 days');
+        }
+        $end = $start->modify('-1 day');
+
+        return ['from' => $from->format('Y-m-d'), 'to' => $start->format('Y-m-d'), 'start' => $start->getTimestamp(),
+            'label' => $from->format('d.m.Y') . ' – ' . $end->format('d.m.Y'), 'days' => (int) $from->diff($start)->days];
+    }
+
+    /** Addresses of the report: the setting, else the Super Users who receive system e-mails. */
+    private function reportRecipients(): array
+    {
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', (string) $this->params->get('report_recipients', '')) ?: [] as $mail) {
+            $mail = trim($mail);
+            if ($mail !== '' && MailHelper::isEmailAddress($mail)) {
+                $out[strtolower($mail)] = $mail;
+            }
+        }
+        if ($out) {
+            return array_values($out);
+        }
+        try {
+            $db   = $this->db();
+            $rows = $db->setQuery($db->createQuery()
+                ->select(['u.email', 'u.sendEmail'])
+                ->from($db->quoteName('#__users', 'u'))
+                ->innerJoin($db->quoteName('#__user_usergroup_map', 'm') . ' ON m.user_id = u.id')
+                ->where('m.group_id = 8')
+                ->where('u.block = 0'))->loadObjectList() ?: [];
+            $all  = array_values(array_unique(array_filter(array_map(fn ($r) => (string) $r->email, $rows), [MailHelper::class, 'isEmailAddress'])));
+            $want = array_values(array_unique(array_filter(array_map(fn ($r) => (int) $r->sendEmail === 1 ? (string) $r->email : '', $rows), [MailHelper::class, 'isEmailAddress'])));
+
+            return $want ?: $all;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /** Sends the report of the last period. @return array{ok: bool, message: string} */
+    private function sendReport(bool $manual): array
+    {
+        $to = $this->reportRecipients();
+        if (!$to) {
+            return $this->reportStatus(false, Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ERR_RECIPIENTS'), $manual);
+        }
+        $period = $this->reportPeriod(new \DateTimeImmutable('now', self::siteZone()), true);
+        $site   = (string) $this->getApplication()->get('sitename', '');
+        try {
+            $html   = $this->reportHtml($period['from'], $period['to']);
+            $mailer = Factory::getContainer()->get(MailerFactoryInterface::class)->createMailer();
+            foreach ($to as $mail) {
+                $mailer->addRecipient($mail);
+            }
+            $mailer->setSubject(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_SUBJECT', $site, $period['label']));
+            if (method_exists($mailer, 'isHtml')) {
+                $mailer->isHtml(true);
+            }
+            $mailer->setBody($html);
+            if (property_exists($mailer, 'AltBody')) {
+                $mailer->AltBody = trim(html_entity_decode(strip_tags(preg_replace('#<(br|/p|/tr|/h[1-6]|/div)\b[^>]*>#i', "\n", $html) ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            $sent = $mailer->send();
+        } catch (\Throwable $e) {
+            $this->logError($e);
+
+            return $this->reportStatus(false, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ERR_SEND', $e->getMessage()), $manual);
+        }
+        if ($sent === false) {
+            return $this->reportStatus(false, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ERR_SEND', '—'), $manual);
+        }
+
+        return $this->reportStatus(true, Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_SENT', implode(', ', $to), $period['label']), $manual);
+    }
+
+    private function reportStatus(bool $ok, string $message, bool $manual): array
+    {
+        try {
+            $this->indexer()->setState('report_status', json_encode(['ok' => $ok, 'message' => $message, 'at' => time(), 'manual' => $manual]));
+        } catch (\Throwable $e) {
+        }
+
+        return ['ok' => $ok, 'message' => $message];
+    }
+
+    /**
+     * The report: totals of the period against the period before, the most searched phrases (with the
+     * change), the phrases without results, the phrases that led to the cart.
+     */
+    private function reportHtml(string $from, string $to): string
+    {
+        $db    = $this->db();
+        // language strings carry entities for the settings form ("&amp;"): decoded first, then escaped once
+        $esc   = fn ($s) => htmlspecialchars(html_entity_decode((string) $s, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES, 'UTF-8');
+        $n     = fn ($v) => number_format((float) $v, 0, ',', "\u{00A0}");
+        $limit = max(5, min(100, (int) $this->params->get('report_top', 20)));
+        $days  = (int) (new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to))->days;
+        $pFrom = (new \DateTimeImmutable($from))->modify('-' . $days . ' days')->format('Y-m-d');
+        $range = fn (string $a, string $b) => ' WHERE day >= ' . $db->quote($a) . ' AND day < ' . $db->quote($b);
+        $daily = $db->quoteName('#__bettersearch_daily');
+
+        $totals = function (string $a, string $b) use ($db, $daily, $range): array {
+            return $db->setQuery('SELECT IFNULL(SUM(searches), 0) AS searches, COUNT(DISTINCT query) AS phrases, IFNULL(SUM(CASE WHEN results = 0 THEN searches ELSE 0 END), 0) AS zero,'
+                . ' IFNULL(SUM(CASE WHEN results < 0 THEN searches ELSE 0 END), 0) AS redirected FROM ' . $daily . $range($a, $b))->loadAssoc() ?: [];
+        };
+        $now  = $totals($from, $to);
+        $prev = $totals($pFrom, $from);
+
+        // the result count of the latest day a phrase was searched
+        $top = $db->setQuery('SELECT query, SUM(searches) AS searches, CAST(SUBSTRING_INDEX(GROUP_CONCAT(results ORDER BY day DESC), \',\', 1) AS SIGNED) AS results FROM '
+            . $daily . $range($from, $to) . ' GROUP BY query ORDER BY searches DESC, query ASC LIMIT ' . $limit)->loadAssocList() ?: [];
+        $before = [];
+        if ($top) {
+            $list = implode(',', array_map(fn ($r) => $db->quote((string) $r['query']), $top));
+            foreach ($db->setQuery('SELECT query, SUM(searches) FROM ' . $daily . $range($pFrom, $from) . ' AND query IN (' . $list . ') GROUP BY query')->loadRowList() ?: [] as [$q, $c]) {
+                $before[mb_strtolower((string) $q)] = (int) $c;
+            }
+        }
+        $zero = $this->params->get('report_zero', 1) ? ($db->setQuery('SELECT query, SUM(searches) AS searches FROM ' . $daily . $range($from, $to)
+            . ' AND results = 0 GROUP BY query ORDER BY searches DESC, query ASC LIMIT ' . min(25, $limit))->loadAssocList() ?: []) : [];
+
+        $conv = ['clicks' => 0, 'carts' => 0];
+        $convTop = [];
+        if ($this->params->get('report_conversions', 1)) {
+            try {
+                $events = $db->quoteName('#__bettersearch_events');
+                $conv   = $db->setQuery('SELECT IFNULL(SUM(CASE WHEN kind = 1 THEN hits ELSE 0 END), 0) AS clicks, IFNULL(SUM(CASE WHEN kind = 2 THEN hits ELSE 0 END), 0) AS carts FROM '
+                    . $events . $range($from, $to))->loadAssoc() ?: $conv;
+                $convTop = $db->setQuery('SELECT query, SUM(CASE WHEN kind = 1 THEN hits ELSE 0 END) AS clicks, SUM(CASE WHEN kind = 2 THEN hits ELSE 0 END) AS carts FROM '
+                    . $events . $range($from, $to) . ' GROUP BY query HAVING carts > 0 ORDER BY carts DESC, clicks DESC LIMIT 10')->loadAssocList() ?: [];
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $site   = (string) $this->getApplication()->get('sitename', '');
+        $label  = (new \DateTimeImmutable($from))->format('d.m.Y') . ' – ' . (new \DateTimeImmutable($to))->modify('-1 day')->format('d.m.Y');
+        $accent = '#1a73e8';
+        // $good: a rise is good news (green); for searches without results it is not
+        $change = function (int $a, int $b, bool $good = true): string {
+            if ($b <= 0) {
+                return $a > 0 ? '<span style="color:#15803d">' . htmlspecialchars(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_NEW'), ENT_QUOTES, 'UTF-8') . '</span>' : '–';
+            }
+            $pct = (int) round(($a - $b) / $b * 100);
+
+            return $pct === 0 ? '±0%' : '<span style="color:' . (($pct > 0) === $good ? '#15803d' : '#b91c1c') . '">' . ($pct > 0 ? '▲ +' : '▼ ') . $pct . '%</span>';
+        };
+        $th = 'style="text-align:left;padding:6px 8px;border-bottom:2px solid #e5e7eb;font-size:12px;color:#6b7280;text-transform:uppercase"';
+        $td = 'style="padding:6px 8px;border-bottom:1px solid #f0f0f0"';
+        $tdr = 'style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap"';
+        $h2 = 'style="font-size:16px;margin:28px 0 8px;color:#111"';
+
+        $html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.45;color:#1f2328;max-width:680px;margin:0 auto">'
+            . '<h1 style="font-size:20px;margin:0 0 4px;color:#111">' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_TITLE')) . ($site !== '' ? ' – ' . $esc($site) : '') . '</h1>'
+            . '<p style="margin:0 0 16px;color:#6b7280">' . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_PERIOD', $label)) . '</p>';
+
+        if (!(int) ($now['searches'] ?? 0)) {
+            $html .= '<p>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_NO_DATA')) . '</p>';
+        } else {
+            $tiles = [
+                ['REPORT_SEARCHES', (int) $now['searches'], (int) ($prev['searches'] ?? 0)],
+                ['REPORT_PHRASES', (int) $now['phrases'], (int) ($prev['phrases'] ?? 0)],
+                ['REPORT_ZERO', (int) $now['zero'], (int) ($prev['zero'] ?? 0)],
+            ];
+            if ($this->params->get('report_conversions', 1)) {
+                $tiles[] = ['REPORT_CLICKS', (int) $conv['clicks'], null];
+                $tiles[] = ['REPORT_CARTS', (int) $conv['carts'], null];
+            }
+            $html .= '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:6px"><tr>';
+            foreach ($tiles as [$key, $value, $old]) {
+                $html .= '<td style="background:#f6f8fa;border-radius:8px;padding:10px 12px;vertical-align:top"><div style="font-size:12px;color:#6b7280">'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_' . $key)) . '</div><div style="font-size:22px;font-weight:700">' . $n($value) . '</div>'
+                    . ($old !== null ? '<div style="font-size:12px">' . $change($value, $old, $key !== 'REPORT_ZERO') . '</div>' : '') . '</td>';
+            }
+            $html .= '</tr></table>';
+            if ((int) $now['searches'] > 0) {
+                $html .= '<p style="margin:6px 0 0;color:#6b7280;font-size:13px">' . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ZERO_SHARE',
+                    round(100 * (int) $now['zero'] / (int) $now['searches'], 1) . '%')) . '</p>';
+            }
+
+            $html .= '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_TOP')) . '</h2><table style="width:100%;border-collapse:collapse"><tr><th ' . $th . '>#</th><th ' . $th . '>'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_SEARCHES'))
+                . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_RESULTS')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_CHANGE')) . '</th></tr>';
+            foreach ($top as $i => $row) {
+                $res   = (int) $row['results'];
+                $html .= '<tr><td ' . $td . '>' . ($i + 1) . '</td><td ' . $td . '>' . $esc($row['query']) . '</td><td ' . $tdr . '>' . $n($row['searches']) . '</td><td ' . $tdr . '>'
+                    . ($res === 0 ? '<b style="color:#b91c1c">0</b>' : ($res < 0 ? '→' : $n($res))) . '</td><td ' . $tdr . '>'
+                    . $change((int) $row['searches'], $before[mb_strtolower((string) $row['query'])] ?? 0) . '</td></tr>';
+            }
+            $html .= '</table>';
+
+            if ($zero) {
+                $html .= '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ZERO_TOP')) . '</h2><p style="margin:0 0 8px;color:#6b7280;font-size:13px">'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ZERO_HINT')) . '</p><table style="width:100%;border-collapse:collapse"><tr><th ' . $th . '>'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_SEARCHES')) . '</th></tr>';
+                foreach ($zero as $row) {
+                    $html .= '<tr><td ' . $td . '>' . $esc($row['query']) . '</td><td ' . $tdr . '>' . $n($row['searches']) . '</td></tr>';
+                }
+                $html .= '</table>';
+            }
+
+            if ($convTop) {
+                $html .= '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_CONV_TOP')) . '</h2><table style="width:100%;border-collapse:collapse"><tr><th ' . $th . '>'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_CLICKS')) . '</th><th ' . $th . '>'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_CARTS')) . '</th></tr>';
+                foreach ($convTop as $row) {
+                    $html .= '<tr><td ' . $td . '>' . $esc($row['query']) . '</td><td ' . $tdr . '>' . $n($row['clicks']) . '</td><td ' . $tdr . '>' . $n($row['carts']) . '</td></tr>';
+                }
+                $html .= '</table>';
+            }
+        }
+
+        $id    = (int) $this->db()->setQuery($this->db()->createQuery()->select('extension_id')->from($this->db()->quoteName('#__extensions'))
+            ->where($this->db()->quoteName('type') . ' = ' . $this->db()->quote('plugin'))->where($this->db()->quoteName('element') . ' = ' . $this->db()->quote('bettersearch')))->loadResult();
+        $admin = rtrim(Uri::root(), '/') . '/administrator/index.php?option=com_plugins&task=plugin.edit&extension_id=' . $id;
+        $html .= '<p style="margin:28px 0 0"><a href="' . $esc($admin) . '" style="display:inline-block;background:' . $accent . ';color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;font-weight:700">'
+            . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_OPEN')) . '</a></p><p style="margin:16px 0 0;color:#9ca3af;font-size:12px">'
+            . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_FOOTER', $site !== '' ? $site : Uri::root())) . '</p></div>';
+
+        return $html;
+    }
+
+    /** The site's time zone (Global Configuration), as Gridbox uses it for dates. */
+    private static function siteZone(): \DateTimeZone
+    {
+        try {
+            return new \DateTimeZone((string) Factory::getApplication()->get('offset', 'UTC') ?: 'UTC');
+        } catch (\Throwable $e) {
+            return new \DateTimeZone('UTC');
+        }
     }
 
     // ================================================================ Google Search Console
@@ -1599,11 +1937,29 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return ['ok' => $ok, 'message' => $message, 'count' => $rows];
     }
 
-    /** Search Console queries for the report, with what this search finds for each. */
+    /**
+     * Search Console queries for the report, with what this search finds for each. Sorted by the
+     * column the administrator clicked (query, clicks, impressions, CTR, position), optionally only
+     * the queries containing a text.
+     */
     private function gscList(bool $check): array
     {
         $db     = $this->db();
-        $rows   = $db->setQuery('SELECT query, clicks, impressions, position FROM ' . $db->quoteName('#__bettersearch_gsc') . ' ORDER BY impressions DESC LIMIT 200')->loadAssocList() ?: [];
+        $input  = $this->getApplication()->getInput();
+        $sorts  = ['query' => 'query', 'clicks' => 'clicks', 'impressions' => 'impressions', 'ctr' => '(clicks / NULLIF(impressions, 0))', 'position' => 'position'];
+        $sort   = $input->getCmd('sort', 'impressions');
+        $sort   = isset($sorts[$sort]) ? $sort : 'impressions';
+        $dir    = strtolower($input->getCmd('dir', $sort === 'query' || $sort === 'position' ? 'asc' : 'desc')) === 'asc' ? 'ASC' : 'DESC';
+        $limit  = max(50, min(1000, $input->getInt('limit', 200)));
+        $filter = mb_substr(trim((string) $input->get('filter', '', 'string')), 0, 100);
+        $where  = $filter !== '' ? ' WHERE query LIKE ' . $db->quote('%' . $db->escape($filter, true) . '%', false) : '';
+        $rows   = $db->setQuery('SELECT query, clicks, impressions, position FROM ' . $db->quoteName('#__bettersearch_gsc') . $where
+            . ' ORDER BY ' . $sorts[$sort] . ' ' . $dir . ', impressions DESC, query ASC LIMIT ' . $limit)->loadAssocList() ?: [];
+        foreach ($rows as &$row) {
+            $row['ctr'] = (int) $row['impressions'] > 0 ? round(100 * (int) $row['clicks'] / (int) $row['impressions'], 2) : 0.0;
+        }
+        unset($row);
+        $total  = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_gsc') . $where)->loadResult();
         $status = json_decode((string) $this->indexer()->state('gsc_status', ''), true) ?: [];
         if ($check && $rows) {
             $siteLang = (string) ComponentHelper::getParams('com_languages')->get('site', 'en-GB');
@@ -1616,7 +1972,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             unset($row);
         }
 
-        return ['rows' => $rows, 'status' => $status + ['at' => 0, 'message' => ''], 'configured' => trim((string) $this->params->get('gsc_property', '')) !== ''];
+        return ['rows' => $rows, 'status' => $status + ['at' => 0, 'message' => ''], 'configured' => trim((string) $this->params->get('gsc_property', '')) !== '',
+            'sort' => $sort, 'dir' => strtolower($dir), 'limit' => $limit, 'filter' => $filter, 'total' => $total];
     }
 
     /** Right after a Gridbox change: the changed pages are indexed again (no waiting for the next check). */
@@ -1688,7 +2045,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview'], true)) {
             $this->params = new Registry($form['params']);
         }
 
@@ -1715,18 +2072,18 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $rows     = [];
                 foreach (array_slice($result['items'], 0, 60) as $item) {
                     $rows[] = ['id' => $item['id'], 'title' => $titles[$item['id']]['title'] ?? '', 'sku' => $titles[$item['id']]['sku'] ?? '',
-                        'score' => $item['score'], 'pinned' => $item['pinned'], 'reasons' => $item['reasons']];
+                        'score' => $item['score'], 'pinned' => $item['pinned'], 'featured' => !empty($item['featured']), 'reasons' => $item['reasons']];
                 }
 
                 return ['query' => $query, 'mode' => $result['mode'], 'corrected' => $result['corrected'], 'total' => $result['total'],
-                    'groups' => $result['groups'], 'ms' => $result['ms'], 'rows' => $rows];
+                    'groups' => $result['groups'], 'params' => $result['params'] ?? [], 'ms' => $result['ms'], 'rows' => $rows];
 
             case 'preview':
                 return $this->preview((string) $input->getCmd('mode', 'live'), (string) $input->getCmd('device', 'desktop'),
                     mb_substr(trim((string) $input->get('q', '', 'raw')), 0, 200));
 
             case 'products':
-                return ['items' => $this->findProducts(trim((string) $input->get('q', '', 'raw')))];
+                return ['items' => $this->findProducts(trim((string) $input->get('q', '', 'raw')), $input->getCmd('scope', 'products'))];
 
             case 'titles':
                 $ids = array_values(array_filter(array_map('intval', explode(',', (string) $input->get('ids', '', 'string')))));
@@ -1747,7 +2104,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 return $this->conversions(max(1, min(366, $input->getInt('days', 30))));
 
             case 'products_all':
-                return $this->allProducts();
+                return $this->allProducts($input->getCmd('scope', 'products'));
 
             case 'settings_export':
                 return $this->exportSettings();
@@ -1770,6 +2127,26 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $this->ensureTables();
 
                 return $this->gscList($input->getInt('check', 0) === 1);
+
+            case 'report_preview':
+                $this->ensureTables();
+                $period = $this->reportPeriod(new \DateTimeImmutable('now', self::siteZone()), true);
+
+                $last = (int) $this->indexer()->state('report_last', '0');
+
+                return ['html' => $this->reportHtml($period['from'], $period['to']), 'period' => $period['label'], 'to' => implode(', ', $this->reportRecipients()),
+                    'status' => json_decode((string) $this->indexer()->state('report_status', ''), true) ?: null, 'last' => $last ? date('Y-m-d H:i', $last) : ''];
+
+            case 'report_send':
+                if (!$user->authorise('core.edit', 'com_plugins')) {
+                    return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
+                }
+                if (is_array($form) && isset($form['params']) && is_array($form['params'])) {
+                    $this->params = new Registry($form['params']);
+                }
+                $this->ensureTables();
+
+                return $this->sendReport(true);
 
             case 'gsc_fetch':
                 if (!$user->authorise('core.edit', 'com_plugins')) {
@@ -1974,6 +2351,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_log') . ' (query, searches, results, last_at) VALUES ('
                 . $db->quote($q) . ', 1, ' . $results . ', ' . $db->quote(gmdate('Y-m-d H:i:s')) . ') ON DUPLICATE KEY UPDATE searches = searches + 1, results = '
                 . $results . ', last_at = VALUES(last_at)')->execute();
+            $this->logDaily($q, $results);
             // now and then: keep the table bounded (the rarely searched, oldest rows go)
             if (random_int(1, 50) === 1) {
                 $over = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_log'))->loadResult() - self::LOG_ROWS;
@@ -1985,18 +2363,38 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
+    /** The search counted for its day (site time): the e-mail report sums the days of its period. */
+    private function logDaily(string $q, int $results): void
+    {
+        $db  = $this->db();
+        $day = (new \DateTime('now', self::siteZone()))->format('Y-m-d');
+        try {
+            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_daily') . ' (day, query, searches, results) VALUES (' . $db->quote($day) . ', '
+                . $db->quote($q) . ', 1, ' . $results . ') ON DUPLICATE KEY UPDATE searches = searches + 1, results = VALUES(results)')->execute();
+            if (random_int(1, 200) === 1) {
+                $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_daily') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - self::DAILY_DAYS * 86400)))->execute();
+            }
+        } catch (\Throwable $e) {
+            // the table of an older installation: created for the next search
+            try {
+                $this->ensureTables();
+            } catch (\Throwable $ignored) {
+            }
+        }
+    }
+
     /** Products for the picker: by id, title or SKU. */
-    private function findProducts(string $q): array
+    private function findProducts(string $q, string $scope = 'products'): array
     {
         $db    = $this->db();
         $query = $db->createQuery()
             ->select(['p.id', 'p.title', 'p.published', 'p.app_id', 'd.sku'])
             ->from($db->quoteName('#__gridbox_pages', 'p'))
             ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
-            ->where('p.app_id > 0')
             ->where('p.page_category <> ' . $db->quote('trashed'))
             ->order('p.title ASC')
             ->setLimit(30);
+        $this->pickerScope($query, $scope);
         if ($q !== '') {
             $words = array_filter(explode(' ', $this->normalizer()->fold($q)));
             if (ctype_digit($q)) {
@@ -2011,7 +2409,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $out = [];
         foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
             $out[] = ['id' => (int) $row->id, 'title' => (string) $row->title, 'sku' => (string) $row->sku, 'published' => (int) $row->published,
-                'app' => $this->store()->appTitle((int) $row->app_id)];
+                'app' => $this->store()->appTitle($scope === 'pages' ? 0 : (int) $row->app_id)];
         }
 
         return $out;
@@ -2112,6 +2510,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     {
         if ($this->storeHelper === null) {
             $this->storeHelper = new Store($this->db(), $this->getApplication(), $this->levels());
+            $this->storeHelper->setPagesTitle(trim((string) $this->params->get('text_pages', '')) ?: Text::_('PLG_SYSTEM_BETTERSEARCH_T_SITE_PAGES'));
+            $this->storeHelper->setDeliveryField($this->params->get('avail_enabled', 0) ? (int) $this->params->get('delivery_field', 0) : 0);
             $minutes = max(0, min(1440, (int) $this->params->get('cache_time', 15)));
             if ($minutes > 0 && $this->getApplication()->isClient('site')) {
                 // routed links of the products shown so far, per language and access levels
@@ -2131,9 +2531,24 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($maxBudget !== null) {
             $budget = min($budget, $maxBudget);
         }
-        $thumbs = new Thumbs($budget, (int) $this->params->get('thumb_quality', 80));
+        $thumbs   = new Thumbs($budget, (int) $this->params->get('thumb_quality', 80));
+        $renderer = new Renderer($this->params, $this->store(), $thumbs, $this->device());
+        $renderer->setQuoteFallback($this->quoteFallback());
 
-        return new Renderer($this->params, $this->store(), $thumbs, $this->device());
+        return $renderer;
+    }
+
+    /** "Ask for a quote" without an address of its own: an e-mail to the site with the product in the subject. */
+    private function quoteFallback(): string
+    {
+        $mail = trim((string) $this->getApplication()->get('mailfrom', ''));
+        if ($mail === '' || !MailHelper::isEmailAddress($mail)) {
+            return '';
+        }
+        // the placeholders survive the encoding of the texts: they are filled in per product
+        $keep = fn (string $s) => str_replace(['%7Btitle%7D', '%7Bsku%7D', '%7Burl%7D'], ['{title}', '{sku}', '{url}'], rawurlencode($s));
+
+        return 'mailto:' . $mail . '?subject=' . $keep(Text::_('PLG_SYSTEM_BETTERSEARCH_T_QUOTE_SUBJECT')) . '&body=' . $keep(Text::_('PLG_SYSTEM_BETTERSEARCH_T_QUOTE_BODY'));
     }
 
     private function levels(): array

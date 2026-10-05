@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_items` (
   `c_main` mediumtext NOT NULL,
   `t_main` mediumtext NOT NULL,
   `t_body` mediumtext NOT NULL,
+  `t_params` text NOT NULL,
   `excerpt` text NOT NULL,
   `price` decimal(15,4) NULL DEFAULT NULL,
   `in_stock` tinyint(1) NOT NULL DEFAULT 1,
@@ -59,4 +60,13 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_gsc` (
   `updated_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`query`),
   KEY `idx_impressions` (`impressions`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `#__bettersearch_daily` (
+  `day` date NOT NULL,
+  `query` varchar(120) NOT NULL,
+  `searches` int(11) NOT NULL DEFAULT 0,
+  `results` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`day`, `query`),
+  KEY `idx_query` (`query`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;

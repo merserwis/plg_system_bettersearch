@@ -2,6 +2,55 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.5.0 — 2026-10-05
+
+Technical values searched as values, featured products for chosen phrases, pages in the results, recent searches, availability with the delivery time, buttons to the cart and to a quote, and a regular e-mail report of what shoppers search for.
+
+### 🔢 Technical values
+
+- Values with a unit are compared as numbers, not as words: **`1000 V` = `1 kV` = `1000V`**, `200 GΩ`, `50 Hz`, `10 mA`, **`CAT IV` = `kat. IV`**, **`IP67`**. Units V, A, W, VA, Wh, Ah, Hz, Ω, F, °C, dB, lx, Pa, bar, m with the prefixes p, n, µ, m, k, M, G.
+- **Ranges:** a range in the query (`-20…50 °C`, `0-600 V`, `od -10 do 40 °C`) finds the products whose range covers it (`-20…+60 °C`); a single value finds the products whose range contains it (`600 V` → a meter for `0–1000 V`).
+- More precise: `5 kV` no longer finds `2,5 kV` (the comma used to split “2,5kV” into “2” and “5kv”).
+- When no product has the value, the query is searched as words, as before. The test console shows the values read from the query and why each result matched. Option *Technical values* and a weight on the *Search engine* tab.
+- The index format changed: after the update every product is indexed again (automatically, or at once with *Update index*).
+
+### ⭐ Featured products
+
+- A query rule with the new action **Feature** puts the chosen products at the top for its phrases (e.g. your own meter first for “miernik uniwersalny”), in the order you set, and **marks them**: a badge (“Recommended”, own text), a frame on the results page and a tint in the live results, in a colour of your choice (*Products* tab).
+
+### 📄 Pages in the results
+
+- **Search pages too** (*Plugin* tab): single Gridbox pages — Pages and single-page apps, e.g. services, contact, about us — are found as their own group **“Pages”** (live results and a filter on the results page), without price or cart.
+- **Excluded pages** (*Ranking & exclusions*): pages that never show up, e.g. thank-you pages or the privacy policy.
+
+### 🕘 Recent searches
+
+- A click into an empty search field shows the visitor's **last searches** (5 by default, up to 20); a click searches again, “×” removes one, “Clear” removes all — on phones in the full-screen search too.
+- Kept only in the visitor's own browser (`localStorage`); nothing is sent to the site.
+
+### 📦 Products: availability, cart, quote (off by default)
+
+- **Availability and delivery time:** *available*, **last items** (from a quantity you set) or *out of stock* from the Gridbox stock, optionally with the quantity (“Available (12 pcs)”), and the delivery time from a Gridbox product field or from a text for products in and out of stock (“Shipped within 24 h”, “On order: 7–14 days”). In the live results, on the results page, or both.
+- **“Add to cart”:** puts one piece into the Gridbox cart without leaving the results, then opens the Gridbox cart of the page (or only confirms on the button). Products with variants or extra options get **“Choose options”** (a link to the product); products out of stock or without a price get no button. Counted in the conversion statistics like any cart addition after a search.
+- **“Ask for a quote”:** a link to your contact page with the product (`/kontakt?produkt={title}`, also `{sku}`, `{id}`, `{url}`, `{query}`), any https:// or `mailto:` address, or by default an e-mail to the site with the product in the subject — for products without a price, out of stock, either, or all.
+
+### 📧 E-mail report
+
+- A new **E-mail report** tab: **every week, every two weeks or every month** a summary goes to the addresses you enter (or the Super Users): searches, different phrases, searches without results — each compared with the period before — plus the clicks on results and cart additions; the **most searched phrases** with their results and change, the **phrases without results** and the **phrases that led to the cart**.
+- Sent with the first visit of the site after 7:00 site time on Monday or on the 1st of the month, once per period, through the mail settings of the Global Configuration. **Preview** and **Send now** in the settings.
+- Searches are now also counted per day (kept for 400 days, no personal data).
+
+### 🔗 Google Search Console
+
+- The table of Google queries **sorts by any column** — query, clicks, impressions, **CTR** (new column), position, and *results here* after a check — with a click on its heading (again: the other direction); a **filter** and 100 / 200 / 500 / 1 000 rows; the count of queries shown and in total.
+
+### 🔧 Under the hood
+
+- New column `t_params` in the index and table `#__bettersearch_daily`; both are added by the update and, should the update script not run, by the plugin itself.
+- 127 new texts in English, Polish, Ukrainian and German.
+
+---
+
 ## 1.4.3 — 2026-10-02
 
 ### 🐛 Fixed: help tooltips

@@ -22,7 +22,7 @@ use Joomla\Registry\Registry;
 final class Indexer
 {
     /** Bump when the index format changes: every item is indexed again. */
-    public const FORMAT = 4;
+    public const FORMAT = 5;
 
     private DatabaseInterface $db;
 
@@ -38,6 +38,9 @@ final class Indexer
 
     /** @var int[]|null */
     private ?array $appIdsMemo = null;
+
+    /** @var int[] single-page apps (indexed with the pages when pages are searched) */
+    private array $singleApps = [];
 
     /** Seconds between two deep checks (the page layouts, by checksum). */
     private const DEEP_INTERVAL = 86400;
@@ -57,24 +60,42 @@ final class Indexer
 
     // ---------------------------------------------------------------- configuration
 
-    /** @return int[] ids of the Gridbox apps whose pages are indexed */
+    /**
+     * Ids of the Gridbox apps whose pages are indexed. With "Search pages" on, 0 (the Gridbox Pages)
+     * and the single-page apps are added: their pages are indexed as one group "Pages" (app 0).
+     *
+     * @return int[]
+     */
     public function appIds(): array
     {
         if ($this->appIdsMemo !== null) {
             return $this->appIdsMemo;
         }
         $ids = array_values(array_filter(array_map('intval', (array) $this->params->get('apps', []))));
-        if ($ids) {
-            return $this->appIdsMemo = $ids;
+        if (!$ids) {
+            // default: every store app
+            $query = $this->db->createQuery()
+                ->select('id')
+                ->from($this->db->quoteName('#__gridbox_app'))
+                ->where($this->db->quoteName('type') . ' = ' . $this->db->quote('products'));
+            $ids = array_map('intval', $this->db->setQuery($query)->loadColumn() ?: []);
+        }
+        if ($this->params->get('index_pages', 0)) {
+            $query = $this->db->createQuery()
+                ->select('id')
+                ->from($this->db->quoteName('#__gridbox_app'))
+                ->where($this->db->quoteName('type') . ' = ' . $this->db->quote('single'));
+            $this->singleApps = array_map('intval', $this->db->setQuery($query)->loadColumn() ?: []);
+            $ids = array_values(array_unique(array_merge($ids, [0], $this->singleApps)));
         }
 
-        // default: every store app
-        $query = $this->db->createQuery()
-            ->select('id')
-            ->from($this->db->quoteName('#__gridbox_app'))
-            ->where($this->db->quoteName('type') . ' = ' . $this->db->quote('products'));
+        return $this->appIdsMemo = $ids;
+    }
 
-        return $this->appIdsMemo = array_map('intval', $this->db->setQuery($query)->loadColumn() ?: []);
+    /** The index group of a page: its app, or 0 for the Gridbox Pages and single-page apps. */
+    private function indexApp(int $appId): int
+    {
+        return in_array($appId, $this->singleApps, true) ? 0 : $appId;
     }
 
     /** @return int[] */
@@ -90,7 +111,7 @@ final class Indexer
     public function configSignature(): string
     {
         $keys = ['apps', 'index_fields', 'index_intro', 'index_meta', 'index_content', 'content_limit', 'index_tags',
-            'index_parent_cats', 'index_variation_sku'];
+            'index_parent_cats', 'index_variation_sku', 'index_pages'];
         $cfg  = [self::FORMAT, $this->appIds()];
         foreach ($keys as $key) {
             $cfg[] = $this->params->get($key);
@@ -198,6 +219,7 @@ final class Indexer
     public function sync(int $budget = 300, bool $force = false): array
     {
         $t0  = hrtime(true);
+        $this->ensureColumns();
         $cfg = $this->configSignature();
         if ($force || $this->state('config') !== $cfg) {
             // everything is indexed again (old rows stay searchable until replaced)
@@ -257,6 +279,15 @@ final class Indexer
             'total'     => count($current),
             'ms'        => round((hrtime(true) - $t0) / 1e6, 1),
         ];
+    }
+
+    /** Columns added by updates, in case the update script of the package did not run (Joomla skips it on some errors). */
+    private function ensureColumns(): void
+    {
+        $db = $this->db;
+        if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('t_params'))->loadRow()) {
+            $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('t_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_body'))->execute();
+        }
     }
 
     /** Clears the index (the next sync indexes everything). */
@@ -505,7 +536,7 @@ final class Indexer
 
         return [
             'id'          => (int) $page->id,
-            'app_id'      => (int) $page->app_id,
+            'app_id'      => $this->indexApp((int) $page->app_id),
             'category_id' => $primary,
             'cat_ids'     => $catIds ? ',' . implode(',', array_keys($catIds)) . ',' : '',
             't_title'     => $n->indexTokens($title),
@@ -520,6 +551,8 @@ final class Indexer
                 $n->compact($fieldText), $n->compact($catText)])),
             't_main'      => $n->indexTokens($title . ' ' . implode(' ', $skus) . ' ' . $fieldText . ' ' . $catText),
             't_body'      => $n->indexTokens($bodyText, 4000),
+            // technical values of the name, the fields and the description ("1000 V", "IP67", "-20…50 °C")
+            't_params'    => Params::index($title . "\n" . $fieldText . "\n" . $bodyText),
             'excerpt'     => mb_substr($excerpt, 0, 600),
             'price'       => $price,
             'in_stock'    => $stock ? 1 : 0,
