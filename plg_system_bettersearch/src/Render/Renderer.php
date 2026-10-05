@@ -267,6 +267,7 @@ final class Renderer
         $price   = $this->bool('live_show_price', true) ? $this->price($row) : '';
         $badge   = $row->featured && $this->bool('featured_badge', true)
             ? '<span class="bs-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>' : '';
+        $badge   = $this->productBadges($row, 'live', 'bs-badges', 'bs-pbadge', $badge);
         // buttons beside the link of the result (a button inside a link is not allowed)
         $actions = $this->actions($row, 'live');
 
@@ -277,6 +278,25 @@ final class Renderer
             . '<span class="bs-info">' . $badge . '<span class="bs-title">' . $this->mark($row->title) . '</span>'
             . ($meta ? '<span class="bs-meta">' . implode('<span class="bs-dot">·</span>', $meta) . '</span>' : '')
             . $excerpt . '</span>' . $price . '</a>' . ($actions !== '' ? '<span class="bs-actions">' . $actions . '</span>' : '') . '</li>';
+    }
+
+    /**
+     * The badges of a result: "featured" first, then the product's Gridbox badges ("New",
+     * "Recommended", "- 15%"…) in their colours — on the results page, in the live results or both (setting).
+     */
+    private function productBadges(object $row, string $where, string $wrapClass, string $badgeClass, string $first): string
+    {
+        $mode  = $this->str('product_badges', 'both', ['both', 'page', 'live', 'none']);
+        $items = $first;
+        if (($mode === 'both' || $mode === $where) && !empty($row->badges)) {
+            $max = $this->int('product_badges_max', 3, 1, 10);
+            foreach (array_slice($row->badges, 0, $max) as $badge) {
+                $items .= '<span class="' . $badgeClass . '"' . ($badge['color'] !== '' ? ' style="--bs-badge:' . htmlspecialchars($badge['color'], ENT_QUOTES, 'UTF-8') . '"' : '') . '>'
+                    . htmlspecialchars($badge['title'], ENT_QUOTES, 'UTF-8') . '</span>';
+            }
+        }
+
+        return $items !== '' ? '<span class="' . $wrapClass . '">' . $items . '</span>' : '';
     }
 
     /** CSS of the live panel (scoped to .bs-live). */
@@ -370,6 +390,9 @@ final class Renderer
 .bs-live li.is-featured{background:color-mix(in srgb,var(--bs-feat) 7%,transparent)}
 .bs-live .bs-item.is-featured:hover,.bs-live .bs-item.is-featured.is-active{background:color-mix(in srgb,var(--bs-feat) 13%,transparent)}
 .bs-live .bs-badge{align-self:flex-start;background:var(--bs-feat);color:#fff;font-size:.72em;font-weight:700;line-height:1.5;padding:0 7px;border-radius:999px;margin-bottom:2px}
+.bs-live .bs-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px}
+.bs-live .bs-badges .bs-badge{margin-bottom:0}
+.bs-live .bs-pbadge{background:var(--bs-badge,var(--bs-accent));color:#fff;font-size:.72em;font-weight:700;line-height:1.5;padding:0 7px;border-radius:4px;white-space:nowrap}
 .bs-live .bs-avail{display:inline-flex;flex-wrap:wrap;gap:0 6px}
 .bs-live .bs-stock-low{color:#b45309}
 .bs-live .bs-delivery{color:var(--bs-muted)}
@@ -616,9 +639,9 @@ CSS;
     {
         $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         $html = '<li class="bsr-card' . ($row->featured ? ' is-featured' : '') . '" data-bs-id="' . (int) $row->id . '"><a class="bsr-cover" href="' . $esc($row->link) . '" aria-label="' . $esc($row->title) . '" tabindex="-1"></a>';
-        if ($row->featured && $this->bool('featured_badge', true)) {
-            $html .= '<span class="bsr-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>';
-        }
+        $featured = $row->featured && $this->bool('featured_badge', true)
+            ? '<span class="bsr-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>' : '';
+        $html .= $this->productBadges($row, 'page', 'bsr-badges', 'bsr-pbadge', $featured);
 
         if ($this->bool('page_image', true) && $this->str('page_image_position', 'top', ['top', 'left', 'right', 'none']) !== 'none') {
             $width = $this->str('page_image_position', 'top', ['top', 'left', 'right']) === 'top'
@@ -873,7 +896,9 @@ CSS;
 #S .bsr-more:hover{background:var(--bsr-accent);color:#fff}
 #S .bsr-more[disabled]{opacity:.5;cursor:wait}
 #S .bsr-noimg{display:block;width:40%;aspect-ratio:1/1;border-radius:8px;background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 8px,#e5e7eb 8px,#e5e7eb 16px)}
-#S .bsr-badge{position:absolute;top:10px;inset-inline-start:10px;z-index:2;pointer-events:none;background:var(--bsr-feat);color:#fff;font-size:.75em;font-weight:700;line-height:1.5;padding:1px 9px;border-radius:999px}
+#S .bsr-badges{position:absolute;top:10px;inset-inline-start:10px;inset-inline-end:10px;z-index:2;pointer-events:none;display:flex;flex-wrap:wrap;align-items:flex-start;gap:5px}
+#S .bsr-badge{background:var(--bsr-feat);color:#fff;font-size:.75em;font-weight:700;line-height:1.5;padding:1px 9px;border-radius:999px}
+#S .bsr-pbadge{background:var(--bs-badge,var(--bsr-accent));color:#fff;font-size:.75em;font-weight:700;line-height:1.5;padding:1px 9px;border-radius:4px;white-space:nowrap}
 #S .bs-avail{display:inline-flex;flex-wrap:wrap;gap:0 8px}
 #S .bs-stock-low{color:#b45309}
 #S .bs-delivery{color:var(--bsr-text)}
