@@ -67,7 +67,78 @@
         if (!q) {
             return;
         }
+        remember(q);
         window.location.href = resultsUrl(input, q);
+    }
+
+    // ------------------------------------------------------------------ recent searches (this browser only)
+
+    var RECENT_KEY = 'bettersearch-recent';
+
+    function recentList() {
+        if (!cfg.recent) {
+            return [];
+        }
+        try {
+            var list = JSON.parse(window.localStorage.getItem(RECENT_KEY) || '[]');
+            return Array.isArray(list) ? list.filter(function (q) {
+                return typeof q === 'string' && q;
+            }).slice(0, cfg.recentLimit) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveRecent(list) {
+        try {
+            if (list.length) {
+                window.localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, cfg.recentLimit)));
+            } else {
+                window.localStorage.removeItem(RECENT_KEY);
+            }
+        } catch (e) {
+        }
+    }
+
+    /** A search the visitor made goes first in their list (the same phrase once, any letter case). */
+    function remember(q) {
+        q = String(q || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+        if (!cfg.recent || q.replace(/[^0-9a-zÀ-ɏ]/gi, '').length < cfg.minChars) {
+            return;
+        }
+        var lower = q.toLowerCase();
+        saveRecent([q].concat(recentList().filter(function (x) {
+            return x.toLowerCase() !== lower;
+        })));
+    }
+
+    function forget(q) {
+        saveRecent(recentList().filter(function (x) {
+            return x !== q;
+        }));
+    }
+
+    /** The panel with the visitor's last searches, for an empty field. False when there are none. */
+    function showRecent() {
+        var list = recentList();
+        if (!list.length) {
+            return false;
+        }
+        build();
+        lastQuery = null;
+        body.innerHTML = '<div class="bs-live-body"><div class="bs-section bs-section-recent"><div class="bs-section-title bs-recent-head"><span>' + esc(cfg.texts.recent)
+            + '</span><button type="button" class="bs-recent-clear">' + esc(cfg.texts.clearRecent) + '</button></div><ul class="bs-pop" role="presentation">'
+            + list.map(function (q, i) {
+                return '<li role="presentation" class="bs-recent-row"><a class="bs-opt bs-sugg bs-recent" role="option" id="bs-opt-' + i + '" style="--i:' + i + '" href="#" data-bs-q="'
+                    + esc(q) + '"><span class="bs-recent-icon" aria-hidden="true"></span><span class="bs-sugg-text">' + esc(q) + '</span></a>'
+                    + '<button type="button" class="bs-recent-del" data-bs-forget="' + esc(q) + '" aria-label="' + esc(cfg.texts.removeRecent + ': ' + q) + '">&times;</button></li>';
+            }).join('') + '</ul></div></div>';
+        active = -1;
+        options().forEach(function (opt) {
+            opt.setAttribute('tabindex', '-1');
+        });
+        open();
+        return true;
     }
 
     // ------------------------------------------------------------------ panel
@@ -102,6 +173,31 @@
             }
         });
         head.querySelector('.bs-close').addEventListener('click', close);
+        panel.addEventListener('click', function (e) {
+            var del = e.target.closest('[data-bs-forget]');
+            var clear = e.target.closest('.bs-recent-clear');
+            if (!del && !clear) {
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            if (clear) {
+                saveRecent([]);
+            } else {
+                forget(del.getAttribute('data-bs-forget'));
+            }
+            if (!showRecent()) {
+                if (full) {
+                    body.innerHTML = '';
+                } else {
+                    close();
+                }
+            }
+            var field = full ? headInput : current;
+            if (field) {
+                field.focus();
+            }
+        });
         headInput.addEventListener('input', function () {
             if (current) {
                 current.value = headInput.value;
@@ -211,6 +307,10 @@
             lastQuery = null;
             if (controller) {
                 controller.abort();
+            }
+            // an empty field: the visitor's last searches, if any
+            if (!q && document.activeElement === (full ? headInput : current) && showRecent()) {
+                return;
             }
             if (full) {
                 body.innerHTML = '';
@@ -328,6 +428,7 @@
                 suggest(opts[active].getAttribute('data-bs-q'));
             } else if (openNow && active >= 0 && opts[active]) {
                 clicked(opts[active], lastQuery);
+                remember(lastQuery);
                 window.location.href = opts[active].href;
             } else {
                 submit(current || field, field.value);
@@ -428,6 +529,8 @@
                 startFull();
             } else if (current.value.trim() && lastQuery === current.value.trim() && panel && body.innerHTML) {
                 open();
+            } else if (!current.value.trim()) {
+                showRecent();
             }
         }, true);
 
@@ -495,6 +598,9 @@
             lastQuery = null;
         }
         open();
+        if (!headInput.value.trim()) {
+            showRecent();
+        }
         headInput.focus({ preventScroll: true });
         var n = headInput.value.length;
         try {
@@ -577,6 +683,7 @@
         var item = t.closest('a.bs-item[data-bs-id]');
         if (item && panel && panel.contains(item)) {
             clicked(item, lastQuery);
+            remember(lastQuery);
             return;
         }
         var card = t.closest('.bettersearch-results .bsr-card a');
@@ -586,7 +693,72 @@
         }
     }, true);
 
+    // ------------------------------------------------------------------ add to cart
+
+    /**
+     * "Add to cart" of a result: the same request as the Gridbox button of a product page (one piece,
+     * no variant). The Gridbox cart of the page is then refreshed and opened, if the page has one.
+     */
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest && e.target.closest('[data-bs-cart]');
+        if (!btn) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.disabled) {
+            return;
+        }
+        var id = btn.getAttribute('data-bs-cart');
+        var root = btn.closest('.bettersearch-results');
+        var q = root ? root.getAttribute('data-query') : lastQuery;
+        // counted as a conversion of the query (the cookie names the query of this product)
+        clicked(btn, q);
+        var label = btn.textContent;
+        btn.disabled = true;
+        var data = new FormData();
+        data.append('id', id);
+        data.append('quantity', '1');
+        data.append('variation', '');
+        data.append('extra_options', '{}');
+        data.append('booking', '{}');
+        fetch(cfg.cart, { method: 'POST', body: data, credentials: 'same-origin' }).then(function (r) {
+            if (!r.ok) {
+                throw new Error(r.status);
+            }
+            btn.classList.add('is-done');
+            btn.textContent = '✓ ' + cfg.texts.added;
+            var gb = window.app;
+            if (gb && gb.storeCart && typeof gb.storeCart.updateCartTotal === 'function') {
+                try {
+                    gb.storeCart.updateCartTotal();
+                } catch (err) {
+                }
+            }
+            var cartLink = document.querySelector('.ba-item-cart a');
+            if (cfg.cartAfter === 'cart' && cartLink) {
+                close();
+                cartLink.click();
+            }
+        }).catch(function () {
+            btn.textContent = cfg.texts.cartError;
+        }).then(function () {
+            setTimeout(function () {
+                btn.disabled = false;
+                btn.classList.remove('is-done');
+                btn.textContent = label;
+            }, 2500);
+        });
+    }, true);
+
     // ------------------------------------------------------------------ results page: load more
+
+    (function () {
+        var page = document.querySelector('.bettersearch-results[data-query]');
+        if (page) {
+            remember(page.getAttribute('data-query'));
+        }
+    })();
 
     document.addEventListener('click', function (e) {
         var btn = e.target.closest && e.target.closest('.bsr-more');

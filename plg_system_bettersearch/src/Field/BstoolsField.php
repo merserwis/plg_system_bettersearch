@@ -27,6 +27,14 @@ class BstoolsField extends FormField
         Admin::assets();
         $t = fn ($k) => htmlspecialchars(Text::_('PLG_SYSTEM_BETTERSEARCH_TOOLS_' . $k), ENT_QUOTES, 'UTF-8');
 
+        if ((string) $this->element['mode'] === 'report') {
+            return '<div class="bs-tools"><section class="bs-tools-card"><h3>' . $t('REPORT') . '</h3><p class="small text-muted">' . $t('REPORT_DESC') . '</p>'
+                . '<div class="bs-report-status small"></div>'
+                . '<p class="bs-tools-buttons"><button type="button" class="btn btn-secondary" data-bs-tool="report_preview">' . $t('REPORT_PREVIEW') . '</button> '
+                . '<button type="button" class="btn btn-primary" data-bs-tool="report_send">' . $t('REPORT_SEND') . '</button></p>'
+                . '<div class="bs-report-out"></div></section></div>';
+        }
+
         if ((string) $this->element['mode'] === 'gsc') {
             return '<div class="bs-tools"><section class="bs-tools-card"><h3>' . $t('GSC') . '</h3><p class="small text-muted">' . $t('GSC_DESC') . '</p>'
                 . '<div class="bs-gsc-status small"></div>'

@@ -29,7 +29,10 @@ class BsproductsField extends FormField
         $value    = implode(',', array_filter(array_map('intval', explode(',', $value))));
         $esc      = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 
-        return '<div class="bs-picker" data-multiple="' . ($multiple ? '1' : '0') . '">'
+        // scope="pages": the Gridbox pages and single-page apps instead of the items of apps
+        $scope    = (string) $this->element['scope'] === 'pages' ? 'pages' : 'products';
+
+        return '<div class="bs-picker" data-multiple="' . ($multiple ? '1' : '0') . '" data-scope="' . $scope . '">'
             . '<input type="hidden" name="' . $esc($this->name) . '" id="' . $esc($this->id) . '" value="' . $esc($value) . '" class="bs-picker-value">'
             . '<ol class="bs-picker-list"></ol>'
             . '<div class="bs-picker-search"><input type="search" class="form-control bs-picker-input" autocomplete="off" placeholder="'

@@ -48,6 +48,17 @@ final class Renderer
     /** @var string[] compact query groups for highlighting */
     private array $highlight = [];
 
+    /** The query of the rendered results ({query} in the address of "Ask for a quote"). */
+    private string $query = '';
+
+    /** Address of "Ask for a quote" when none is set: an e-mail to the site. */
+    private string $quoteFallback = '';
+
+    public function setQuoteFallback(string $url): void
+    {
+        $this->quoteFallback = $url;
+    }
+
     public function __construct(Registry $params, Store $store, Thumbs $thumbs, string $device)
     {
         $this->params = $params;
@@ -125,6 +136,7 @@ final class Renderer
     public function live(array $result, array $categories, string $allUrl): string
     {
         $q     = $result['query'];
+        $this->query = (string) $q;
         $items = $result['items'];
         $esc   = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         $html  = '';
@@ -181,15 +193,17 @@ final class Renderer
             $byApp  = [];
             foreach ($items as $item) {
                 if (isset($data[$item['id']])) {
-                    $byApp[$this->bool('live_group_apps', true) ? $item['app_id'] : 0][] = $data[$item['id']];
+                    $data[$item['id']]->featured = !empty($item['featured']);
+                    // -1: one list of everything; 0 is the group of the pages
+                    $byApp[$this->bool('live_group_apps', true) ? $item['app_id'] : -1][] = $data[$item['id']];
                 }
             }
             $counts = $result['app_counts'] ?? [];
             foreach ($byApp as $appId => $rows) {
-                $html .= '<div class="bs-section">';
+                $html .= '<div class="bs-section' . ($appId === 0 ? ' bs-section-pages' : '') . '">';
                 if ($this->bool('live_section_titles', true) && (count($byApp) > 1 || $categories)) {
-                    $title = $appId ? $this->store->appTitle($appId) : $this->text('text_products', 'PLG_SYSTEM_BETTERSEARCH_T_PRODUCTS');
-                    $count = $appId ? ($counts[$appId] ?? count($rows)) : $result['total'];
+                    $title = $appId >= 0 ? $this->store->appTitle($appId) : $this->text('text_products', 'PLG_SYSTEM_BETTERSEARCH_T_PRODUCTS');
+                    $count = $appId >= 0 ? ($counts[$appId] ?? count($rows)) : $result['total'];
                     $html .= '<div class="bs-section-title">' . $esc($title) . ' <span class="bs-section-count">' . (int) $count . '</span></div>';
                 }
                 $html .= '<ul class="bs-list" role="presentation">';
@@ -239,7 +253,9 @@ final class Renderer
         if ($this->bool('live_show_sku', false) && trim((string) $row->sku) !== '') {
             $meta[] = '<span class="bs-sku">' . $esc($this->text('text_sku', 'PLG_SYSTEM_BETTERSEARCH_T_SKU')) . ' ' . $this->mark((string) $row->sku) . '</span>';
         }
-        if ($this->bool('live_show_stock', false) && $row->isProduct) {
+        if ($this->showAvailability('live') && $row->isProduct) {
+            $meta[] = $this->availability($row);
+        } elseif ($this->bool('live_show_stock', false) && $row->isProduct) {
             $meta[] = $this->stock($row);
         }
 
@@ -248,12 +264,19 @@ final class Renderer
             $excerpt = '<span class="bs-excerpt">' . $this->mark($this->cut((string) $row->excerpt, $this->int('live_excerpt_length', 90, 20, 400))) . '</span>';
         }
 
-        $price = $this->bool('live_show_price', true) ? $this->price($row) : '';
+        $price   = $this->bool('live_show_price', true) ? $this->price($row) : '';
+        $badge   = $row->featured && $this->bool('featured_badge', true)
+            ? '<span class="bs-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>' : '';
+        // buttons beside the link of the result (a button inside a link is not allowed)
+        $actions = $this->actions($row, 'live');
 
-        return '<li role="presentation"><a class="bs-opt bs-item" role="option" id="bs-opt-' . $n . '" style="--i:' . $n . '" href="' . $esc($row->link) . '" data-bs-id="' . (int) $row->id . '">' . $image
-            . '<span class="bs-info"><span class="bs-title">' . $this->mark($row->title) . '</span>'
+        $liClass = trim(($actions !== '' ? 'bs-has-actions' : '') . ($row->featured ? ' is-featured' : ''));
+
+        return '<li role="presentation"' . ($liClass !== '' ? ' class="' . $liClass . '"' : '') . '><a class="bs-opt bs-item' . ($row->featured ? ' is-featured' : '') . '" role="option" id="bs-opt-' . $n
+            . '" style="--i:' . $n . '" href="' . $esc($row->link) . '" data-bs-id="' . (int) $row->id . '">' . $image
+            . '<span class="bs-info">' . $badge . '<span class="bs-title">' . $this->mark($row->title) . '</span>'
             . ($meta ? '<span class="bs-meta">' . implode('<span class="bs-dot">·</span>', $meta) . '</span>' : '')
-            . $excerpt . '</span>' . $price . '</a></li>';
+            . $excerpt . '</span>' . $price . '</a>' . ($actions !== '' ? '<span class="bs-actions">' . $actions . '</span>' : '') . '</li>';
     }
 
     /** CSS of the live panel (scoped to .bs-live). */
@@ -288,6 +311,7 @@ final class Renderer
             '--bs-anim-dur'  => $this->int('live_anim_duration', 200, 0, 2000) . 'ms',
             '--bs-item-dur'  => $this->int('live_item_duration', 260, 0, 2000) . 'ms',
             '--bs-stagger'   => $this->int('live_item_stagger', 35, 0, 500) . 'ms',
+            '--bs-feat'      => $this->color('featured_color', 'var(--bs-accent)'),
         ];
 
         $css = '.bs-live{' . $this->vars($vars) . '}';
@@ -343,6 +367,30 @@ final class Renderer
 .bs-live .bs-full-head input{flex:1;font-size:16px;padding:10px 12px;border:1px solid var(--bs-border);border-radius:8px;background:#fff;color:#111;min-width:0}
 .bs-live .bs-full-head button{border:0;background:none;font-size:26px;line-height:1;padding:4px 8px;color:var(--bs-text);cursor:pointer}
 .bs-live.is-loading .bs-live-body{opacity:.55}
+.bs-live li.is-featured{background:color-mix(in srgb,var(--bs-feat) 7%,transparent)}
+.bs-live .bs-item.is-featured:hover,.bs-live .bs-item.is-featured.is-active{background:color-mix(in srgb,var(--bs-feat) 13%,transparent)}
+.bs-live .bs-badge{align-self:flex-start;background:var(--bs-feat);color:#fff;font-size:.72em;font-weight:700;line-height:1.5;padding:0 7px;border-radius:999px;margin-bottom:2px}
+.bs-live .bs-avail{display:inline-flex;flex-wrap:wrap;gap:0 6px}
+.bs-live .bs-stock-low{color:#b45309}
+.bs-live .bs-delivery{color:var(--bs-muted)}
+.bs-live li.bs-has-actions{display:flex;align-items:center}
+.bs-live li.bs-has-actions>.bs-item{flex:1 1 auto;min-width:0}
+.bs-live .bs-actions{display:flex;flex-direction:column;gap:4px;padding-inline-end:12px;flex:0 0 auto}
+.bs-live .bs-cart,.bs-live .bs-quote{display:inline-block;font:inherit;font-size:.8em;font-weight:600;line-height:1.2;padding:6px 10px;border-radius:6px;border:1px solid var(--bs-accent);background:var(--bs-accent);color:#fff;cursor:pointer;white-space:nowrap;text-align:center;text-decoration:none;margin:0}
+.bs-live .bs-quote,.bs-live .bs-cart-options{background:transparent;color:var(--bs-accent)}
+.bs-live .bs-cart:hover,.bs-live .bs-quote:hover{filter:brightness(1.08)}
+.bs-live .bs-cart[disabled]{opacity:.6;cursor:wait}
+.bs-live .bs-cart.is-done{background:#15803d;border-color:#15803d;color:#fff}
+.bs-live .bs-recent-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bs-live .bs-recent-head span{text-transform:uppercase;letter-spacing:.04em}
+.bs-live .bs-recent-clear{border:0;background:none;padding:0;margin:0;font:inherit;font-size:1em;text-transform:none;letter-spacing:normal;color:var(--bs-accent);cursor:pointer}
+.bs-live .bs-recent-row{display:flex;align-items:center}
+.bs-live .bs-recent-row>.bs-opt{flex:1 1 auto;min-width:0}
+.bs-live .bs-recent-del{border:0;background:none;margin:0;padding:6px 14px;font:inherit;font-size:1.15em;line-height:1;color:var(--bs-muted);cursor:pointer}
+.bs-live .bs-recent-del:hover{color:var(--bs-text)}
+.bs-live .bs-recent-icon{flex:0 0 auto;width:13px;height:13px;border:2px solid var(--bs-muted);border-radius:50%;position:relative;opacity:.8}
+.bs-live .bs-recent-icon::before{content:'';position:absolute;left:3.5px;top:1px;width:2px;height:4.5px;background:var(--bs-muted)}
+.bs-live .bs-recent-icon::after{content:'';position:absolute;left:3.5px;top:4.5px;width:3.5px;height:2px;background:var(--bs-muted)}
 CSS;
 
         $css .= $this->liveAnimationCss();
@@ -417,6 +465,7 @@ CSS;
     {
         $esc   = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         $q     = $result['query'];
+        $this->query = (string) $q;
         $total = $result['total'];
         $center = $this->str('page_align', 'left', ['left', 'center']) === 'center' ? ' bsr-center' : '';
         $html  = '<div class="bettersearch-results' . $center . '" id="' . $id . '" data-query="' . $esc($q) . '">';
@@ -551,8 +600,10 @@ CSS;
         $data    = $this->store->items(array_column($slice, 'id'));
         $html    = '';
         $index   = 0;
+        $this->query = (string) ($state['query'] ?? $this->query);
         foreach ($slice as $item) {
             if (isset($data[$item['id']])) {
+                $data[$item['id']]->featured = !empty($item['featured']);
                 $html .= $this->card($data[$item['id']], $state['page'] === 1 && $index++ < $this->deviceColumns());
                 $this->listed[] = ['name' => (string) $data[$item['id']]->title, 'url' => (string) $data[$item['id']]->link];
             }
@@ -564,7 +615,10 @@ CSS;
     private function card(object $row, bool $eager): string
     {
         $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-        $html = '<li class="bsr-card" data-bs-id="' . (int) $row->id . '"><a class="bsr-cover" href="' . $esc($row->link) . '" aria-label="' . $esc($row->title) . '" tabindex="-1"></a>';
+        $html = '<li class="bsr-card' . ($row->featured ? ' is-featured' : '') . '" data-bs-id="' . (int) $row->id . '"><a class="bsr-cover" href="' . $esc($row->link) . '" aria-label="' . $esc($row->title) . '" tabindex="-1"></a>';
+        if ($row->featured && $this->bool('featured_badge', true)) {
+            $html .= '<span class="bsr-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>';
+        }
 
         if ($this->bool('page_image', true) && $this->str('page_image_position', 'top', ['top', 'left', 'right', 'none']) !== 'none') {
             $width = $this->str('page_image_position', 'top', ['top', 'left', 'right']) === 'top'
@@ -596,12 +650,16 @@ CSS;
         if ($this->bool('page_show_price', true)) {
             $foot .= $this->price($row, 'bsr-price');
         }
-        if ($this->bool('page_show_stock', false) && $row->isProduct) {
+        if ($this->showAvailability('page') && $row->isProduct) {
+            $foot .= '<div class="bsr-stock">' . $this->availability($row) . '</div>';
+        } elseif ($this->bool('page_show_stock', false) && $row->isProduct) {
             $foot .= '<div class="bsr-stock">' . $this->stock($row) . '</div>';
         }
-        if ($this->bool('page_show_button', true)) {
-            $foot .= '<a class="bsr-btn" href="' . $esc($row->link) . '">' . $esc($this->text('text_button', 'PLG_SYSTEM_BETTERSEARCH_T_BUTTON')) . '</a>';
-        }
+        // "Add to cart" / "Ask for a quote" first, the link to the product beside them (outlined)
+        $actions = $this->actions($row, 'page');
+        $view    = $this->bool('page_show_button', true)
+            ? '<a class="bsr-btn' . ($actions !== '' ? ' bsr-btn-alt' : '') . '" href="' . $esc($row->link) . '">' . $esc($this->text('text_button', 'PLG_SYSTEM_BETTERSEARCH_T_BUTTON')) . '</a>' : '';
+        $foot   .= $actions !== '' ? '<div class="bsr-buttons">' . $actions . $view . '</div>' : $view;
         if ($foot !== '') {
             $html .= '<div class="bsr-foot">' . $foot . '</div>';
         }
@@ -737,6 +795,7 @@ CSS;
             '--bsr-hl-color'   => $this->color('highlight_color', 'inherit'),
             '--bsr-align'      => $this->str('page_align', 'left', ['left', 'center']) === 'center' ? 'center' : 'start',
             '--bsr-max'        => $this->int('page_max_width', 0, 0, 3000) > 0 ? $this->int('page_max_width', 0, 0, 3000) . 'px' : 'none',
+            '--bsr-feat'       => $this->color('featured_color', 'var(--bsr-accent)'),
         ];
 
         $css  = $s . '{' . $this->vars($vars) . '}';
@@ -814,11 +873,27 @@ CSS;
 #S .bsr-more:hover{background:var(--bsr-accent);color:#fff}
 #S .bsr-more[disabled]{opacity:.5;cursor:wait}
 #S .bsr-noimg{display:block;width:40%;aspect-ratio:1/1;border-radius:8px;background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 8px,#e5e7eb 8px,#e5e7eb 16px)}
+#S .bsr-badge{position:absolute;top:10px;inset-inline-start:10px;z-index:2;pointer-events:none;background:var(--bsr-feat);color:#fff;font-size:.75em;font-weight:700;line-height:1.5;padding:1px 9px;border-radius:999px}
+#S .bs-avail{display:inline-flex;flex-wrap:wrap;gap:0 8px}
+#S .bs-stock-low{color:#b45309}
+#S .bs-delivery{color:var(--bsr-text)}
+#S .bsr-buttons{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+#S .bsr-buttons .bsr-btn{margin-inline-start:0}
+#S .bsr-center .bsr-buttons{justify-content:center}
+#S .bs-cart,#S .bs-quote{position:relative;z-index:2;display:inline-block;padding:8px 14px;border-radius:6px;border:1px solid var(--bsr-accent);background:var(--bsr-accent);color:#fff;font:inherit;font-weight:600;font-size:.92em;line-height:1.2;text-decoration:none;cursor:pointer;margin:0}
+#S .bs-quote,#S .bs-cart-options{background:transparent;color:var(--bsr-accent)}
+#S .bs-cart:hover,#S .bs-quote:hover{filter:brightness(1.08)}
+#S .bs-cart[disabled]{opacity:.6;cursor:wait}
+#S .bs-cart.is-done{background:#15803d;border-color:#15803d;color:#fff}
+#S .bsr-btn-alt{background:transparent;color:var(--bsr-accent);border:1px solid var(--bsr-accent)}
 CSS);
 
         if ($pos === 'left' || $pos === 'right') {
             $css .= "$s .bsr-card{flex-direction:" . ($pos === 'left' ? 'row' : 'row-reverse') . "}$s .bsr-img{flex:0 0 var(--bsr-img-w);aspect-ratio:auto;min-height:100%}"
                 . "$s .bsr-img img{position:absolute;inset:0}";
+        }
+        if ($this->bool('featured_frame', true)) {
+            $css .= "$s .bsr-card.is-featured{border-color:var(--bsr-feat);box-shadow:0 0 0 1px var(--bsr-feat),var(--bsr-shadow)}";
         }
         $css .= match ($hover) {
             'lift'   => "$s .bsr-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.12)}",
@@ -874,6 +949,105 @@ CSS);
         return (int) $row->in_stock
             ? '<span class="bs-stock-in">' . htmlspecialchars($this->text('text_in_stock', 'PLG_SYSTEM_BETTERSEARCH_T_IN_STOCK'), ENT_QUOTES, 'UTF-8') . '</span>'
             : '<span class="bs-stock-out">' . htmlspecialchars($this->text('text_out_of_stock', 'PLG_SYSTEM_BETTERSEARCH_T_OUT_OF_STOCK'), ENT_QUOTES, 'UTF-8') . '</span>';
+    }
+
+    /** Availability and delivery time are on for this view (live results or the results page). */
+    private function showAvailability(string $view): bool
+    {
+        return $this->bool('avail_enabled', false) && in_array($this->str('avail_where', 'both', ['live', 'page', 'both']), [$view, 'both'], true);
+    }
+
+    /**
+     * Stock state (in stock, last items, out of stock, optionally the quantity) and the delivery time:
+     * the value of the chosen Gridbox field, else the texts for products in and out of stock.
+     */
+    private function availability(object $row): string
+    {
+        $esc = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        $qty = $row->stockQty ?? null;
+        $in  = (int) $row->in_stock === 1;
+        $low = $this->int('avail_low', 3, 0, 100000);
+        if (!$in) {
+            $html = '<span class="bs-stock-out">' . $esc($this->text('text_out_of_stock', 'PLG_SYSTEM_BETTERSEARCH_T_OUT_OF_STOCK')) . '</span>';
+        } elseif ($qty !== null && $low > 0 && $qty <= $low) {
+            $html = '<span class="bs-stock-low">' . $esc($this->fmt($this->text('text_low_stock', 'PLG_SYSTEM_BETTERSEARCH_T_LOW_STOCK'), ['%d' => $qty])) . '</span>';
+        } else {
+            $label = $this->text('text_in_stock', 'PLG_SYSTEM_BETTERSEARCH_T_IN_STOCK');
+            if ($qty !== null && $this->bool('avail_qty', false)) {
+                $label .= ' (' . $this->fmt($this->text('text_quantity', 'PLG_SYSTEM_BETTERSEARCH_T_QUANTITY'), ['%d' => $qty]) . ')';
+            }
+            $html = '<span class="bs-stock-in">' . $esc($label) . '</span>';
+        }
+        $delivery = trim((string) ($row->delivery ?? ''));
+        if ($delivery === '') {
+            $delivery = trim((string) $this->params->get($in ? 'delivery_in' : 'delivery_out', ''));
+        }
+
+        return '<span class="bs-avail">' . $html . ($delivery !== '' ? '<span class="bs-delivery">' . $esc($delivery) . '</span>' : '') . '</span>';
+    }
+
+    /** "Add to cart" (or "Choose options") and "Ask for a quote" of a product, where they are switched on. */
+    private function actions(object $row, string $view): string
+    {
+        if (!$row->isProduct || !in_array($this->str('buttons_where', 'page', ['live', 'page', 'both']), [$view, 'both'], true)) {
+            return '';
+        }
+        $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        $id   = (int) $row->id;
+        $html = '';
+        if ($this->bool('cart_button', false) && (int) $row->in_stock === 1 && $row->prices !== null) {
+            if ($row->cartable) {
+                $html .= '<button type="button" class="bs-cart' . ($view === 'page' ? ' bsr-cart' : '') . '" data-bs-cart="' . $id . '" data-bs-id="' . $id . '">'
+                    . $esc($this->text('text_add_to_cart', 'PLG_SYSTEM_BETTERSEARCH_T_ADD_TO_CART')) . '</button>';
+            } elseif ($row->hasOptions) {
+                // variants or extra options are chosen on the product page
+                $html .= '<a class="bs-cart bs-cart-options" href="' . $esc($row->link) . '" data-bs-id="' . $id . '">'
+                    . $esc($this->text('text_choose_options', 'PLG_SYSTEM_BETTERSEARCH_T_CHOOSE_OPTIONS')) . '</a>';
+            }
+        }
+        if ($this->bool('quote_button', false)) {
+            $when = $this->str('quote_when', 'no_price', ['always', 'no_price', 'out_of_stock', 'no_price_or_out']);
+            $want = match ($when) {
+                'always'       => true,
+                'out_of_stock' => (int) $row->in_stock !== 1,
+                'no_price'     => $row->prices === null,
+                default        => $row->prices === null || (int) $row->in_stock !== 1,
+            };
+            $url = $want ? $this->quoteUrl($row) : '';
+            if ($url !== '') {
+                $html .= '<a class="bs-quote" href="' . $esc($url) . '" data-bs-id="' . $id . '"' . (preg_match('#^https?://#i', $url) && !str_starts_with($url, \Joomla\CMS\Uri\Uri::root()) ? ' target="_blank" rel="noopener"' : '') . '>'
+                    . $esc($this->text('text_ask_quote', 'PLG_SYSTEM_BETTERSEARCH_T_ASK_QUOTE')) . '</a>';
+            }
+        }
+
+        return $html;
+    }
+
+    /**
+     * Address of "Ask for a quote": the setting with {title}, {sku}, {id}, {url} and {query} filled in
+     * (URL-encoded), else an e-mail to the site. Only site paths, http(s), mailto: and tel: addresses.
+     */
+    private function quoteUrl(object $row): string
+    {
+        $template = trim((string) $this->params->get('quote_url', ''));
+        if ($template === '') {
+            $template = $this->quoteFallback;
+        }
+        if ($template === '' || preg_match('/[\x00-\x1F"<>]/', $template)) {
+            return '';
+        }
+        if (!preg_match('#^(https?://|mailto:|tel:|/(?!/))#i', $template)) {
+            if (!preg_match('#^[a-z0-9][a-z0-9_\-./]*(\?.*)?$#i', $template)) {
+                return '';
+            }
+            $template = \Joomla\CMS\Uri\Uri::root(true) . '/' . $template;
+        }
+        $link = (string) $row->link;
+        $abs  = $link === '' || $link === '#' ? \Joomla\CMS\Uri\Uri::root() : (preg_match('#^https?://#i', $link) ? $link
+            : \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']) . '/' . ltrim($link, '/'));
+        $values = ['{title}' => (string) $row->title, '{sku}' => trim((string) $row->sku), '{id}' => (string) (int) $row->id, '{url}' => $abs, '{query}' => $this->query];
+
+        return strtr($template, array_map('rawurlencode', $values));
     }
 
     /**

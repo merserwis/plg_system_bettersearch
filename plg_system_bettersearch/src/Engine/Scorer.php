@@ -36,10 +36,10 @@ final class Scorer
 
     private float $digitFactor;
 
-    /** @param array<string, float> $weights title, sku, fields, cats, body */
+    /** @param array<string, float> $weights title, sku, fields, cats, body, params */
     public function __construct(array $weights = [], float $digitFactor = 1.5)
     {
-        $this->weights     = array_merge(['title' => 10.0, 'sku' => 12.0, 'fields' => 4.0, 'cats' => 3.0, 'body' => 1.0], $weights);
+        $this->weights     = array_merge(['title' => 10.0, 'sku' => 12.0, 'fields' => 4.0, 'cats' => 3.0, 'body' => 1.0, 'params' => 8.0], $weights);
         $this->digitFactor = $digitFactor;
     }
 
@@ -49,7 +49,7 @@ final class Scorer
      * @param string  $phrase   the whole query in compact form
      * @param bool    $explain  collect the reasons
      *
-     * @return array{score: float, matched: int, reasons: string[]}
+     * @return array{score: float, matched: int, missed: int, reasons: string[]}  missed: technical values not held
      */
     public function score(array $groups, object $row, string $phrase, bool $explain = false): array
     {
@@ -57,10 +57,40 @@ final class Scorer
         $matched = 0;
         $reasons = [];
         $inTitle = 0;
+        $missed  = 0;
 
         foreach ($groups as $i => $group) {
             $best = 0.0;
             $why  = '';
+            if (isset($group['param'])) {
+                // a technical value: compared as a number with its unit, or the same text as one whole word
+                $tokens = (string) ($row->t_params ?? '');
+                $m      = Params::score($group['param'], $tokens);
+                if ($m > 0) {
+                    $best = $m * $this->weights['params'];
+                    $why  = $explain ? sprintf('%s:param %s', Params::label($group['param']), $m >= 1 ? 'exact' : 'in range') : '';
+                }
+                // the text as one word only for items that state no value of this kind ("2,5 kV" holds the word "5kv")
+                $alts = str_contains($tokens, ' ' . $group['param']['dim'] . '=') ? [] : $group['alts'];
+                foreach ($alts as $alt) {
+                    foreach (self::FIELDS as $field => [$tokCol]) {
+                        if (str_contains((string) ($row->{$tokCol} ?? ''), ' ' . $alt['c'] . ' ') && self::EXACT * 0.9 * $this->weights[$field] > $best) {
+                            $best = 0.9 * $this->weights[$field];
+                            $why  = $explain ? sprintf('%s:%s exact', $alt['c'], $field) : '';
+                        }
+                    }
+                }
+                if ($best > 0) {
+                    $matched++;
+                    $score += $best;
+                    if ($explain) {
+                        $reasons[] = sprintf('%s +%.1f', $why, $best);
+                    }
+                } else {
+                    $missed++;
+                }
+                continue;
+            }
             foreach ($group['alts'] as $alt) {
                 $a    = $alt['c'];
                 $kind = self::KIND[$alt['kind']] ?? 1.0;
@@ -99,7 +129,7 @@ final class Scorer
         }
 
         if ($matched === 0) {
-            return ['score' => 0.0, 'matched' => 0, 'reasons' => $reasons];
+            return ['score' => 0.0, 'matched' => 0, 'missed' => $missed, 'reasons' => $reasons];
         }
 
         // the whole query as typed, wherever the spaces are
@@ -142,7 +172,7 @@ final class Scorer
         $short = 2.0 / (1 + $words / 8);
         $score += $short;
 
-        return ['score' => round($score, 3), 'matched' => $matched, 'reasons' => $reasons];
+        return ['score' => round($score, 3), 'matched' => $matched, 'missed' => $missed, 'reasons' => $reasons];
     }
 
     /** 0 .. 1 */

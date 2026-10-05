@@ -58,6 +58,10 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items')['pcrc'])) {
                 $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('pcrc') . ' int unsigned NOT NULL DEFAULT 0')->execute();
             }
+            // 1.5.0: technical values of each item ("v=1000 ip=67"); the index format changed too, so every item is indexed again
+            if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['t_params'])) {
+                $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('t_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_body'))->execute();
+            }
             if (in_array($log, $have, true)) {
                 $keys = array_map(fn ($k) => (string) $k->Key_name, $db->setQuery('SHOW INDEX FROM ' . $db->quoteName('#__bettersearch_log'))->loadObjectList() ?: []);
                 if (!in_array('idx_last', $keys, true)) {
