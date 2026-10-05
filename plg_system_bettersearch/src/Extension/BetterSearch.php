@@ -46,7 +46,10 @@ use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.5.1';
+    public const VERSION = '1.5.2';
+
+    /** Log file of the plugin, in Joomla's log folder. */
+    public const LOG_FILE = 'plg_system_bettersearch.php';
 
     private const CACHE_GROUP = 'plg_system_bettersearch';
 
@@ -2291,8 +2294,72 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'checked'    => $last ? gmdate('Y-m-d H:i:s', $last) . ' UTC' : '—',
             'complete'   => $done ? gmdate('Y-m-d H:i:s', $done) . ' UTC' : '—',
             'apps'       => array_map(fn ($id) => ['id' => $id, 'title' => $this->store()->appTitle($id)], $indexer->appIds()),
+            'groups'     => $this->groupStatus($indexer->appIds()),
+            'errors'     => $this->logTail(8),
             'version'    => self::VERSION,
         ];
+    }
+
+    /**
+     * For every searched app: pages in Gridbox, how many a visitor (guest) may see now and why the
+     * others are left out, and how many are in the index — shows at once where pages get lost.
+     */
+    private function groupStatus(array $apps): array
+    {
+        $db     = $this->db();
+        $now    = $db->quote((new \DateTime('now', self::siteZone()))->format('Y-m-d H:i:s'));
+        $null   = $db->quote($db->getNullDate());
+        $lang   = (string) ComponentHelper::getParams('com_languages')->get('site', 'en-GB');
+        $levels = implode(',', array_map('intval', Access::getAuthorisedViewLevels(0)) ?: [1]);
+        $out    = [];
+        foreach ($apps as $appId) {
+            $appId = (int) $appId;
+            try {
+                $row = $db->setQuery('SELECT COUNT(*) AS total,'
+                    . ' SUM(p.published <> 1) AS unpublished,'
+                    . ' SUM(p.published = 1 AND (p.created > ' . $now . ' OR (p.end_publishing <> ' . $null . ' AND p.end_publishing < ' . $now . '))) AS dates,'
+                    . ' SUM(p.published = 1 AND p.language NOT IN (' . $db->quote($lang) . ', ' . $db->quote('*') . ')) AS language,'
+                    . ' SUM(p.published = 1 AND p.page_access NOT IN (' . $levels . ')) AS access,'
+                    . ' SUM(i.id IS NOT NULL) AS indexed'
+                    . ' FROM ' . $db->quoteName('#__gridbox_pages', 'p')
+                    . ' LEFT JOIN ' . $db->quoteName('#__bettersearch_items', 'i') . ' ON i.id = p.id'
+                    . ' WHERE p.app_id = ' . $appId . ' AND p.page_category <> ' . $db->quote('trashed'))->loadObject();
+                $out[] = ['id' => $appId, 'title' => $this->store()->appTitle($appId), 'type' => $appId === 0 ? 'pages' : $this->store()->appType($appId),
+                    'total' => (int) $row->total, 'indexed' => (int) $row->indexed, 'unpublished' => (int) $row->unpublished,
+                    'dates' => (int) $row->dates, 'language' => (int) $row->language, 'access' => (int) $row->access, 'siteLanguage' => $lang];
+            } catch (\Throwable $e) {
+                $out[] = ['id' => $appId, 'title' => $this->store()->appTitle($appId), 'error' => $e->getMessage()];
+            }
+        }
+
+        return $out;
+    }
+
+    /** The latest lines of the plugin's log file (newest first). */
+    private function logTail(int $lines): array
+    {
+        $file = rtrim((string) $this->getApplication()->get('log_path', JPATH_ADMINISTRATOR . '/logs'), '/') . '/' . self::LOG_FILE;
+        if (!is_file($file) || !is_readable($file)) {
+            return [];
+        }
+        $fh = @fopen($file, 'rb');
+        if (!$fh) {
+            return [];
+        }
+        if ((int) @filesize($file) > 65536) {
+            fseek($fh, -65536, SEEK_END);
+        }
+        $text = (string) stream_get_contents($fh);
+        fclose($fh);
+        $out = [];
+        foreach (preg_split('/\R/', $text) ?: [] as $line) {
+            $line = trim($line);
+            if ($line !== '' && $line[0] !== '#' && !str_starts_with($line, '<?php')) {
+                $out[] = $line;
+            }
+        }
+
+        return array_reverse(array_slice($out, -$lines));
     }
 
     private function stats(): array
@@ -2496,9 +2563,15 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return $this->indexState()['vis'];
     }
 
+    /** Errors go to the plugin's own log file (logs/plg_system_bettersearch.php); the Status shows the latest. */
     private function logError(\Throwable $e): void
     {
+        static $ready = false;
         try {
+            if (!$ready) {
+                Log::addLogger(['text_file' => self::LOG_FILE], Log::ALL & ~Log::DEBUG, ['plg_system_bettersearch']);
+                $ready = true;
+            }
             Log::add(get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine(), Log::ERROR, 'plg_system_bettersearch');
         } catch (\Throwable $ignored) {
         }

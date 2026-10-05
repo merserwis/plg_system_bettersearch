@@ -753,7 +753,24 @@
                 }).join(', ') + '</td></tr>'
                 + '<tr><th>' + esc(T.TOOLS_CHECKED) + '</th><td>' + esc(s.checked) + '</td></tr>'
                 + '<tr><th>' + esc(T.TOOLS_COMPLETE) + '</th><td>' + esc(s.complete) + '</td></tr>'
-                + '</tbody></table>';
+                + '</tbody></table>'
+                + groupsTable(s.groups || [])
+                + ((s.errors || []).length ? '<div class="alert alert-warning small"><strong>' + esc(T.TOOLS_ERRORS) + '</strong><pre class="mb-0" style="white-space:pre-wrap">'
+                    + esc(s.errors.join('\n')) + '</pre></div>' : '');
+        }
+
+        // per app: pages in Gridbox, left out for a visitor (and why), in the index
+        function groupsTable(groups) {
+            if (!groups.length) return '';
+            var head = [T.TOOLS_G_APP, T.TOOLS_G_TOTAL, T.TOOLS_G_UNPUBLISHED, T.TOOLS_G_DATES, T.TOOLS_G_LANGUAGE, T.TOOLS_G_ACCESS, T.TOOLS_G_INDEXED];
+            return '<table class="table table-sm bs-status-table bs-groups-table"><thead><tr>' + head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('')
+                + '</tr></thead><tbody>' + groups.map(function (g) {
+                    if (g.error) return '<tr><td>' + esc(g.title) + ' <small class="text-muted">#' + g.id + '</small></td><td colspan="6" class="text-danger">' + esc(g.error) + '</td></tr>';
+                    var low = g.indexed < g.total - g.unpublished - g.dates - g.language - g.access;
+                    return '<tr' + (low ? ' class="table-warning"' : '') + '><td>' + esc(g.title) + ' <small class="text-muted">#' + g.id + ' ' + esc(g.type) + '</small></td>'
+                        + [g.total, g.unpublished, g.dates, g.language + (g.language ? ' <small class="text-muted">≠ ' + esc(g.siteLanguage) + '</small>' : ''), g.access, g.indexed]
+                            .map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr>';
+                }).join('') + '</tbody></table>';
         }
 
         function refresh() {
