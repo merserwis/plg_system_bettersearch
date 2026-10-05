@@ -241,12 +241,24 @@ final class Indexer
             $this->db->setQuery('DELETE FROM ' . $this->db->quoteName('#__bettersearch_items') . ' WHERE id IN (' . implode(',', $chunk) . ')')->execute();
         }
 
-        $changed = [];
+        // what is missing from the index first (e.g. pages just switched on), then pages edited since,
+        // and only then the items a settings change marked for indexing again (they stay searchable
+        // meanwhile): a full rebuild of thousands of products no longer delays new pages for minutes
+        $missing = $edited = $rebuild = [];
         foreach ($current as $id => $sig) {
-            if (($stored[$id] ?? null) !== $sig) {
-                $changed[] = $id;
+            $old = $stored[$id] ?? null;
+            if ($old === $sig) {
+                continue;
+            }
+            if ($old === null) {
+                $missing[] = $id;
+            } elseif ($old !== 0) {
+                $edited[] = $id;
+            } else {
+                $rebuild[] = $id;
             }
         }
+        $changed = array_merge($missing, $edited, $rebuild);
 
         // once a day (and on a forced update) the page layouts are compared by checksum, too: the
         // quick signature relies on Gridbox's save time, which an edit may leave unchanged

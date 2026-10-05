@@ -2,6 +2,17 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.5.2 — 2026-10-05
+
+### 🐞 Fixes
+
+- **Pages appear in the results right after switching *Search pages too* on.** The index is updated in steps of a few hundred items; after a settings change (or an update that reads values anew) every product was indexed again first, and the pages — never indexed before — waited behind thousands of products, so for a while no page could be found. Items missing from the index now go first, then pages edited since, and only then the items indexed again (they stay searchable meanwhile).
+
+### 🩺 Diagnostics
+
+- The index **Status** shows a table for every searched app: pages in Gridbox, how many a visitor cannot see and why (unpublished, outside the publishing dates, another language, not for guests) and how many are **in the index** — a row is marked when pages are missing from it.
+- **The plugin's own log file:** errors go to `administrator/logs/plg_system_bettersearch.php`, and the Status shows the latest lines.
+
 ## 1.5.1 — 2026-10-05
 
 The technical values are read by the same rules as in Better Categories for Gridbox 1.6.0.
