@@ -6,7 +6,7 @@
     <creationDate>2026-10-06</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.1</version>
+    <version>1.6.2</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -94,6 +94,13 @@
                 <field name="track_conversions" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_TRACK_CONVERSIONS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_TRACK_CONVERSIONS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
+                </field>
+                <field name="stats_exclude_ips" type="textarea" rows="4" default="" filter="string" hint="10.48.*&#10;91.200.10.0/24  # biuro" label="PLG_SYSTEM_BETTERSEARCH_STATS_EXCLUDE_IPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STATS_EXCLUDE_IPS_DESC" />
+                <field name="stats_myip" type="bsmyip" target="stats_exclude_ips" hiddenLabel="true" />
+                <field name="stats_exclude_groups" parentclass="bs-adv" type="usergrouplist" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_STATS_EXCLUDE_GROUPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STATS_EXCLUDE_GROUPS_DESC" />
+                <field name="stats_ip_source" parentclass="bs-adv" type="list" default="auto" label="PLG_SYSTEM_BETTERSEARCH_STATS_IP_SOURCE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STATS_IP_SOURCE_DESC">
+                    <option value="auto">PLG_SYSTEM_BETTERSEARCH_STATS_IP_SOURCE_AUTO</option>
+                    <option value="remote">PLG_SYSTEM_BETTERSEARCH_STATS_IP_SOURCE_REMOTE</option>
                 </field>
                 <field name="support_note" type="note" class="alert alert-light" label="PLG_SYSTEM_BETTERSEARCH_SUPPORT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SUPPORT_DESC" />
             </fieldset>

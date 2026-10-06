@@ -39,6 +39,7 @@ use Joomla\Registry\Registry;
 use Merserwis\Plugin\System\BetterSearch\Engine\Indexer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Normalizer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Searcher;
+use Merserwis\Plugin\System\BetterSearch\Engine\Visitor;
 use Merserwis\Plugin\System\BetterSearch\Render\Renderer;
 use Merserwis\Plugin\System\BetterSearch\Render\Seo;
 use Merserwis\Plugin\System\BetterSearch\Render\Store;
@@ -47,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.1';
+    public const VERSION = '1.6.2';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -305,7 +306,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $input = $this->getApplication()->getInput();
         $q     = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $input->post->get('q', '', 'raw')) ?? ''), 'UTF-8'), 0, 120);
         $id    = $input->post->getInt('id', 0);
-        if (!$this->params->get('track_conversions', 1) || $input->getMethod() !== 'POST' || $id <= 0 || $q === '' || $this->isBot()) {
+        if (!$this->params->get('track_conversions', 1) || $input->getMethod() !== 'POST' || $id <= 0 || $q === '' || $this->noStats()) {
             return ['ok' => false];
         }
         $db     = $this->db();
@@ -321,7 +322,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     /** The product put into the Gridbox cart came from a search result (cookie of the page script). */
     private function trackCart(int $id): void
     {
-        if ($id <= 0 || !$this->params->get('track_conversions', 1) || $this->isBot()) {
+        if ($id <= 0 || !$this->params->get('track_conversions', 1) || $this->noStats()) {
             return;
         }
         $raw = (string) $this->getApplication()->getInput()->cookie->getString('bs_src', '');
@@ -356,6 +357,34 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             } catch (\Throwable $ignored) {
             }
         }
+    }
+
+    /**
+     * Searches, clicks and carts of this visitor are not counted: robots, the addresses of the
+     * setting "Leave out of the statistics" (the company's own staff) and logged-in members of the
+     * chosen user groups.
+     */
+    private function noStats(): bool
+    {
+        if ($this->isBot()) {
+            return true;
+        }
+        $rules = Visitor::rules((string) $this->params->get('stats_exclude_ips', ''));
+        if ($rules && Visitor::matches(Visitor::ip($_SERVER, (string) $this->params->get('stats_ip_source', 'auto')), $rules)) {
+            return true;
+        }
+        // a multiple list may be saved as ["1,2"]
+        $groups = [];
+        foreach ((array) $this->params->get('stats_exclude_groups', []) as $value) {
+            foreach (explode(',', (string) $value) as $id) {
+                if ((int) $id > 0) {
+                    $groups[] = (int) $id;
+                }
+            }
+        }
+        $user   = $this->getApplication()->getIdentity();
+
+        return $groups && $user && !$user->guest && array_intersect($groups, $user->getAuthorisedGroups());
     }
 
     private function isBot(): bool
@@ -2420,7 +2449,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     private function logSearch(string $query, int $results): void
     {
-        if ($this->isBot()) {
+        if ($this->noStats()) {
             return;
         }
         $results = max(-1, $results);
