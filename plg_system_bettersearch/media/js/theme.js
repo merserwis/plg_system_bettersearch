@@ -107,6 +107,88 @@
     const entry = (key) => (custom[key] = custom[key] || {});
     const tokensOf = (key) => Object.assign({}, cfg.presets[key] || {}, (custom[key] && custom[key].vars) || {});
 
+    // ---- own CSS that sets what the visual editor sets (it comes last and wins: the change of a
+    // setting would do nothing): found per token, removed from the own CSS when the token changes
+    const VARS = cfg.vars || {};
+    const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const declLine = (name) => new RegExp('^[ \\t]*' + reEsc(name) + '\\s*:[^;{}\\n]*;?[ \\t]*\\r?\\n', 'gm');
+    const decl = (name) => new RegExp('(^|[;{\\s])' + reEsc(name) + '\\s*:[^;{}]*;?', 'g');
+    const rule = (sel) => new RegExp('[^{}]*' + reEsc(sel) + '[^{}]*\\{[^{}]*\\}[ \\t]*\\r?\\n?', 'g');
+    const noComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    /** @return {Object<string, string[]>} token => what of it the own CSS sets */
+    function overrides(key) {
+      const code = noComments((custom[key] && custom[key].css) || '');
+      const out = {};
+      if (!code.trim()) return out;
+      Object.keys(VARS).forEach((token) => {
+        const hit = VARS[token].filter((v) => (v[0] === '@' ? rule(v.slice(1)) : decl(v)).test(code));
+        if (hit.length) out[token] = hit.map((v) => (v[0] === '@' ? v.slice(1) + ' { }' : v));
+      });
+      return out;
+    }
+
+    /** Removes what the tokens set from the own CSS of the theme; returns what was removed. */
+    function strip(key, tokens) {
+      const e = custom[key];
+      if (!e || !e.css) return [];
+      const found = overrides(key);
+      const removed = [];
+      let css = e.css;
+      tokens.forEach((token) => {
+        if (!found[token]) return;
+        (VARS[token] || []).forEach((v) => {
+          const before = css;
+          css = v[0] === '@' ? css.replace(rule(v.slice(1)), '') : css.replace(declLine(v), '').replace(decl(v), '$1');
+          if (css !== before && !removed.includes(v.replace(/^@/, ''))) removed.push(v.replace(/^@/, ''));
+        });
+      });
+      if (!removed.length) return [];
+      // rules left empty by it
+      e.css = css.replace(/(^|\n)[^{}\n]+\{\s*\}[ \t]*(?=\n|$)/g, '$1').replace(/\n{3,}/g, '\n\n');
+      return removed;
+    }
+
+    function markOverrides(key) {
+      if (view !== 'visual' || key === 'default') return;
+      const found = overrides(key);
+      editor.querySelectorAll('.bs-te-row').forEach((row) => {
+        const hit = found[row.dataset.token];
+        row.classList.toggle('is-overridden', !!hit);
+        let note = row.querySelector('.bs-te-over');
+        if (!hit) { if (note && !note.classList.contains('is-removed')) note.remove(); return; }
+        if (!note) {
+          note = document.createElement('small');
+          note.className = 'bs-te-over';
+          row.appendChild(note);
+        }
+        note.classList.remove('is-removed');
+        note.innerHTML = '⚠ ' + esc(T.OVER_ROW).replace('%s', hit.map((v) => '<code>' + esc(v) + '</code>').join(', '));
+      });
+      const body = editor.querySelector('.bs-te-body');
+      let banner = editor.querySelector('.bs-te-overbanner');
+      const n = Object.keys(found).length;
+      if (!n) { if (banner) banner.remove(); return; }
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.className = 'alert alert-warning bs-te-overbanner';
+        body.insertBefore(banner, body.firstChild);
+      }
+      banner.innerHTML = '<span>' + esc(T.OVER_BANNER.replace('%d', n)) + '</span> <button type="button" class="btn btn-sm btn-warning" data-strip="all">' + esc(T.OVER_STRIP) + '</button>';
+    }
+
+    function stripped(key, removed, token) {
+      updateHead(key);
+      markOverrides(key);
+      if (!removed.length || !token) return;
+      const row = editor.querySelector('.bs-te-row[data-token="' + token + '"]');
+      if (!row) return;
+      let note = row.querySelector('.bs-te-over');
+      if (!note) { note = document.createElement('small'); row.appendChild(note); }
+      note.className = 'bs-te-over is-removed';
+      note.innerHTML = '✓ ' + esc(T.OVER_REMOVED).replace('%s', removed.map((v) => '<code>' + esc(v) + '</code>').join(', '));
+    }
+
     function save() {
       Object.keys(custom).forEach((key) => {
         const e = custom[key];
@@ -180,6 +262,7 @@
     }
 
     function setToken(key, token, value) {
+      const removed = strip(key, [token]);
       const e = entry(key);
       e.vars = e.vars || {};
       const preset = (cfg.presets[key] || {})[token];
@@ -191,6 +274,7 @@
       deps(key);
       mock(root.querySelector('.bs-theme-card[data-theme="' + key + '"]'), tokensOf(key));
       save();
+      if (removed.length) stripped(key, removed, token);
     }
 
     // rows that depend on another one: the Google font name, the accent colour under "as in Gridbox"
@@ -287,6 +371,7 @@
       if (view === 'css') bindCss(key);
       else if (key !== 'default') {
         deps(key);
+        markOverrides(key);
         const t = tokensOf(key);
         if (t.font === 'google' && t.google_font) checkGoogle(key, t.google_font);
         else if (t.font === 'google') { const st = editor.querySelector('.bs-te-gstate'); if (st) st.textContent = T.GOOGLE_EMPTY; }
@@ -337,6 +422,12 @@
       if (tab) {
         view = tab.dataset.view;
         render();
+        return;
+      }
+      if (e.target.closest('[data-strip]')) {
+        const removed = strip(key, Object.keys(VARS));
+        save();
+        stripped(key, removed, null);
         return;
       }
       if (e.target.closest('.bs-te-reset-all')) {

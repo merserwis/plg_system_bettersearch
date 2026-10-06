@@ -200,7 +200,8 @@ final class Indexer
             $db   = $this->db;
             $row  = $apps ? $db->setQuery('SELECT COUNT(*), IFNULL(SUM(CRC32(CONCAT_WS(' . $db->quote('|') . ', id, published, page_access, language, created, end_publishing))), 0)'
                 . ' FROM ' . $db->quoteName('#__gridbox_pages') . ' WHERE app_id IN (' . implode(',', $apps) . ')')->loadRow() : [0, 0];
-            $vis  = substr(md5(implode('|', (array) $row)), 0, 12);
+            // redirects give products old names (Redirects): their change also renews the cached results
+            $vis  = substr(md5(implode('|', (array) $row) . '|' . Redirects::signature($db)), 0, 12);
             $this->setState('vis', $vis);
             $this->setState('vis_at', (string) time());
         }

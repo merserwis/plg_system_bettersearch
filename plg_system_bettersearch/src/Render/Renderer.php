@@ -228,6 +228,7 @@ final class Renderer
             foreach ($items as $item) {
                 if (isset($data[$item['id']])) {
                     $data[$item['id']]->featured = !empty($item['featured']);
+                    $data[$item['id']]->replaced = (string) ($item['replaced'] ?? '');
                     // -1: one list of everything; 0 is the group of the pages
                     $byApp[$this->bool('live_group_apps', true) ? $item['app_id'] : -1][] = $data[$item['id']];
                 }
@@ -315,6 +316,7 @@ final class Renderer
         $price   = $this->bool('live_show_price', true) ? $this->price($row) : '';
         $badge   = $row->featured && $this->bool('featured_badge', true)
             ? '<span class="bs-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>' : '';
+        $badge  .= $this->replacedBadge($row, 'bs-badge bs-replaced');
         $badge   = $this->productBadges($row, 'live', 'bs-badges', 'bs-pbadge', $badge);
         // buttons beside the link of the result (a button inside a link is not allowed)
         $actions = $this->actions($row, 'live');
@@ -326,6 +328,27 @@ final class Renderer
             . '<span class="bs-info">' . $badge . '<span class="bs-title">' . $this->mark($row->title) . '</span>'
             . ($meta ? '<span class="bs-meta">' . implode('<span class="bs-dot">·</span>', $meta) . '</span>' : '')
             . $excerpt . '</span>' . $price . '</a>' . ($actions !== '' ? '<span class="bs-actions">' . $actions . '</span>' : '') . '</li>';
+    }
+
+    /** The query in the results without bold type and/or without its colours (settings; also over a theme). */
+    private function markCss(string $selector): string
+    {
+        $css = $this->bool('highlight_bold', true) ? '' : 'font-weight:inherit;';
+        $css .= $this->bool('highlight_mark', true) ? '' : 'background:none;color:inherit;';
+
+        return $css === '' ? '' : $selector . '{' . $css . '}';
+    }
+
+    /** "Replaced": the result was found by the old name of a product Joomla redirects to it (the old name on hover). */
+    private function replacedBadge(object $row, string $class): string
+    {
+        if (empty($row->replaced) || !$this->bool('replaced_badge', true)) {
+            return '';
+        }
+        $esc  = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        $text = $this->text('text_replaced', 'PLG_SYSTEM_BETTERSEARCH_T_REPLACED');
+
+        return '<span class="' . $class . '" title="' . $esc($this->fmt($this->text('text_replaces', 'PLG_SYSTEM_BETTERSEARCH_T_REPLACES'), ['%s' => (string) $row->replaced])) . '">' . $esc($text) . '</span>';
     }
 
     /**
@@ -380,6 +403,7 @@ final class Renderer
             '--bs-item-dur'  => $this->int('live_item_duration', 260, 0, 2000) . 'ms',
             '--bs-stagger'   => $this->int('live_item_stagger', 35, 0, 500) . 'ms',
             '--bs-feat'      => $this->color('featured_color', 'var(--bs-accent)'),
+            '--bs-repl'      => $this->color('replaced_color', '#64748b'),
         ];
 
         // a theme other than the default replaces the colour and shape settings above
@@ -486,6 +510,7 @@ CSS;
         if ($theme !== null) {
             $css .= Themes::liveRules($theme);
         }
+        $css .= '.bs-live .bs-badge.bs-replaced{background:var(--bs-repl,#64748b);color:#fff}' . $this->markCss('.bs-live mark');
 
         // the administrator's own CSS last, so it wins over everything above
         return $css . Themes::css($this->params);
@@ -685,6 +710,7 @@ CSS;
         foreach ($slice as $item) {
             if (isset($data[$item['id']])) {
                 $data[$item['id']]->featured = !empty($item['featured']);
+                $data[$item['id']]->replaced = (string) ($item['replaced'] ?? '');
                 $html .= $this->card($data[$item['id']], $state['page'] === 1 && $index++ < $this->deviceColumns());
                 $this->listed[] = ['name' => (string) $data[$item['id']]->title, 'url' => (string) $data[$item['id']]->link];
             }
@@ -699,6 +725,7 @@ CSS;
         $html = '<li class="bsr-card' . ($row->featured ? ' is-featured' : '') . '" data-bs-id="' . (int) $row->id . '"><a class="bsr-cover" href="' . $esc($row->link) . '" aria-label="' . $esc($row->title) . '" tabindex="-1"></a>';
         $featured = $row->featured && $this->bool('featured_badge', true)
             ? '<span class="bsr-badge">' . $esc($this->text('text_featured', 'PLG_SYSTEM_BETTERSEARCH_T_FEATURED')) . '</span>' : '';
+        $featured .= $this->replacedBadge($row, 'bsr-badge bsr-replaced');
         $html .= $this->productBadges($row, 'page', 'bsr-badges', 'bsr-pbadge', $featured);
 
         if ($this->bool('page_image', true) && $this->str('page_image_position', 'top', ['top', 'left', 'right', 'none']) !== 'none') {
@@ -877,6 +904,7 @@ CSS;
             '--bsr-align'      => $this->str('page_align', 'left', ['left', 'center']) === 'center' ? 'center' : 'start',
             '--bsr-max'        => $this->int('page_max_width', 0, 0, 3000) > 0 ? $this->int('page_max_width', 0, 0, 3000) . 'px' : 'none',
             '--bsr-feat'       => $this->color('featured_color', 'var(--bsr-accent)'),
+            '--bsr-repl'       => $this->color('replaced_color', '#64748b'),
         ];
 
         $theme = Themes::tokens($this->params);
@@ -990,6 +1018,8 @@ CSS);
             'border' => "$s .bsr-card:hover{border-color:var(--bsr-accent)}",
             default  => '',
         };
+
+        $css .= "$s .bsr-badge.bsr-replaced{background:var(--bsr-repl,#64748b);color:#fff}" . $this->markCss("$s mark");
 
         // columns for the other devices (the visitor's device is the base value above)
         $css .= "@media (min-width:1025px){{$s}{--bsr-cols:$colsD}}@media (min-width:769px) and (max-width:1024px){{$s}{--bsr-cols:$colsT}}"

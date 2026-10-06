@@ -107,14 +107,14 @@ final class Searcher
         // 1. as typed, model codes joined ("mi 3155" = "mi3155")
         $mode   = 'exact';
         $groups = $this->prepareAll($words, true, $tech);
-        $items  = $this->run($groups, $phrase, $apps, $explain, false);
+        $items  = $this->replaced($this->run($groups, $phrase, $apps, $explain, false), $groups, $phrase, $apps, $explain);
 
         // 1b. no item has those values: the same text searched as words (as before values were known)
         if (!$items && $tech) {
             $tech   = [];
             $words  = $query;
             $groups = $this->prepare($query, true);
-            $items  = $this->run($groups, $phrase, $apps, $explain, false);
+            $items  = $this->replaced($this->run($groups, $phrase, $apps, $explain, false), $groups, $phrase, $apps, $explain);
         }
 
         // 2. the parts of a joined code as separate words
@@ -122,7 +122,7 @@ final class Searcher
             $plain = $this->prepareAll($words, false, $tech);
             if (array_column($plain, 'term') !== array_column($groups, 'term')) {
                 $groups = $plain;
-                $items  = $this->run($groups, $phrase, $apps, $explain, false);
+                $items  = $this->replaced($this->run($groups, $phrase, $apps, $explain, false), $groups, $phrase, $apps, $explain);
                 $mode   = 'split';
             }
         }
@@ -133,7 +133,7 @@ final class Searcher
             $fix = $this->correct($words);
             if ($fix !== '' && $fix !== $this->norm->fold($words)) {
                 $tried = $this->prepareAll($fix, true, $tech);
-                $items = $this->run($tried, $this->norm->compact($fix), $apps, $explain, false);
+                $items = $this->replaced($this->run($tried, $this->norm->compact($fix), $apps, $explain, false), $tried, $this->norm->compact($fix), $apps, $explain);
                 if ($items) {
                     $groups    = $tried;
                     $mode      = 'typo';
@@ -486,6 +486,52 @@ final class Searcher
         return $items;
     }
 
+    /**
+     * Products found by an old name: the query matches (every word) the name of a product whose
+     * address Joomla redirects to an indexed product (see Redirects). The new product is added, or
+     * ranked by the old name when that matches better than its own data, and marked with the old
+     * name ("Replaced").
+     */
+    private function replaced(array $items, array $groups, string $phrase, array $apps, bool $explain): array
+    {
+        if (!$groups || !$this->params->get('index_redirects', 1)) {
+            return $items;
+        }
+        $entries = Redirects::entries($this->db, $this->norm);
+        if (!$entries) {
+            return $items;
+        }
+        $hits = [];
+        foreach ($entries as $entry) {
+            $s = $this->scorer->score($groups, (object) ['t_title' => $entry['t'], 'c_title' => $entry['c']], $phrase, $explain);
+            if ($s['matched'] < count($groups) || $s['missed'] > 0 || $s['score'] <= ($hits[$entry['id']]['score'] ?? 0)) {
+                continue;
+            }
+            $hits[$entry['id']] = ['score' => $s['score'], 'name' => $entry['name'], 'reasons' => $s['reasons']];
+        }
+        if (!$hits) {
+            return $items;
+        }
+        $new = array_diff_key($hits, $items);
+        $new = $new ? $this->visibleIds(array_keys($new), $apps) : [];
+        foreach ($hits as $id => $hit) {
+            $why = $explain ? array_merge(['old name (redirect): ' . $hit['name']], $hit['reasons']) : [];
+            if (isset($items[$id])) {
+                if ($hit['score'] > $items[$id]['base']) {
+                    $items[$id]['score']   += $hit['score'] - $items[$id]['base'];
+                    $items[$id]['base']     = $hit['score'];
+                    $items[$id]['replaced'] = $hit['name'];
+                    $items[$id]['reasons']  = array_merge($items[$id]['reasons'], $why);
+                }
+            } elseif (isset($new[$id])) {
+                $items[$id] = array_merge($new[$id], ['score' => round($hit['score'], 3), 'base' => $hit['score'], 'replaced' => $hit['name'],
+                    'reasons' => $why, 'matched' => count($groups)]);
+            }
+        }
+
+        return $items;
+    }
+
     /** Published, live, visible pages of the indexed apps, without excluded categories and products. */
     private function visibility($query, array $apps): void
     {
@@ -563,6 +609,7 @@ final class Searcher
             'base'        => $base,
             'pinned'      => false,
             'featured'    => false,
+            'replaced'    => '',
             'reasons'     => $reasons,
             'price'       => $row->price === null ? null : (float) $row->price,
             'title'       => (string) $row->title,
