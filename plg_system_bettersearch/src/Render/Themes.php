@@ -61,6 +61,42 @@ final class Themes
         'blur'         => 'int:0:40',
     ];
 
+    /**
+     * What each token sets in the CSS: custom properties, plain properties (blur) or, with "@", a
+     * rule. The visual editor warns when the own CSS sets them too (it comes last and wins, e.g. the
+     * theme CSS pasted with "Insert theme CSS") and removes them from it when the token is changed.
+     */
+    public const VARS = [
+        'bg'           => ['--bs-bg', '--bsr-card-bg'],
+        'bg_opacity'   => ['--bs-bg', '--bsr-card-bg'],
+        'surface'      => ['--bsr-surface'],
+        'text'         => ['--bs-text', '--bsr-body'],
+        'muted'        => ['--bs-muted', '--bsr-text'],
+        'accent'       => ['--bs-accent', '--bsr-accent'],
+        'accent_site'  => ['--bs-accent', '--bsr-accent'],
+        'on_accent'    => ['--bs-on-accent', '--bsr-on-accent'],
+        'hover'        => ['--bs-hover', '--bsr-hover-bg'],
+        'border'       => ['--bs-border', '--bsr-border'],
+        'title'        => ['--bsr-title'],
+        'price'        => ['--bsr-price'],
+        'img_bg'       => ['--bs-img-bg', '--bsr-img-bg'],
+        'hl_bg'        => ['--bs-hl-bg', '--bsr-hl-bg'],
+        'hl_color'     => ['--bs-hl-color', '--bsr-hl-color'],
+        'input_bg'     => ['--bs-input-bg', '--bsr-input-bg'],
+        'input_text'   => ['--bs-input-text', '--bsr-input-text'],
+        'radius'       => ['--bs-radius'],
+        'card_radius'  => ['--bsr-radius'],
+        'btn_radius'   => ['--bs-btn-radius', '--bsr-btn-radius'],
+        'border_width' => ['--bs-bw', '--bsr-bw'],
+        'shadow'       => ['--bs-shadow'],
+        'card_shadow'  => ['--bsr-shadow'],
+        'card_hover'   => ['@.bsr-card:hover'],
+        'blur'         => ['backdrop-filter', '-webkit-backdrop-filter'],
+        'font'         => ['--bs-ff', '--bsr-ff'],
+        'google_font'  => ['--bs-ff', '--bsr-ff'],
+        'title_weight' => ['--bs-tw', '--bsr-tw'],
+    ];
+
     /** Font stacks of fonts installed on the visitors' systems (nothing is downloaded); "google" = a Google font. */
     public const FONTS = [
         'inherit'       => 'inherit',
@@ -472,7 +508,8 @@ final class Themes
 
             return $out . "}\n";
         };
-        $out = '/* Better Search for Gridbox: ' . $name . " */\n\n";
+        $out = '/* Better Search for Gridbox: ' . $name . " */\n"
+            . "/* These values win over the visual editor; changing a setting there removes its value here. */\n\n";
         if ($tokens === null) {
             return $out . "/* .bs-live = live results, .bettersearch-results = results page */\n"
                 . ".bs-live {\n  /* --bs-accent: #1a73e8; */\n}\n.bettersearch-results {\n  /* --bsr-accent: #1a73e8; */\n}\n";

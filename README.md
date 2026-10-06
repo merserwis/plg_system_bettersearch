@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.6.2-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.6.3-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -30,6 +30,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **4 languages:** English (default), Polish, Ukrainian and German — chosen automatically by the language of the administrator (settings) and of the site (texts shown to shoppers); any other language falls back to English, text by text. Right-to-left layouts are supported.
 * **Prices like in the store:** sale prices, active store sales and variations (“from …”), in the currency picked in Gridbox's currency switcher, formatted like Gridbox.
 * **Fast WebP thumbnails:** a 64 px result image is a ~1.5 KB WebP copy instead of a full-size photo — made once, kept on the server, EXIF rotation and transparency preserved.
+* **Old names through redirects (new in 1.6.3):** when a product is replaced and its address is redirected to the new one (Joomla *Redirects*), a search for the old name finds the new product with the badge **“Replaced”** (the old name on hover); chains of redirects are followed.
 * **Staff left out of the statistics (new in 1.6.2):** IP addresses, networks or `10.48.*` patterns (also behind Cloudflare) and chosen user groups are not counted in statistics, conversions and the e-mail report.
 * **Search statistics:** most searched queries, **queries without results** (what shoppers miss) and recent ones — no personal data. **(1.4.0)** Each query without results has two buttons: *Synonym* (the phrase will also find another word) and *Redirect* (the phrase opens a page).
 * **Synonym and redirect editors (new in 1.4.0):** a table editor for the synonym dictionary (two-way groups or one-way “also finds”) and for **redirects** — a phrase (written in any way) that opens a chosen page, e.g. a brand page, instead of the results; the live results show it as the first option. Both can still be edited as text.
@@ -82,7 +83,7 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ## 🚀 Installation & Package Structure
 
-1. Download `pkg_bettersearch-1.6.2.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
+1. Download `pkg_bettersearch-1.6.3.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
 2. In the Joomla administrator go to **System → Install → Extensions** and upload the package.
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
@@ -227,6 +228,9 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Cache results (minutes) | `15` | Results of the same query are kept for this time. Every index update and every change of settings starts afresh. 0 = no cache. |
 | Search statistics | Yes | Counts the queries of the results page (no personal data): most searched, without results. See tab “Index & tools”. |
 | Conversion statistics | Yes | Count clicks on search results and products put into the cart after such a click, per query (Tools → Conversions). A first-party cookie (bs_src: product id → query, for 30 days) links the cart to the search; no personal data is stored. |
+| Leave out of the statistics (IP addresses) | *(empty)* | Searches, clicks and carts from these addresses are not counted (search statistics, conversions, e-mail report) – e.g. the company office, so the statistics show customers only. One per line or separated by commas: an address (`83.1.2.3`, `2001:db8::1`), a network (`91.200.10.0/24`, `2001:db8::/48`) or an IPv4 address with * (`10.48.*`). Text after # is a comment. The search itself works the same for everybody. |
+| Leave out logged-in users of the groups | *(empty)* | Searches of logged-in members of these user groups (e.g. staff) are not counted, from any address. |
+| Visitor address from | Automatic (also behind Cloudflare / a proxy) | Where the visitor’s address is read. Automatic: behind Cloudflare or another proxy the address it passes on (CF-Connecting-IP, X-Real-IP, X-Forwarded-For), else the connection’s. Connection only: when the site has no proxy in front of it. |
 
 ### Appearance
 
@@ -243,6 +247,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Search variant codes (SKU) | Yes |  |
 | Search parent category names | Yes | A query with a category name also finds the products of its subcategories. |
 | Search tags | Yes |  |
+| Find products by redirects | Yes | Redirects of Joomla (Redirects component): a product whose address is redirected to another one gives that product its old name. A search for the old name (e.g. AAA) shows the new product (BBB) with the badge “Replaced”. The old name is the title of the old product (when it is still in Gridbox, e.g. unpublished), else the words of its address, plus the note of the redirect. |
 | Search descriptions | Yes | Words found only in descriptions count much less than in names, codes, fields and categories. |
 | Intro text | Yes |  |
 | Meta description and keywords | Yes |  |
@@ -294,6 +299,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Recent searches | Yes | A click into an empty search field shows the visitor's last searches. They are kept only in the visitor's own browser (nothing is sent to the site); the visitor can remove them one by one or all at once. |
 | Number of recent searches | `5` |  |
 | Suggest after … searches | `2` | A phrase is suggested only when it was searched at least this many times (a one-off typo is not suggested to others). |
+| Order of the result sections | *(empty)* | Drag the sections (or use the arrows) into the order in which they appear in the live results: matching categories, each app (store, blog…) and the pages. The first app shows the most results (“Products shown”), the others “Items of other apps”. The results page lists its app filters in this order too. |
 | Group by app | Yes | With several searched apps (store, blog…): one section each. |
 | Items of other apps | `3` |  |
 | Matching categories | Yes | Categories whose name matches the query, above the products. |
@@ -350,6 +356,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Categories in the filter | The product's own category | The product's own category / Top-level category |
 | Categories in the filter (max) | `12` |  |
 | App filter | Yes |  |
+| Group by the order of the sections | No | With “Best match”: the results of the first section first, then those of the next one (by relevance inside each). Off = all results mixed by relevance. |
 | Filters beside the results | Yes | Brand, price range, sale only and in stock only. Each filter shows how many results it leaves; filters that would change nothing are not shown. |
 | Position of the filters | Beside the results (above them on phones) | Beside the results (above them on phones) / Above the results |
 | Brand field | — no brand filter — | The Gridbox product field with the brand (a list field, e.g. “Manufacturer”). Empty = no brand filter. |
@@ -399,9 +406,13 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 
 | Option | Default | Description |
 |---|---|---|
+| Product badges | Results page and live results | The badges set on the products in Gridbox (e.g. “New”, “Recommended”, “Bestseller”, the sale badge with the discount), in their colours and order — on the cards of the results page and next to the name in the live results. “Featured” of a query rule stays first. |
+| Badges per product at most | `3` |  |
 | Badge on featured products | Yes | A label (“Recommended”, text on the tab “Texts & images”) on the products featured by a rule. |
 | Frame around featured products | Yes |  |
 | Colour of featured products | *(theme)* | Badge, frame and background of featured products. Empty = the accent colour. |
+| Badge “Replaced” | Yes | On products found by the old name of a product redirected to them (Search engine → Find products by redirects). The old name shows on hover. |
+| Colour of the badge “Replaced” | *(theme)* | Empty = grey. |
 | Availability and delivery time | No | Shows the stock state of each product from Gridbox (available, last items, out of stock) and the delivery time. Gridbox keeps the stock quantity; the delivery time can come from a product field or from the texts below. |
 | Show in | Live results and results page | Live results and results page / Live results only / Results page only |
 | “Last items” from | `3` | At this quantity or less “Last items” is shown instead of “Available”. 0 = never. Products without a stock quantity in Gridbox are always “Available”. |
@@ -437,6 +448,8 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Option | Default | Description |
 |---|---|---|
 | Mark the query in results | Yes |  |
+| Query in bold | Yes | The words of the query in bold type. |
+| Query highlighted | Yes | The words of the query in the colour and on the background of the highlight (of the theme, or set below). Off: in the colour of the text. |
 | Mark background | *(theme)* |  |
 | Mark colour | *(theme)* |  |
 | No results | *(empty)* | Default: “No results for %s.”. |
@@ -458,6 +471,8 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Group of pages | *(empty)* | Default: “Pages”. |
 | Recent searches | *(empty)* | Default: “Recent searches”. |
 | Badge of featured products | *(empty)* | Default: “Recommended”. |
+| Badge of replacing products | *(empty)* | Default: “Replaced”. |
+| Hint of that badge (%s = the old name) | *(empty)* | Default: “Replaces: %s”. |
 | Last items (%d = quantity) | *(empty)* | Default: “Last items”. |
 | Quantity (%d) | *(empty)* | Default: “%d pcs”. |
 | “Add to cart” button | *(empty)* | Default: “Add to cart”. |
@@ -568,6 +583,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.3** — Products found by the old name of a product redirected to them (Joomla Redirects), with the badge “Replaced”; bold type and highlight of the query switched separately; the theme editor shows and removes values of the own CSS that overrode its settings (shadow, font…).
 * **1.6.2** — Statistics of customers only: IP addresses / networks (also behind Cloudflare) and user groups left out of search statistics, conversions and the e-mail report; “Add my address”; the e-mail report for any period (calendar from – to, quick ranges).
 * **1.6.1** — Order of the result sections (categories, apps, pages) for the live results and the results page; “Accent as in Gridbox” for every theme, 14 system font stacks and Google Fonts, background opacity; theme editor on wide screens (two roomy columns, real colour swatches).
 * **1.6.0** — Themes: Minimal, Soft, Glass, Dark and Bold beside the unchanged Basic look, a visual theme editor and a CSS editor with the live preview. A Basic / Advanced switch for the settings.

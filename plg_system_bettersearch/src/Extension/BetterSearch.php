@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.2';
+    public const VERSION = '1.6.3';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -1031,7 +1031,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             // only what the pages read later: ids, apps, categories, order (not titles, prices, reasons)
             $lean          = $result;
             $lean['items'] = array_map(fn ($i) => ['id' => $i['id'], 'app_id' => $i['app_id'], 'category_id' => $i['category_id'],
-                'cats' => $i['cats'], 'score' => $i['score'], 'pinned' => $i['pinned'], 'featured' => !empty($i['featured'])], $result['items']);
+                'cats' => $i['cats'], 'score' => $i['score'], 'pinned' => $i['pinned'], 'featured' => !empty($i['featured']),
+                'replaced' => (string) ($i['replaced'] ?? '')], $result['items']);
             $cache->store($lean, $key);
         }
 
@@ -2155,7 +2156,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 $rows     = [];
                 foreach (array_slice($result['items'], 0, 60) as $item) {
                     $rows[] = ['id' => $item['id'], 'title' => $titles[$item['id']]['title'] ?? '', 'sku' => $titles[$item['id']]['sku'] ?? '',
-                        'score' => $item['score'], 'pinned' => $item['pinned'], 'featured' => !empty($item['featured']), 'reasons' => $item['reasons']];
+                        'score' => $item['score'], 'pinned' => $item['pinned'], 'featured' => !empty($item['featured']), 'replaced' => (string) ($item['replaced'] ?? ''), 'reasons' => $item['reasons']];
                 }
 
                 return ['query' => $query, 'mode' => $result['mode'], 'corrected' => $result['corrected'], 'total' => $result['total'],

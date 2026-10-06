@@ -2,6 +2,26 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.3 — 2026-10-06
+
+### 🔁 Old product names through redirects
+
+- **New option *Find products by redirects*** (tab *Search engine*, on by default): when a product is replaced by another one and its address is redirected to the new product in Joomla (*System → Redirects*), a search for the old name — e.g. `AAA` — shows the new product `BBB`.
+- Such results carry the badge **“Replaced”** (tab *Products*: on/off and colour; tab *Texts & images*: own text). On hover the badge names the old product (“Replaces: AAA”).
+- The old name is the title of the old product while it is still in Gridbox (unpublished or in the trash), otherwise the words of its old address; the *Note* of the redirect counts as one more name (e.g. the old model code). Chains of redirects (A → B → C) are followed; addresses with or without the domain, `.html` and non-SEF `index.php?option=com_gridbox&view=page&id=…` are understood.
+- A product that matches the query better by its own name is shown as before, without the badge. Changed redirects reach the results within a minute; no reindexing is needed.
+
+### ✍️ Bold and highlight of the query separately
+
+- Tab *Texts & images*: two new switches under *Mark the query in results* — **Query in bold** and **Query highlighted** (colour and background of the highlight). Each can be turned off on its own, also with a theme.
+
+### 🎨 Theme editor: settings overridden by the own CSS
+
+- **Fix:** changing e.g. the shadow or the font in the visual editor showed no effect when the theme's own CSS (tab *CSS*) set the same values — typically after *Insert theme CSS*, which copies all values of the theme into the own CSS, where they win.
+- The editor now marks such settings (“Set in the own CSS: `--bs-shadow`”) and says how many there are; changing a setting removes its value from the own CSS, and *Remove them from the own CSS* removes all of them at once. The rest of the own CSS stays.
+- *Insert theme CSS* adds a note that the inserted values win over the visual editor.
+- Polish texts: “czcionka” renamed to “font”.
+
 ## 1.6.2 — 2026-10-06
 
 ### 🧑‍💼 Statistics of customers only

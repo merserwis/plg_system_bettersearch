@@ -71,7 +71,7 @@ class BsthemeField extends FormField
         foreach (['EDITOR_TITLE', 'EDITOR_DEFAULT', 'MODE_VISUAL', 'MODE_CSS', 'RESET', 'RESET_CONFIRM', 'BACK_DEFAULT', 'CHANGED', 'TOKEN_RESET', 'AS_SITE',
             'G_COLORS', 'G_SHAPE', 'G_EFFECTS', 'G_TYPE', 'CSS_HELP', 'CSS_INSERT', 'CSS_INSERT_CONFIRM', 'CSS_CLEAR', 'CSS_CLEAR_CONFIRM', 'CSS_BRACES',
             'CSS_OK', 'CSS_CHARS', 'CSS_ACTIVE', 'CSS_SELECTORS', 'ACCENT_SITE_HINT', 'GOOGLE_NOTE', 'GOOGLE_CHECKING', 'GOOGLE_OK', 'GOOGLE_FAIL',
-            'GOOGLE_EMPTY'] as $k) {
+            'GOOGLE_EMPTY', 'OVER_ROW', 'OVER_BANNER', 'OVER_STRIP', 'OVER_REMOVED'] as $k) {
             $texts[$k] = $t('TE_' . $k);
         }
         foreach (array_keys(Themes::TOKENS) as $token) {
@@ -89,7 +89,7 @@ class BsthemeField extends FormField
             $names[$key] = $t('THEME_' . strtoupper($key));
         }
         $presets = array_map(fn ($p) => $p + Themes::EXTRA, Themes::PRESETS);
-        $config  = ['presets' => $presets + ['default' => $default], 'tokens' => Themes::TOKENS, 'groups' => self::GROUPS,
+        $config  = ['presets' => $presets + ['default' => $default], 'tokens' => Themes::TOKENS, 'vars' => Themes::VARS, 'groups' => self::GROUPS,
             'names' => $names, 'texts' => $texts, 'fonts' => Themes::FONTS, 'primary' => Themes::sitePrimary()];
 
         return '<div class="bs-themes" data-config="' . $esc(json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '">'

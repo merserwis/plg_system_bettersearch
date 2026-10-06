@@ -6,7 +6,7 @@
     <creationDate>2026-10-06</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.2</version>
+    <version>1.6.3</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -118,6 +118,10 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="index_tags" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_TAGS_LABEL">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="index_redirects" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_REDIRECTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_REDIRECTS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -584,6 +588,11 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="featured_color" parentclass="bs-adv" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_FEATURED_COLOR_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FEATURED_COLOR_DESC" />
+                <field name="replaced_badge" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="index_redirects:1" label="PLG_SYSTEM_BETTERSEARCH_REPLACED_BADGE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REPLACED_BADGE_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="replaced_color" parentclass="bs-adv" type="color" default="" showon="index_redirects:1[AND]replaced_badge:1" label="PLG_SYSTEM_BETTERSEARCH_REPLACED_COLOR_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REPLACED_COLOR_DESC" />
                 <field name="avail_spacer" parentclass="bs-adv" type="spacer" hr="true" />
                 <field name="avail_enabled" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_ENABLED_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AVAIL_ENABLED_DESC">
                     <option value="0">JNO</option>
@@ -681,8 +690,16 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="highlight_bg" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BG_LABEL" />
-                <field name="highlight_color" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_COLOR_LABEL" />
+                <field name="highlight_bold" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="highlight:1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BOLD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BOLD_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="highlight_mark" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="highlight:1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_MARK_LABEL" description="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_MARK_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="highlight_bg" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]highlight_mark:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BG_LABEL" />
+                <field name="highlight_color" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]highlight_mark:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_COLOR_LABEL" />
                 <field name="text_no_results" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_NO_RESULTS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS" translateHint="true" />
                 <field name="text_corrected" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CORRECTED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CORRECTED" translateHint="true" />
                 <field name="text_partial" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PARTIAL_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PARTIAL" translateHint="true" />
@@ -702,6 +719,8 @@
                 <field name="text_pages" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PAGES_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SITE_PAGES" translateHint="true" />
                 <field name="text_recent" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_RECENT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_RECENT" translateHint="true" />
                 <field name="text_featured" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_FEATURED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_FEATURED" translateHint="true" />
+                <field name="text_replaced" parentclass="bs-adv" type="text" default="" showon="index_redirects:1" label="PLG_SYSTEM_BETTERSEARCH_TEXT_REPLACED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_REPLACED" translateHint="true" />
+                <field name="text_replaces" parentclass="bs-adv" type="text" default="" showon="index_redirects:1" label="PLG_SYSTEM_BETTERSEARCH_TEXT_REPLACES_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_REPLACES" translateHint="true" />
                 <field name="text_low_stock" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_LOW_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_LOW_STOCK" translateHint="true" />
                 <field name="text_quantity" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_QUANTITY_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_QUANTITY" translateHint="true" />
                 <field name="text_add_to_cart" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ADD_TO_CART_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ADD_TO_CART" translateHint="true" />
