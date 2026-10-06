@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.4';
+    public const VERSION = '1.6.5';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -1416,7 +1416,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
-    /** Every product (id, title, code, app, published) for the instant filter of the product pickers. */
+    /** Every published product (id, title, code, app, published) for the instant filter of the product pickers. */
     private function allProducts(string $scope = 'products'): array
     {
         $db    = $this->db();
@@ -1425,6 +1425,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             ->from($db->quoteName('#__gridbox_pages', 'p'))
             ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
             ->where('p.page_category <> ' . $db->quote('trashed'))
+            // only what visitors can find: unpublished products and pages are left out of the pickers
+            ->where('p.published = 1')
             ->order('p.title ASC');
         $this->pickerScope($query, $scope);
         $rows = $db->setQuery($query, 0, 30000)->loadRowList() ?: [];
@@ -2549,7 +2551,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
-    /** Products for the picker: by id, title or SKU. */
+    /** Published products for the picker: by id, title or SKU. */
     private function findProducts(string $q, string $scope = 'products'): array
     {
         $db    = $this->db();
@@ -2558,6 +2560,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             ->from($db->quoteName('#__gridbox_pages', 'p'))
             ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
             ->where('p.page_category <> ' . $db->quote('trashed'))
+            // only what visitors can find: unpublished products and pages are left out of the pickers
+            ->where('p.published = 1')
             ->order('p.title ASC')
             ->setLimit(30);
         $this->pickerScope($query, $scope);

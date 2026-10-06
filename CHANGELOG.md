@@ -2,6 +2,13 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.5 — 2026-10-06
+
+### 🚫 Only published items in the pickers
+
+- The product and page pickers (tab *Ranking & exclusions*: rules, boosted products, excluded products and pages; also the actions in the statistics) list and find **only published products and pages**. Unpublished ones are left out, as the search on the site never shows them anyway.
+- Items chosen earlier that have been unpublished since stay in their lists, marked *unpublished*, so they can still be removed.
+
 ## 1.6.4 — 2026-10-06
 
 ### ✍️ How the query is marked — one choice in Appearance
