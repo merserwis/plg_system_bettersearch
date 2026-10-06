@@ -62,6 +62,11 @@
     const status = panel.querySelector('.bs-preview-status');
     const query = panel.querySelector('.bs-preview-query input');
     const replay = panel.querySelector('[data-bs-replay]');
+    // the administrator's own system asks for less motion: the effects are not played for them (nor in this preview)
+    const motion = panel.querySelector('.bs-preview-motion');
+    const lessMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const motionNote = () => { if (motion) motion.hidden = !(lessMotion && lessMotion.matches && view === 'live'); };
+    if (lessMotion && lessMotion.addEventListener) lessMotion.addEventListener('change', motionNote);
     let view = panel.dataset.mode === 'page' ? 'page' : 'live';
     let device = 'desktop';
     let timer = null;
@@ -133,6 +138,7 @@
         // the frame gets its width before the document loads, so the panel is placed for that width
         frame.style.width = frameWidth() + 'px';
         replay.hidden = view !== 'live';
+        motionNote();
         frame.srcdoc = view === 'live' ? liveDocument(r, device) : pageDocument(r);
         status.textContent = (opts.texts && opts.texts.PREVIEW_COUNT ? opts.texts.PREVIEW_COUNT.replace('%d', r.count) : r.count);
       } catch (e) {

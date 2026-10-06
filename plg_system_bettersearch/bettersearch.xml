@@ -6,7 +6,7 @@
     <creationDate>2026-10-06</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.3</version>
+    <version>1.6.4</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -249,6 +249,18 @@
                 <field name="preview_theme" type="bspreview" mode="both" hiddenLabel="true" />
                 <field name="theme" type="bstheme" default="default" label="PLG_SYSTEM_BETTERSEARCH_THEME_LABEL" hiddenLabel="true" />
                 <field name="theme_custom" type="hidden" default="" filter="raw" />
+                <field name="highlight_style" type="list" default="bold_mark" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_STYLE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_STYLE_DESC">
+                    <option value="bold_mark">PLG_SYSTEM_BETTERSEARCH_HL_BOLD_MARK</option>
+                    <option value="bold">PLG_SYSTEM_BETTERSEARCH_HL_BOLD</option>
+                    <option value="mark">PLG_SYSTEM_BETTERSEARCH_HL_MARK</option>
+                    <option value="underline">PLG_SYSTEM_BETTERSEARCH_HL_UNDERLINE</option>
+                    <option value="bold_underline">PLG_SYSTEM_BETTERSEARCH_HL_BOLD_UNDERLINE</option>
+                    <option value="mark_underline">PLG_SYSTEM_BETTERSEARCH_HL_MARK_UNDERLINE</option>
+                    <option value="bold_mark_underline">PLG_SYSTEM_BETTERSEARCH_HL_BOLD_MARK_UNDERLINE</option>
+                    <option value="none">PLG_SYSTEM_BETTERSEARCH_HL_NONE</option>
+                </field>
+                <field name="highlight_bg" parentclass="bs-adv" type="color" default="" showon="highlight_style:bold_mark,mark,mark_underline,bold_mark_underline[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BG_LABEL" />
+                <field name="highlight_color" parentclass="bs-adv" type="color" default="" showon="highlight_style:bold_mark,mark,mark_underline,bold_mark_underline[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_COLOR_LABEL" />
             </fieldset>
 
             <!-- ============================================================ Live results -->
@@ -686,20 +698,6 @@
             <fieldset name="texts" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_TEXTS">
                 <field name="preview_texts" type="bspreview" mode="both" hiddenLabel="true" />
                 <field name="texts_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_TEXTS_NOTE" />
-                <field name="highlight" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_LABEL">
-                    <option value="0">JNO</option>
-                    <option value="1">JYES</option>
-                </field>
-                <field name="highlight_bold" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="highlight:1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BOLD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BOLD_DESC">
-                    <option value="0">JNO</option>
-                    <option value="1">JYES</option>
-                </field>
-                <field name="highlight_mark" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="highlight:1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_MARK_LABEL" description="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_MARK_DESC">
-                    <option value="0">JNO</option>
-                    <option value="1">JYES</option>
-                </field>
-                <field name="highlight_bg" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]highlight_mark:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BG_LABEL" />
-                <field name="highlight_color" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]highlight_mark:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_COLOR_LABEL" />
                 <field name="text_no_results" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_NO_RESULTS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS" translateHint="true" />
                 <field name="text_corrected" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CORRECTED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CORRECTED" translateHint="true" />
                 <field name="text_partial" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PARTIAL_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PARTIAL" translateHint="true" />

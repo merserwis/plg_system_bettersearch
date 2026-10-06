@@ -330,11 +330,34 @@ final class Renderer
             . $excerpt . '</span>' . $price . '</a>' . ($actions !== '' ? '<span class="bs-actions">' . $actions . '</span>' : '') . '</li>';
     }
 
-    /** The query in the results without bold type and/or without its colours (settings; also over a theme). */
+    /**
+     * How the query is marked in the results: any of bold, mark (colour and background of the
+     * highlight) and underline; none = not marked. Before 1.6.4: the switches highlight,
+     * highlight_bold and highlight_mark.
+     *
+     * @return string[]
+     */
+    private function highlightStyle(): array
+    {
+        $style = (string) $this->params->get('highlight_style', '');
+        if ($style === '') {
+            if (!$this->bool('highlight', true)) {
+                return [];
+            }
+
+            return array_keys(array_filter(['bold' => $this->bool('highlight_bold', true), 'mark' => $this->bool('highlight_mark', true)]));
+        }
+
+        return array_values(array_intersect(['bold', 'mark', 'underline'], explode('_', $style)));
+    }
+
+    /** The marked query in the chosen style (after the theme, so it applies to every theme). */
     private function markCss(string $selector): string
     {
-        $css = $this->bool('highlight_bold', true) ? '' : 'font-weight:inherit;';
-        $css .= $this->bool('highlight_mark', true) ? '' : 'background:none;color:inherit;';
+        $style = $this->highlightStyle();
+        $css   = in_array('bold', $style, true) ? '' : 'font-weight:inherit;';
+        $css  .= in_array('mark', $style, true) ? '' : 'background:none;color:inherit;';
+        $css  .= in_array('underline', $style, true) ? 'text-decoration:underline;text-decoration-thickness:.09em;text-underline-offset:.18em;' : '';
 
         return $css === '' ? '' : $selector . '{' . $css . '}';
     }
@@ -530,10 +553,10 @@ CSS;
 
         $frames = [
             'fade'       => 'from{opacity:0}to{opacity:1}',
-            'slide_up'   => 'from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}',
-            'slide_down' => 'from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}',
-            'zoom'       => 'from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}',
-            'flip'       => 'from{opacity:0;transform:perspective(900px) rotateX(-14deg)}to{opacity:1;transform:none}',
+            'slide_up'   => 'from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}',
+            'slide_down' => 'from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:none}',
+            'zoom'       => 'from{opacity:0;transform:scale(.88)}to{opacity:1;transform:none}',
+            'flip'       => 'from{opacity:0;transform:perspective(900px) rotateX(-28deg)}to{opacity:1;transform:none}',
             'expand'     => 'from{opacity:.4;clip-path:inset(0 0 100% 0 round var(--bs-radius))}to{opacity:1;clip-path:inset(0 0 0 0 round var(--bs-radius))}',
         ];
         if ($panel !== 'none') {
@@ -543,9 +566,9 @@ CSS;
 
         $itemFrames = [
             'fade'    => 'from{opacity:0}to{opacity:1}',
-            'fade_up' => 'from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}',
-            'slide'   => 'from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}',
-            'zoom'    => 'from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}',
+            'fade_up' => 'from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}',
+            'slide'   => 'from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}',
+            'zoom'    => 'from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}',
             'blur'    => 'from{opacity:0;filter:blur(6px)}to{opacity:1;filter:none}',
         ];
         if ($items !== 'none') {
@@ -1176,7 +1199,7 @@ CSS);
     public function mark(string $text): string
     {
         $esc = fn ($s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
-        if (!$this->highlight || !$this->bool('highlight', true)) {
+        if (!$this->highlight || !$this->highlightStyle()) {
             return $esc($text);
         }
 

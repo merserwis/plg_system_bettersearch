@@ -2,7 +2,7 @@
 <extension type="package" method="upgrade">
     <name>Better Search for Gridbox Package</name>
     <packagename>bettersearch</packagename>
-    <version>1.6.3</version>
+    <version>1.6.4</version>
     <creationDate>2026-10-06</creationDate>
     <author>Merserwis</author>
     <authorUrl>https://github.com/merserwis/</authorUrl>

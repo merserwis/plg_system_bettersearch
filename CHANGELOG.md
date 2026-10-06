@@ -2,6 +2,20 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.4 — 2026-10-06
+
+### ✍️ How the query is marked — one choice in Appearance
+
+- **New option *Query in the results*** (tab *Appearance*, under the themes): the words of the query in the names of the results (e.g. “Metrel”) can be **bold**, **highlighted** (colour and background of the highlight), **underlined**, any of them together, all three, or **not marked**. Works with every theme; the preview shows it at once.
+- It replaces the switches *Mark the query in results*, *Query in bold* and *Query highlighted* of the tab *Texts & images*; their settings are kept until the new option is saved. The highlight colours of the Basic theme moved along to *Appearance*.
+- The theme editor no longer underlines the names of settings overridden by the own CSS (the note under the setting stays).
+
+### 🎬 Appearing effects of the live panel
+
+- **Fix:** the effect of the panel was played when the field got the focus — with the short list of the last searches — and not again when the results came, so it was hardly ever seen. Now the results arrive with the effect as well.
+- The movements are more visible (slides 28 px instead of 10–12, zoom from 88 %, flip 28°; the effects of the results likewise).
+- The preview says when the administrator's own system asks for less motion (Windows: *Animation effects* off): browsers then play no effects — by design, for those visitors only.
+
 ## 1.6.3 — 2026-10-06
 
 ### 🔁 Old product names through redirects

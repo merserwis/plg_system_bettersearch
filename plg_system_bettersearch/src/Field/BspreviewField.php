@@ -54,6 +54,7 @@ class BspreviewField extends FormField
             . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-replay title="' . $t('REPLAY_DESC') . '">↻ ' . $t('REPLAY') . '</button></div>'
             . '<div class="bs-preview-frame"><iframe title="' . $t('TITLE') . '" loading="lazy"></iframe></div>'
             . '<div class="bs-preview-status small text-muted" aria-live="polite"></div>'
+            . '<div class="bs-preview-motion alert alert-warning small py-1 px-2 mt-2 mb-0" hidden>' . $t('REDUCED_MOTION') . '</div>'
             . '</div>';
     }
 }
