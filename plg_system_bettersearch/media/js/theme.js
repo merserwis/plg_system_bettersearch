@@ -496,11 +496,35 @@
     });
   }
 
+  // ================================================================ "add my IP address" (statistics)
+
+  function initMyIp() {
+    document.querySelectorAll('.bs-myip').forEach((box) => {
+      const button = box.querySelector('.bs-myip-add');
+      const area = document.querySelector('[name="jform[params][' + box.dataset.target + ']"]');
+      if (!button || !area) return;
+      button.addEventListener('click', () => {
+        const ip = box.dataset.ip;
+        const lines = area.value.split(/\r?\n/);
+        if (!lines.some((l) => l.replace(/#.*$/, '').split(/[,;]/).some((p) => p.trim() === ip))) {
+          area.value = (area.value.trim() ? area.value.replace(/\s*$/, '\n') : '') + ip;
+          area.dispatchEvent(new Event('input', { bubbles: true }));
+          area.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const state = box.querySelector('.bs-myip-state');
+        state.textContent = button.dataset.done;
+        state.classList.replace('bg-secondary', 'bg-success');
+        button.hidden = true;
+      });
+    });
+  }
+
   function start() {
     if (!opts) return;
     initMode();
     initThemes();
     initOrder();
+    initMyIp();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

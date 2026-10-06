@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.6.1-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.6.2-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -30,6 +30,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **4 languages:** English (default), Polish, Ukrainian and German — chosen automatically by the language of the administrator (settings) and of the site (texts shown to shoppers); any other language falls back to English, text by text. Right-to-left layouts are supported.
 * **Prices like in the store:** sale prices, active store sales and variations (“from …”), in the currency picked in Gridbox's currency switcher, formatted like Gridbox.
 * **Fast WebP thumbnails:** a 64 px result image is a ~1.5 KB WebP copy instead of a full-size photo — made once, kept on the server, EXIF rotation and transparency preserved.
+* **Staff left out of the statistics (new in 1.6.2):** IP addresses, networks or `10.48.*` patterns (also behind Cloudflare) and chosen user groups are not counted in statistics, conversions and the e-mail report.
 * **Search statistics:** most searched queries, **queries without results** (what shoppers miss) and recent ones — no personal data. **(1.4.0)** Each query without results has two buttons: *Synonym* (the phrase will also find another word) and *Redirect* (the phrase opens a page).
 * **Synonym and redirect editors (new in 1.4.0):** a table editor for the synonym dictionary (two-way groups or one-way “also finds”) and for **redirects** — a phrase (written in any way) that opens a chosen page, e.g. a brand page, instead of the results; the live results show it as the first option. Both can still be edited as text.
 * **Suggestions (new in 1.4.0):** popular searches that start like the typed text above the live results, and **“Did you mean…”** when nothing is found — from what other shoppers searched successfully.
@@ -81,7 +82,7 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ## 🚀 Installation & Package Structure
 
-1. Download `pkg_bettersearch-1.6.1.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
+1. Download `pkg_bettersearch-1.6.2.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
 2. In the Joomla administrator go to **System → Install → Extensions** and upload the package.
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
@@ -567,6 +568,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.2** — Statistics of customers only: IP addresses / networks (also behind Cloudflare) and user groups left out of search statistics, conversions and the e-mail report; “Add my address”.
 * **1.6.1** — Order of the result sections (categories, apps, pages) for the live results and the results page; “Accent as in Gridbox” for every theme, 14 system font stacks and Google Fonts, background opacity; theme editor on wide screens (two roomy columns, real colour swatches).
 * **1.6.0** — Themes: Minimal, Soft, Glass, Dark and Bold beside the unchanged Basic look, a visual theme editor and a CSS editor with the live preview. A Basic / Advanced switch for the settings.
 * **1.5.3** — Gridbox product badges (“New!”, “Bestseller”, sale “- X%”) in the results.

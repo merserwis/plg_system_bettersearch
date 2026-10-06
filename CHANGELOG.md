@@ -2,6 +2,16 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.2 — 2026-10-06
+
+### 🧑‍💼 Statistics of customers only
+
+- **New option *Leave out of the statistics (IP addresses)*** (tab *Plugin*): searches, clicks on results and products put into the cart from these addresses are not counted — in the search statistics, the conversions and the e-mail report — so the company's own staff does not distort what customers search. Addresses (`83.1.2.3`, `2001:db8::1`), networks (`91.200.10.0/24`, `2001:db8::/48`) and IPv4 addresses with `*` (`10.48.*`), one per line or separated by commas; text after `#` is a comment.
+- Under the list: **your address as the site sees it**, whether it is counted, and a button **Add my address**.
+- **Works behind Cloudflare and other proxies:** the visitor's address is read from `CF-Connecting-IP`, `X-Real-IP` or `X-Forwarded-For` when present (advanced option *Visitor address from*; *Connection only* for sites without a proxy).
+- **Advanced:** *Leave out logged-in users of the groups* — searches of logged-in members of chosen user groups (e.g. staff) are not counted, from any address.
+- The addresses are only compared, never stored. The search itself works the same for everybody.
+
 ## 1.6.1 — 2026-10-06
 
 ### ↕️ Order of the result sections
