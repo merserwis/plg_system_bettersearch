@@ -126,6 +126,7 @@
         }
         build();
         lastQuery = null;
+        panel.setAttribute('data-bs-view', 'recent');
         body.innerHTML = '<div class="bs-live-body"><div class="bs-section bs-section-recent"><div class="bs-section-title bs-recent-head"><span>' + esc(cfg.texts.recent)
             + '</span><button type="button" class="bs-recent-clear">' + esc(cfg.texts.clearRecent) + '</button></div><ul class="bs-pop" role="presentation">'
             + list.map(function (q, i) {
@@ -247,6 +248,7 @@
             return;
         }
         panel.classList.remove('is-open', 'is-shown', 'is-full');
+        panel.removeAttribute('data-bs-view');
         if (backdrop && backdrop.parentNode) {
             backdrop.parentNode.removeChild(backdrop);
         }
@@ -372,7 +374,15 @@
 
     function render(data, q) {
         build();
+        // the panel was open with the last searches: the results arrive with the appearing effect again
+        var replay = panel.classList.contains('is-shown') && panel.getAttribute('data-bs-view') !== 'results';
+        panel.setAttribute('data-bs-view', 'results');
         body.innerHTML = data.html;
+        if (replay) {
+            panel.classList.remove('is-shown');
+            void panel.offsetWidth;
+            panel.classList.add('is-shown');
+        }
         var all = body.querySelector('.bs-all');
         if (all) {
             all.href = resultsUrl(current, q);
