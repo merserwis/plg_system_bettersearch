@@ -2,6 +2,13 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.1 — 2026-10-06
+
+### 🎨 Theme editor on wide screens
+
+- **The visual editor no longer squeezes its controls into three narrow columns** on wide screens: colour values (`#2563eb`, `rgba(255,255,255,.72)`) and the names in the lists were cut off and the switches folded into a column. It now uses at most two roomy columns, the switches stay in one row.
+- **Swatches show the real colour, also a translucent one** (e.g. the Glass theme), on a checkerboard; the full value is shown on hover over the field.
+
 ## 1.6.0 — 2026-10-06
 
 ### 🎨 Themes
