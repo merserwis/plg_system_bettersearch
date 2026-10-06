@@ -1639,14 +1639,52 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
-    /** Sends the report of the last period. @return array{ok: bool, message: string} */
-    private function sendReport(bool $manual): array
+    /**
+     * A period chosen in the settings ("from" – "to", both days included, site time zone), as
+     * reportPeriod() returns it; null when the dates are empty, or an error message.
+     *
+     * @return array|string|null
+     */
+    private function customPeriod(string $from, string $to)
+    {
+        if ($from === '' && $to === '') {
+            return null;
+        }
+        $zone  = self::siteZone();
+        $today = (new \DateTimeImmutable('now', $zone))->setTime(0, 0);
+        $day   = function (string $value) use ($zone): ?\DateTimeImmutable {
+            if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+                return null;
+            }
+
+            return new \DateTimeImmutable($value . ' 00:00:00', $zone);
+        };
+        $a = $day($from);
+        $b = $day($to);
+        if (!$a || !$b) {
+            return Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ERR_DATES');
+        }
+        if ($a > $b) {
+            [$a, $b] = [$b, $a];
+        }
+        $oldest = $today->modify('-' . (self::DAILY_DAYS - 1) . ' days');
+        if ($b > $today || $a < $oldest) {
+            return Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ERR_RANGE', $oldest->format('d.m.Y'), $today->format('d.m.Y'));
+        }
+        $end = $b->modify('+1 day');
+
+        return ['from' => $a->format('Y-m-d'), 'to' => $end->format('Y-m-d'), 'start' => $end->getTimestamp(),
+            'label' => $a->format('d.m.Y') . ($a == $b ? '' : ' – ' . $b->format('d.m.Y')), 'days' => (int) $a->diff($end)->days];
+    }
+
+    /** Sends the report of the last period (or of $period). @return array{ok: bool, message: string} */
+    private function sendReport(bool $manual, ?array $period = null): array
     {
         $to = $this->reportRecipients();
         if (!$to) {
             return $this->reportStatus(false, Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ERR_RECIPIENTS'), $manual);
         }
-        $period = $this->reportPeriod(new \DateTimeImmutable('now', self::siteZone()), true);
+        $period ??= $this->reportPeriod(new \DateTimeImmutable('now', self::siteZone()), true);
         $site   = (string) $this->getApplication()->get('sitename', '');
         try {
             $html   = $this->reportHtml($period['from'], $period['to']);
@@ -2090,7 +2128,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview', 'theme_css'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview', 'report_info', 'theme_css'], true)) {
             $this->params = new Registry($form['params']);
         }
 
@@ -2176,14 +2214,25 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
                 return $this->gscList($input->getInt('check', 0) === 1);
 
+            case 'report_info':
             case 'report_preview':
                 $this->ensureTables();
-                $period = $this->reportPeriod(new \DateTimeImmutable('now', self::siteZone()), true);
+                $auto   = $this->reportPeriod(new \DateTimeImmutable('now', self::siteZone()), true);
+                $period = $this->customPeriod(trim($input->getString('from', '')), trim($input->getString('to', ''))) ?? $auto;
+                if (is_string($period)) {
+                    return ['error' => $period];
+                }
+                $last  = (int) $this->indexer()->state('report_last', '0');
+                $today = new \DateTimeImmutable('now', self::siteZone());
+                $out   = ['period' => $period['label'], 'to' => implode(', ', $this->reportRecipients()),
+                    'status' => json_decode((string) $this->indexer()->state('report_status', ''), true) ?: null, 'last' => $last ? date('Y-m-d H:i', $last) : '',
+                    'auto' => ['from' => $auto['from'], 'to' => (new \DateTimeImmutable($auto['to']))->modify('-1 day')->format('Y-m-d')],
+                    'min' => $today->modify('-' . (self::DAILY_DAYS - 1) . ' days')->format('Y-m-d'), 'max' => $today->format('Y-m-d')];
+                if ($task === 'report_preview') {
+                    $out['html'] = $this->reportHtml($period['from'], $period['to']);
+                }
 
-                $last = (int) $this->indexer()->state('report_last', '0');
-
-                return ['html' => $this->reportHtml($period['from'], $period['to']), 'period' => $period['label'], 'to' => implode(', ', $this->reportRecipients()),
-                    'status' => json_decode((string) $this->indexer()->state('report_status', ''), true) ?: null, 'last' => $last ? date('Y-m-d H:i', $last) : ''];
+                return $out;
 
             case 'report_send':
                 if (!$user->authorise('core.edit', 'com_plugins')) {
@@ -2193,8 +2242,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                     $this->params = new Registry($form['params']);
                 }
                 $this->ensureTables();
+                $period = $this->customPeriod(trim($input->getString('from', '')), trim($input->getString('to', '')));
+                if (is_string($period)) {
+                    return ['error' => $period];
+                }
 
-                return $this->sendReport(true);
+                return $this->sendReport(true, $period);
 
             case 'gsc_fetch':
                 if (!$user->authorise('core.edit', 'com_plugins')) {

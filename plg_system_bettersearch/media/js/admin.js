@@ -697,7 +697,62 @@
                     + esc(new Date(st.at * 1000).toLocaleString()) + ')</span></p>' : '');
         }
 
+        // the period: empty dates = the period of the automatic report
+        var fromInput = root.querySelector('[data-bs-from]');
+        var toInput = root.querySelector('[data-bs-to]');
+        var auto = null;
+        var iso = function (d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        };
+        var range = function () {
+            if (!fromInput || (!fromInput.value && !toInput.value) || (auto && fromInput.value === auto.from && toInput.value === auto.to)) {
+                return {};
+            }
+            return { from: fromInput.value || toInput.value, to: toInput.value || fromInput.value };
+        };
+        var setRange = function (a, b) {
+            fromInput.value = a;
+            toInput.value = b;
+        };
+        if (fromInput) {
+            call('report_info', {}, form).then(function (r) {
+                auto = r.auto;
+                [fromInput, toInput].forEach(function (i) {
+                    i.min = r.min;
+                    i.max = r.max;
+                });
+                if (!fromInput.value) {
+                    setRange(auto.from, auto.to);
+                }
+                showStatus(r);
+            }).catch(function () {});
+            [fromInput, toInput].forEach(function (i) {
+                i.addEventListener('change', function (e) {
+                    e.stopPropagation();
+                });
+            });
+        }
+
         root.addEventListener('click', function (e) {
+            var preset = e.target.closest('[data-bs-range]');
+            if (preset && fromInput) {
+                var now = new Date();
+                var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                var kind = preset.dataset.bsRange;
+                if (kind === 'auto' && auto) {
+                    setRange(auto.from, auto.to);
+                } else if (kind === '7' || kind === '30') {
+                    setRange(iso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - (+kind - 1))), iso(today));
+                } else if (kind === 'prevmonth') {
+                    setRange(iso(new Date(today.getFullYear(), today.getMonth() - 1, 1)), iso(new Date(today.getFullYear(), today.getMonth(), 0)));
+                } else if (kind === 'month') {
+                    setRange(iso(new Date(today.getFullYear(), today.getMonth(), 1)), iso(today));
+                } else if (kind === 'year') {
+                    var start = new Date(today.getFullYear(), 0, 1);
+                    setRange(fromInput.min && iso(start) < fromInput.min ? fromInput.min : iso(start), iso(today));
+                }
+                return;
+            }
             var b = e.target.closest('[data-bs-tool]');
             if (!b) {
                 return;
@@ -705,7 +760,7 @@
             var tool = b.dataset.bsTool;
             if (tool === 'report_preview') {
                 out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
-                call('report_preview', {}, form).then(function (r) {
+                call('report_preview', range(), form).then(function (r) {
                     showStatus(r);
                     out.innerHTML = '<p class="small text-muted">' + esc(fmt(T.TOOLS_REPORT_PERIOD, [r.period])) + '</p><iframe class="bs-report-frame" title="' + esc(T.TOOLS_REPORT_PERIOD.replace('%s', '')) + '"></iframe>';
                     var frame = out.querySelector('iframe');
@@ -720,11 +775,12 @@
                     out.innerHTML = '<p class="text-danger">' + esc(err.message) + '</p>';
                 });
             } else if (tool === 'report_send') {
-                if (!window.confirm(T.TOOLS_REPORT_CONFIRM)) {
+                var chosen = range();
+                if (!window.confirm(chosen.from ? fmt(T.TOOLS_REPORT_CONFIRM_RANGE, [chosen.from + ' – ' + chosen.to]) : T.TOOLS_REPORT_CONFIRM)) {
                     return;
                 }
                 b.disabled = true;
-                call('report_send', {}, form).then(function (r) {
+                call('report_send', chosen, form).then(function (r) {
                     Joomla.renderMessages(r.ok ? { message: [r.message] } : { error: [r.message] });
                     statusBox.insertAdjacentHTML('beforeend', '<p class="' + (r.ok ? 'text-success' : 'text-danger') + '">' + esc(r.message) + '</p>');
                 }).catch(function (err) {

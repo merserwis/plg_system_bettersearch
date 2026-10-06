@@ -30,6 +30,17 @@ class BstoolsField extends FormField
         if ((string) $this->element['mode'] === 'report') {
             return '<div class="bs-tools"><section class="bs-tools-card"><h3>' . $t('REPORT') . '</h3><p class="small text-muted">' . $t('REPORT_DESC') . '</p>'
                 . '<div class="bs-report-status small"></div>'
+                . '<fieldset class="bs-report-period"><legend>' . $t('REPORT_RANGE') . '</legend>'
+                . '<div class="bs-report-dates"><label>' . $t('REPORT_FROM') . ' <input type="date" class="form-control form-control-sm" data-bs-from></label>'
+                . '<label>' . $t('REPORT_TO') . ' <input type="date" class="form-control form-control-sm" data-bs-to></label>'
+                . '<button type="button" class="btn btn-sm btn-link" data-bs-range="auto">↺ ' . $t('REPORT_AUTO') . '</button></div>'
+                . '<div class="bs-report-presets">'
+                . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-range="7">' . $t('REPORT_LAST7') . '</button>'
+                . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-range="30">' . $t('REPORT_LAST30') . '</button>'
+                . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-range="prevmonth">' . $t('REPORT_PREV_MONTH') . '</button>'
+                . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-range="month">' . $t('REPORT_THIS_MONTH') . '</button>'
+                . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-range="year">' . $t('REPORT_THIS_YEAR') . '</button></div>'
+                . '<p class="small text-muted mb-0 bs-report-hint">' . $t('REPORT_RANGE_HINT') . '</p></fieldset>'
                 . '<p class="bs-tools-buttons"><button type="button" class="btn btn-secondary" data-bs-tool="report_preview">' . $t('REPORT_PREVIEW') . '</button> '
                 . '<button type="button" class="btn btn-primary" data-bs-tool="report_send">' . $t('REPORT_SEND') . '</button></p>'
                 . '<div class="bs-report-out"></div></section></div>';

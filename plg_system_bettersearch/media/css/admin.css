@@ -202,3 +202,11 @@
 .bs-order-title{flex:1 1 auto;min-width:0}
 .bs-order-off{font-style:italic;color:var(--bs-secondary-color,#6c757d)}
 .bs-order-item .btn-link{padding:0 .35rem;text-decoration:none}
+
+/* ---- report period */
+.bs-report-period{margin:.75rem 0 0;padding:.75rem .9rem;border:1px solid var(--template-bg-dark-7,#eef0f2);border-radius:.5rem;background:var(--template-bg-dark-3,#f8f9fa);min-width:0}
+.bs-report-period legend{float:none;width:auto;font-size:.9rem;font-weight:600;margin:0 0 .4rem;padding:0}
+.bs-report-dates{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.5rem 1rem;margin:0 0 .5rem}
+.bs-report-dates label{display:flex;flex-direction:column;gap:.2rem;margin:0;font-size:.85rem}
+.bs-report-dates input{width:auto;min-width:10rem}
+.bs-report-presets{display:flex;flex-wrap:wrap;gap:.35rem;margin:0 0 .4rem}
