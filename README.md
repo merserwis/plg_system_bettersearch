@@ -143,7 +143,7 @@ The *Appearance* tab sets the look of the live results and of the results page a
 * **Dark** — dark surfaces with a sky-blue accent; the results page on its own dark background.
 * **Bold** — thick black outlines, hard offset shadows, vivid orange (neo-brutalism).
 
-**Visual editor.** Every theme token can be changed: colours (accent, text on accent, panel/card background, results page background, text, secondary text, names, prices, hover, borders, image background, highlight, fields), corners (panel, cards, buttons), border width, shadows (none, soft, strong, floating, hard offset, glow), card hover (lift, shadow, zoom image, border, glow, shift), font (as the site, system, rounded, geometric, serif, monospace — no web fonts are loaded), weight of names, section titles (uppercase / normal), buttons (solid, outlined, tinted) and the glass blur. Changed values are marked; ↺ restores one, *Restore theme defaults* all of them.
+**Visual editor.** Every theme token can be changed: colours (accent — or **the accent of the Gridbox theme**, which derived colours then follow —, text on accent, panel/card background, results page background, text, secondary text, names, prices, hover, borders, image background, highlight, fields), corners (panel, cards, buttons), border width, shadows (none, soft, strong, floating, hard offset, glow), card hover (lift, shadow, zoom image, border, glow, shift), font (as the site, or one of 13 system font stacks — neo-grotesque, humanist, geometric, rounded, industrial, serif styles, monospace, handwritten — nothing downloaded; or **any Google font**, checked for its weights, loaded with `display=swap` from Google’s servers), **background opacity** (0–100 %), weight of names, section titles (uppercase / normal), buttons (solid, outlined, tinted) and the glass blur. Changed values are marked; ↺ restores one, *Restore theme defaults* all of them.
 
 **CSS editor.** Own CSS for the chosen theme (also for Basic), added after the theme. Start selectors of the live results with `.bs-live` and of the results page with `.bettersearch-results` — the latter get the id of the results block automatically, so they win over the plugin's rules. *Insert theme CSS* pastes the theme's custom properties (`--bs-*`, `--bsr-*`) and rules for editing. The code cannot close the `<style>` element.
 
@@ -566,7 +566,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
-* **1.6.1** — Theme editor on wide screens: two roomy columns instead of three cut-off ones, real colour swatches (also translucent).
+* **1.6.1** — “Accent as in Gridbox” for every theme, 14 system font stacks and Google Fonts, background opacity; theme editor on wide screens (two roomy columns, real colour swatches).
 * **1.6.0** — Themes: Minimal, Soft, Glass, Dark and Bold beside the unchanged Basic look, a visual theme editor and a CSS editor with the live preview. A Basic / Advanced switch for the settings.
 * **1.5.3** — Gridbox product badges (“New!”, “Bestseller”, sale “- X%”) in the results.
 * **1.5.0** — Technical values compared as numbers (`1 kV` = `1000 V`, ranges, CAT, IP), featured products for chosen phrases, pages in the results, recent searches, availability and delivery time, “Add to cart” and “Ask for a quote” buttons, e-mail report, sortable Search Console table.

@@ -28,10 +28,12 @@ final class Themes
     /** Token => kind (color | int:min:max | enum list). Order = order of the editor. */
     public const TOKENS = [
         'bg'           => 'color',
+        'bg_opacity'   => 'int:0:100',
         'surface'      => 'color',
         'text'         => 'color',
         'muted'        => 'color',
         'accent'       => 'color',
+        'accent_site'  => 'bool',
         'on_accent'    => 'color',
         'hover'        => 'color',
         'border'       => 'color',
@@ -49,20 +51,46 @@ final class Themes
         'shadow'       => ['none', 'soft', 'strong', 'float', 'hard', 'glow'],
         'card_shadow'  => ['none', 'soft', 'strong', 'float', 'hard', 'glow'],
         'card_hover'   => ['none', 'lift', 'shadow', 'zoom', 'border', 'glow', 'shift'],
-        'font'         => ['inherit', 'system', 'rounded', 'geometric', 'serif', 'mono'],
+        'font'         => ['inherit', 'system', 'neo_grotesque', 'humanist', 'geometric', 'classical', 'rounded', 'industrial',
+            'transitional', 'serif', 'slab', 'didone', 'mono', 'handwritten', 'google'],
+        'google_font'  => 'gfamily',
+        'google_spec'  => 'gspec',
         'title_weight' => ['400', '500', '600', '700', '800'],
         'section_case' => ['upper', 'normal'],
         'button_style' => ['solid', 'outline', 'tint'],
         'blur'         => 'int:0:40',
     ];
 
+    /** Font stacks of fonts installed on the visitors' systems (nothing is downloaded); "google" = a Google font. */
     public const FONTS = [
-        'inherit'   => 'inherit',
-        'system'    => 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif',
-        'rounded'   => 'ui-rounded,"SF Pro Rounded",Nunito,"Varela Round","Segoe UI",system-ui,sans-serif',
-        'geometric' => '"Avenir Next",Avenir,Montserrat,"Century Gothic",Futura,system-ui,sans-serif',
-        'serif'     => 'Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif',
-        'mono'      => 'ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace',
+        'inherit'       => 'inherit',
+        'system'        => 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif',
+        'neo_grotesque' => 'Inter,Roboto,"Helvetica Neue","Arial Nova","Nimbus Sans",Arial,sans-serif',
+        'humanist'      => 'Seravek,"Gill Sans Nova",Ubuntu,Calibri,"DejaVu Sans",source-sans-pro,sans-serif',
+        'geometric'     => '"Avenir Next",Avenir,Montserrat,"Century Gothic",Futura,system-ui,sans-serif',
+        'classical'     => 'Optima,Candara,"Noto Sans",source-sans-pro,sans-serif',
+        'rounded'       => 'ui-rounded,"SF Pro Rounded",Nunito,"Varela Round","Segoe UI",system-ui,sans-serif',
+        'industrial'    => 'Bahnschrift,"DIN Alternate","Franklin Gothic Medium","Nimbus Sans Narrow",sans-serif-condensed,sans-serif',
+        'transitional'  => 'Charter,"Bitstream Charter","Sitka Text",Cambria,serif',
+        'serif'         => 'Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif',
+        'slab'          => 'Rockwell,"Rockwell Nova","Roboto Slab","DejaVu Serif","Sitka Small",serif',
+        'didone'        => 'Didot,"Bodoni MT","Noto Serif Display","URW Palladio L",P052,Sylfaen,serif',
+        'mono'          => 'ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace',
+        'handwritten'   => '"Segoe Print","Bradley Hand",Chilanka,TSCu_Comic,casual,cursive',
+    ];
+
+    /** Tokens every preset has unless it sets them. */
+    public const EXTRA = ['bg_opacity' => 100, 'accent_site' => '0', 'google_font' => '', 'google_spec' => ''];
+
+    /**
+     * Colours of a preset derived from its accent: with "accent as in Gridbox" they follow the site's
+     * accent instead (unless the administrator changed them). {A} = the accent variable.
+     */
+    private const DERIVED = [
+        'soft'  => ['price' => '{A} 78%,#000', 'hl_bg' => '{A} 10%,#fff', 'hl_color' => '{A} 78%,#000'],
+        'glass' => ['hover' => '{A} 8%,transparent', 'price' => '{A} 85%,#000', 'hl_bg' => '{A} 12%,transparent', 'hl_color' => '{A} 85%,#000'],
+        'dark'  => ['price' => '{A} 65%,#fff', 'hl_bg' => '{A} 18%,transparent', 'hl_color' => '{A} 65%,#fff'],
+        'bold'  => ['hover' => '{A} 8%,#fff'],
     ];
 
     /** Presets. Empty colour = the default of the plugin ("as the site"). */
@@ -87,7 +115,7 @@ final class Themes
         ],
         // frosted translucent panel over the page
         'glass' => [
-            'bg' => 'rgba(255,255,255,.72)', 'surface' => '#f4f6ff', 'text' => '#0f172a', 'muted' => '#475569', 'accent' => '#2563eb', 'on_accent' => '#ffffff',
+            'bg' => '#ffffff', 'bg_opacity' => 72, 'surface' => '#f4f6ff', 'text' => '#0f172a', 'muted' => '#475569', 'accent' => '#2563eb', 'on_accent' => '#ffffff',
             'hover' => 'rgba(37,99,235,.08)', 'border' => 'rgba(148,163,184,.35)', 'title' => '#0f172a', 'price' => '#1d4ed8',
             'img_bg' => 'rgba(255,255,255,.65)', 'hl_bg' => 'rgba(37,99,235,.12)', 'hl_color' => '#1d4ed8',
             'input_bg' => 'rgba(255,255,255,.85)', 'input_text' => '#0f172a',
@@ -144,7 +172,7 @@ final class Themes
             return null;
         }
         $vars   = (array) (self::custom($params)[$key]['vars'] ?? []);
-        $tokens = self::PRESETS[$key];
+        $tokens = self::PRESETS[$key] + self::EXTRA;
         foreach (self::TOKENS as $token => $kind) {
             if (array_key_exists($token, $vars)) {
                 $value = self::clean($kind, $vars[$token]);
@@ -154,7 +182,80 @@ final class Themes
             }
         }
 
+        if ($tokens['font'] === 'google' && ($tokens['google_font'] === '' || $tokens['google_spec'] === ''
+            || strpos($tokens['google_spec'] . ':', $tokens['google_font'] . ':') !== 0)) {
+            $tokens['font'] = 'inherit';
+        }
+        // colours that follow the accent: those the administrator did not change
+        $tokens['_derived'] = $tokens['accent_site'] === '1'
+            ? array_keys(array_diff_key(self::DERIVED[$key] ?? [], $vars)) : [];
+        $tokens['_key'] = $key;
+
         return $tokens;
+    }
+
+    /** The address of the Google font of the active theme, or ''. */
+    public static function fontUrl(Registry $params): string
+    {
+        $t = self::tokens($params);
+        if ($t === null || $t['font'] !== 'google') {
+            return '';
+        }
+
+        return 'https://fonts.googleapis.com/css2?family=' . str_replace(' ', '+', $t['google_spec']) . '&display=swap';
+    }
+
+    /** <link> elements of the Google font of the active theme, or ''. */
+    public static function fontLinks(Registry $params): string
+    {
+        $url = self::fontUrl($params);
+
+        return $url === '' ? '' : '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+            . '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">';
+    }
+
+    /** The primary colour of the site's Gridbox theme (--primary), for previews; '' when unknown. */
+    public static function sitePrimary(): string
+    {
+        static $color = null;
+        if ($color !== null) {
+            return $color;
+        }
+        $color = '';
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $style = $db->setQuery('SELECT id, template FROM ' . $db->quoteName('#__template_styles') . ' WHERE client_id = 0 AND home = ' . $db->quote('1'), 0, 1)->loadObject();
+            $file = $style ? JPATH_SITE . '/templates/' . basename((string) $style->template) . '/css/storage/style-' . (int) $style->id . '.css' : '';
+            if ($file !== '' && is_file($file) && preg_match('/--primary\s*:\s*([^;}\s]+)/', (string) file_get_contents($file, false, null, 0, 400000), $m)
+                && self::isColor($m[1])) {
+                $color = $m[1];
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $color;
+    }
+
+    /** Applies "accent as in Gridbox" and the background opacity; $a = the accent variable of the context. */
+    private static function resolve(array $t, string $a): array
+    {
+        if ($t['accent_site'] === '1') {
+            $t['accent'] = 'var(--primary, ' . ($t['accent'] ?: '#1a73e8') . ')';
+            foreach ($t['_derived'] as $token) {
+                $t[$token] = 'color-mix(in srgb,' . str_replace('{A}', 'var(' . $a . ')', self::DERIVED[$t['_key']][$token]) . ')';
+            }
+        }
+        if ((int) $t['bg_opacity'] < 100) {
+            $t['bg'] = 'color-mix(in srgb,' . ($t['bg'] ?: '#ffffff') . ' ' . (int) $t['bg_opacity'] . '%,transparent)';
+        }
+
+        return $t;
+    }
+
+    /** The font-family of a theme. */
+    private static function family(array $t): string
+    {
+        return $t['font'] === 'google' ? '"' . $t['google_font'] . '",' . self::FONTS['system'] : (self::FONTS[$t['font']] ?? 'inherit');
     }
 
     /** Own CSS of the active theme (also of default). Cannot close the <style> element. */
@@ -176,6 +277,19 @@ final class Themes
             $value = trim((string) $value);
 
             return $value === '' || self::isColor($value) ? $value : null;
+        }
+        if ($kind === 'bool') {
+            return in_array((string) $value, ['0', '1'], true) ? (string) $value : null;
+        }
+        if ($kind === 'gfamily') {
+            $value = trim((string) $value);
+
+            return preg_match('/^([A-Za-z0-9][A-Za-z0-9 ]{0,59})?$/', $value) ? $value : null;
+        }
+        if ($kind === 'gspec') {
+            $value = trim((string) $value);
+
+            return preg_match('/^([A-Za-z0-9][A-Za-z0-9 ]{0,59}(:wght@[1-9]00(;[1-9]00){0,8})?)?$/', $value) ? $value : null;
         }
         [, $min, $max] = explode(':', $kind);
         if (!is_numeric($value)) {
@@ -206,6 +320,8 @@ final class Themes
     /** CSS custom properties of the live panel for a theme. */
     public static function liveVars(array $t): array
     {
+        $t = self::resolve($t, '--bs-accent');
+
         return [
             '--bs-bg'         => $t['bg'] ?: '#ffffff',
             '--bs-text'       => $t['text'] ?: '#1f2328',
@@ -221,7 +337,7 @@ final class Themes
             '--bs-on-accent'  => $t['on_accent'] ?: '#ffffff',
             '--bs-btn-radius' => $t['btn_radius'] . 'px',
             '--bs-bw'         => $t['border_width'] . 'px',
-            '--bs-ff'         => self::FONTS[$t['font']],
+            '--bs-ff'         => self::family($t),
             '--bs-tw'         => $t['title_weight'],
             '--bs-input-bg'   => $t['input_bg'] ?: '#ffffff',
             '--bs-input-text' => $t['input_text'] ?: '#111111',
@@ -231,6 +347,8 @@ final class Themes
     /** CSS custom properties of the results page for a theme. */
     public static function pageVars(array $t): array
     {
+        $t = self::resolve($t, '--bsr-accent');
+
         return [
             '--bsr-card-bg'    => $t['bg'] ?: '#ffffff',
             '--bsr-text'       => $t['muted'] ?: '#4b5563',
@@ -248,7 +366,7 @@ final class Themes
             '--bsr-on-accent'  => $t['on_accent'] ?: '#ffffff',
             '--bsr-btn-radius' => $t['btn_radius'] . 'px',
             '--bsr-bw'         => $t['border_width'] . 'px',
-            '--bsr-ff'         => self::FONTS[$t['font']],
+            '--bsr-ff'         => self::family($t),
             '--bsr-tw'         => $t['title_weight'],
             '--bsr-input-bg'   => $t['input_bg'] ?: '#ffffff',
             '--bsr-input-text' => $t['input_text'] ?: '#111111',

@@ -23,10 +23,10 @@ class BsthemeField extends FormField
     protected $type = 'Bstheme';
 
     private const GROUPS = [
-        'COLORS'  => ['accent', 'on_accent', 'bg', 'surface', 'text', 'muted', 'title', 'price', 'hover', 'border', 'img_bg', 'hl_bg', 'hl_color', 'input_bg', 'input_text'],
+        'COLORS'  => ['accent', 'accent_site', 'on_accent', 'bg', 'bg_opacity', 'surface', 'text', 'muted', 'title', 'price', 'hover', 'border', 'img_bg', 'hl_bg', 'hl_color', 'input_bg', 'input_text'],
         'SHAPE'   => ['radius', 'card_radius', 'btn_radius', 'border_width'],
         'EFFECTS' => ['shadow', 'card_shadow', 'card_hover', 'blur'],
-        'TYPE'    => ['font', 'title_weight', 'section_case', 'button_style'],
+        'TYPE'    => ['font', 'google_font', 'title_weight', 'section_case', 'button_style'],
     ];
 
     protected function getLabel()
@@ -70,7 +70,8 @@ class BsthemeField extends FormField
         $texts = [];
         foreach (['EDITOR_TITLE', 'EDITOR_DEFAULT', 'MODE_VISUAL', 'MODE_CSS', 'RESET', 'RESET_CONFIRM', 'BACK_DEFAULT', 'CHANGED', 'TOKEN_RESET', 'AS_SITE',
             'G_COLORS', 'G_SHAPE', 'G_EFFECTS', 'G_TYPE', 'CSS_HELP', 'CSS_INSERT', 'CSS_INSERT_CONFIRM', 'CSS_CLEAR', 'CSS_CLEAR_CONFIRM', 'CSS_BRACES',
-            'CSS_OK', 'CSS_CHARS', 'CSS_ACTIVE', 'CSS_SELECTORS'] as $k) {
+            'CSS_OK', 'CSS_CHARS', 'CSS_ACTIVE', 'CSS_SELECTORS', 'ACCENT_SITE_HINT', 'GOOGLE_NOTE', 'GOOGLE_CHECKING', 'GOOGLE_OK', 'GOOGLE_FAIL',
+            'GOOGLE_EMPTY'] as $k) {
             $texts[$k] = $t('TE_' . $k);
         }
         foreach (array_keys(Themes::TOKENS) as $token) {
@@ -87,8 +88,9 @@ class BsthemeField extends FormField
         foreach (Themes::KEYS as $key) {
             $names[$key] = $t('THEME_' . strtoupper($key));
         }
-        $config = ['presets' => Themes::PRESETS + ['default' => $default], 'tokens' => Themes::TOKENS, 'groups' => self::GROUPS,
-            'names' => $names, 'texts' => $texts];
+        $presets = array_map(fn ($p) => $p + Themes::EXTRA, Themes::PRESETS);
+        $config  = ['presets' => $presets + ['default' => $default], 'tokens' => Themes::TOKENS, 'groups' => self::GROUPS,
+            'names' => $names, 'texts' => $texts, 'fonts' => Themes::FONTS, 'primary' => Themes::sitePrimary()];
 
         return '<div class="bs-themes" data-config="' . $esc(json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '">'
             . '<div class="bs-themes-head"><div><h3>' . $esc($t('THEME_LABEL')) . '</h3><p class="text-muted small mb-0">' . $esc($t('THEME_DESC')) . '</p></div>'

@@ -540,7 +540,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $renderer->setHighlight($result['groups']);
         $id = 'bsr-' . substr(md5($query . microtime()), 0, 8);
 
-        $html = '<style>' . $renderer->pageCss($id) . '</style>' . $renderer->page($state['result'], $state, $id);
+        $html = Themes::fontLinks($this->params) . '<style>' . $renderer->pageCss($id) . '</style>' . $renderer->page($state['result'], $state, $id);
         $this->seoInfo = ['total' => (int) $state['result']['total'], 'cards' => $renderer->listed(), 'page' => (int) $state['page'],
             'perPage' => $perPage, 'filtered' => $cat > 0 || $appId !== 0 || $page > 1 || $input->getCmd('bs_sort', '') !== '' || $state['facetVars']];
 
@@ -1270,7 +1270,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         ];
         $css = $live ? $this->renderer()->liveCss() : '';
 
-        return ($css !== '' ? '<style id="bettersearch-css">' . $css . '</style>' : '')
+        return ($css !== '' ? Themes::fontLinks($this->params) . '<style id="bettersearch-css">' . $css . '</style>' : '')
             . '<script type="application/json" id="bettersearch-config">' . json_encode($cfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) . '</script>'
             . '<script src="' . $esc($base . '/js/bettersearch.js?' . $ver) . '" defer></script>';
     }
@@ -2211,7 +2211,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             (int) $this->params->get('thumb_quality', 80), true), $device);
         $renderer->setHighlight($result['groups']);
 
-        $out = ['q' => $query, 'count' => $result['total'], 'mode' => $mode];
+        $out = ['q' => $query, 'count' => $result['total'], 'mode' => $mode, 'fonts' => Themes::fontUrl($this->params), 'primary' => Themes::sitePrimary()];
         if ($mode === 'page') {
             $perPage = max(1, min(200, (int) $this->params->get('page_per_page', 24)));
             $state   = $this->filterState($result, $query, (string) $this->params->get('default_sort', 'relevance'), 0, 0, 1, $perPage);
