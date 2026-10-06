@@ -4,10 +4,24 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 
 ## 1.6.1 — 2026-10-06
 
+### 🎨 Accent as in Gridbox
+
+- **Every theme can keep the accent colour of the site:** the switch *Accent as in Gridbox* uses the primary colour of the Gridbox theme (`--primary`) instead of the theme's own accent. Colours the theme derives from its accent — prices, highlights, the hovered row — follow it too, unless you changed them. The preview and the gallery show the site's real colour.
+
+### 🔤 More fonts, Google Fonts
+
+- **14 font choices instead of 6**, all of them safe system font stacks (nothing is downloaded): system, neo-grotesque, humanist, geometric, classical humanist, rounded, industrial, transitional serif, old-style serif, slab serif, didone, monospace, handwritten — or the font of the site.
+- **Google Fonts:** type the name of any Google font (suggestions of popular ones included); the editor checks that it exists and which weights it has, and the preview shows it at once. On the site it is loaded with `display=swap`. A note reminds that the visitors' browsers then connect to Google.
+
+### 🌫️ Background opacity
+
+- A new slider **Background opacity** (0–100 %) for the live results panel and the result cards, with any background colour. The Glass theme now uses a white background at 72 % instead of a fixed translucent colour, so its translucency can be adjusted.
+
 ### 🎨 Theme editor on wide screens
 
 - **The visual editor no longer squeezes its controls into three narrow columns** on wide screens: colour values (`#2563eb`, `rgba(255,255,255,.72)`) and the names in the lists were cut off and the switches folded into a column. It now uses at most two roomy columns, the switches stay in one row.
 - **Swatches show the real colour, also a translucent one** (e.g. the Glass theme), on a checkerboard; the full value is shown on hover over the field.
+- The badge *as before* of the Basic theme no longer sticks out of its card in longer translations.
 
 ## 1.6.0 — 2026-10-06
 

@@ -103,8 +103,8 @@
 .bs-theme-card.is-checked{border-color:var(--template-link-color,#2a69b8);box-shadow:0 0 0 3px color-mix(in srgb,var(--template-link-color,#2a69b8) 18%,transparent)}
 .bs-theme-radio{position:absolute;opacity:0;pointer-events:none}
 .bs-theme-card:has(.bs-theme-radio:focus-visible){outline:2px solid var(--template-link-color,#2a69b8);outline-offset:2px}
-.bs-theme-name{display:flex;align-items:center;gap:.35rem;font-weight:600;padding:0 .2rem}
-.bs-theme-name .badge{font-size:.65rem;font-weight:500}
+.bs-theme-name{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem .35rem;font-weight:600;padding:0 .2rem;min-width:0}
+.bs-theme-name .badge{font-size:.65rem;font-weight:500;white-space:normal;text-align:start;max-width:100%}
 .bs-theme-check{margin-inline-start:auto;width:1.2rem;height:1.2rem;border-radius:50%;background:var(--template-link-color,#2a69b8);color:#fff;font-size:.75rem;display:none;align-items:center;justify-content:center}
 .bs-theme-card.is-checked .bs-theme-check{display:inline-flex}
 .bs-theme-desc{font-size:.78rem;line-height:1.35;color:var(--bs-secondary-color,#6c757d);padding:0 .2rem}
@@ -175,3 +175,17 @@
 .bs-te-cheat{margin-top:.6rem}
 .bs-te-cheat summary{cursor:pointer;font-size:.875rem}
 .bs-te-cheat pre{margin:.5rem 0 0;padding:.6rem .75rem;border-radius:.4rem;background:var(--template-bg-dark-3,#f8f9fa);font-size:.78rem;white-space:pre-wrap}
+.bs-te-switch{display:flex;align-items:center;gap:.6rem;margin:0;cursor:pointer;min-width:0}
+.bs-te-switch input{position:absolute;opacity:0;width:1px;height:1px}
+.bs-te-switch>span{flex:none;position:relative;width:2.4rem;height:1.35rem;border-radius:1rem;background:var(--template-bg-dark-20,#ced4da);transition:background .15s}
+.bs-te-switch>span::after{content:'';position:absolute;top:.15rem;left:.15rem;width:1.05rem;height:1.05rem;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.bs-te-switch input:checked+span{background:var(--template-link-color,#2a69b8)}
+.bs-te-switch input:checked+span::after{transform:translateX(1.05rem)}
+.bs-te-switch input:focus-visible+span{outline:2px solid var(--template-link-color,#2a69b8);outline-offset:2px}
+.bs-te-switch small{font-size:.78rem;line-height:1.3;color:var(--bs-secondary-color,#6c757d)}
+.bs-te-row.is-site .bs-te-color{opacity:.55}
+.bs-te-row.is-site .bs-te-color input{cursor:not-allowed}
+.bs-te-row[hidden]{display:none}
+.bs-te-gfont{display:flex;flex-direction:column;gap:.25rem;min-width:0}
+.bs-te-gstate{font-size:.78rem;min-height:1em}
+.bs-te-gnote{font-size:.72rem;line-height:1.3;color:var(--bs-secondary-color,#6c757d)}

@@ -11,7 +11,7 @@
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.1/pkg_bettersearch-1.6.1.zip</downloadurl>
         </downloads>
-        <sha256>cf65a42eed5d7d2f365f171e3febfb5cb3e3d05beb4334f98e2c4079b801caf6</sha256>
+        <sha256>75aa9e37dd402866273284852e16b8d3e9247556afb8e374cde75d62d805fb50</sha256>
         <tags>
             <tag>stable</tag>
         </tags>

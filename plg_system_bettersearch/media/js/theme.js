@@ -69,10 +69,20 @@
     float: '0 12px 24px -10px rgba(15,23,42,.4),0 1px 3px rgba(15,23,42,.08)', hard: '3px 3px 0 var(--m-border)',
     glow: '0 0 0 1px color-mix(in srgb,var(--m-accent) 35%,transparent),0 6px 16px color-mix(in srgb,var(--m-accent) 30%,transparent)',
   };
-  const FONTS = {
-    inherit: 'inherit', system: 'system-ui,sans-serif', rounded: 'ui-rounded,Nunito,"Varela Round",system-ui,sans-serif',
-    geometric: '"Avenir Next",Avenir,Montserrat,"Century Gothic",sans-serif', serif: 'Georgia,serif', mono: 'ui-monospace,Menlo,Consolas,monospace',
-  };
+  const GOOGLE_POPULAR = ['Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Nunito', 'Raleway', 'Source Sans 3', 'Work Sans',
+    'DM Sans', 'Manrope', 'Plus Jakarta Sans', 'Outfit', 'Figtree', 'Rubik', 'Karla', 'Mulish', 'Barlow', 'IBM Plex Sans', 'Noto Sans',
+    'PT Sans', 'Ubuntu', 'Oswald', 'Space Grotesk', 'Playfair Display', 'Merriweather', 'Lora', 'Roboto Slab', 'JetBrains Mono'];
+  // weights tried in turn: Google refuses a request with a weight the font does not have
+  const GOOGLE_WEIGHTS = ['400;500;600;700;800', '400;500;600;700', '400;600;700', '400;700', '400'];
+  const loadedFonts = new Set();
+  function loadFont(spec) {
+    if (!spec || loadedFonts.has(spec)) return;
+    loadedFonts.add(spec);
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + spec.replace(/ /g, '+') + '&display=swap';
+    document.head.appendChild(link);
+  }
 
   function initThemes() {
     const root = document.querySelector('.bs-themes');
@@ -87,6 +97,11 @@
     try { custom = JSON.parse(hidden.value || '{}') || {}; } catch (e) { custom = {}; }
     if (typeof custom !== 'object' || Array.isArray(custom)) custom = {};
     let view = 'visual';
+    const FONTS = cfg.fonts || {};
+    const fontOf = (t) => (t.font === 'google' && t.google_font ? '"' + t.google_font + '",system-ui,sans-serif' : (FONTS[t.font] || 'inherit'));
+    const accentOf = (t) => (t.accent_site === '1' ? (cfg.primary || t.accent || '#1a73e8') : (t.accent || '#1a73e8'));
+    let checkTimer = null;
+    let checkSeq = 0;
 
     const current = () => (root.querySelector('.bs-theme-radio:checked') || {}).value || 'default';
     const entry = (key) => (custom[key] = custom[key] || {});
@@ -107,11 +122,12 @@
     function mock(card, t) {
       const st = card.querySelector('.bs-theme-mock').style;
       const set = (k, v) => st.setProperty(k, v);
-      set('--m-bg', t.bg || '#fff');
+      const op = t.bg_opacity == null ? 100 : +t.bg_opacity;
+      set('--m-bg', op < 100 ? 'color-mix(in srgb,' + (t.bg || '#fff') + ' ' + op + '%,transparent)' : (t.bg || '#fff'));
       set('--m-surface', t.surface || '#eef1f4');
       set('--m-text', t.text || '#1f2328');
       set('--m-muted', t.muted || '#6b7280');
-      set('--m-accent', t.accent || '#1a73e8');
+      set('--m-accent', accentOf(t));
       set('--m-on', t.on_accent || '#fff');
       set('--m-hover', t.hover || '#f3f4f6');
       set('--m-border', t.border || '#e5e7eb');
@@ -119,7 +135,8 @@
       set('--m-r', Math.round((+t.radius || 0) * 0.55) + 'px');
       set('--m-bw', (t.border_width == null ? 1 : +t.border_width) + 'px');
       set('--m-shadow', MOCK_SHADOWS[t.shadow] || 'none');
-      set('--m-ff', FONTS[t.font] || 'inherit');
+      set('--m-ff', fontOf(t));
+      if (t.font === 'google') loadFont(t.google_spec);
       set('--m-tw', t.title_weight || '600');
       card.classList.toggle('is-glass', (+t.blur || 0) > 0);
     }
@@ -138,6 +155,13 @@
         const hex = /^#[0-9a-f]{6}$/i.test(value) ? value : (/^#[0-9a-f]{3}$/i.test(value) ? '#' + value.slice(1).replace(/./g, '$&$&') : '#ffffff');
         input = '<span class="bs-te-color' + (value ? '' : ' is-empty') + '"><span class="bs-te-sw" style="--sw:' + esc(value || 'transparent') + '"><input type="color" id="' + id + '" value="' + hex + '" data-part="picker"></span>'
           + '<input type="text" class="form-control form-control-sm" value="' + esc(value) + '" title="' + esc(value) + '" placeholder="' + esc(T.AS_SITE) + '" data-part="text" spellcheck="false" aria-label="' + esc(T['T_' + token]) + '"></span>';
+      } else if (kind === 'bool') {
+        input = '<label class="bs-te-switch"><input type="checkbox" id="' + id + '" data-part="bool"' + (value === '1' ? ' checked' : '') + '><span aria-hidden="true"></span>'
+          + '<small>' + esc(T.ACCENT_SITE_HINT.replace('%s', cfg.primary || '—')) + '</small></label>';
+      } else if (kind === 'gfamily') {
+        input = '<span class="bs-te-gfont"><input type="text" class="form-control form-control-sm" id="' + id + '" list="bs-te-gfonts" value="' + esc(value) + '" placeholder="Inter, Roboto, Lora…" spellcheck="false" autocomplete="off">'
+          + '<datalist id="bs-te-gfonts">' + GOOGLE_POPULAR.map((f) => '<option value="' + esc(f) + '">').join('') + '</datalist>'
+          + '<small class="bs-te-gstate" aria-live="polite"></small><small class="bs-te-gnote">' + esc(T.GOOGLE_NOTE) + '</small></span>';
       } else if (Array.isArray(kind)) {
         if (kind.length <= 3) {
           input = '<span class="bs-te-seg" role="radiogroup" aria-label="' + esc(T['T_' + token]) + '">' + kind.map((o) => '<button type="button" class="' + (o === String(value) ? 'is-on' : '')
@@ -149,7 +173,7 @@
       } else {
         const [, min, max] = kind.split(':');
         input = '<span class="bs-te-range"><input type="range" id="' + id + '" min="' + min + '" max="' + max + '" step="1" value="' + esc(value) + '">'
-          + '<output>' + esc(value) + ' px</output></span>';
+          + '<output>' + esc(value) + (token === 'bg_opacity' ? ' %' : ' px') + '</output></span>';
       }
       return '<div class="bs-te-row' + (changed ? ' is-changed' : '') + '" data-token="' + token + '"><label for="' + id + '">' + esc(T['T_' + token] || token) + '</label>'
         + '<div class="bs-te-input">' + input + '<button type="button" class="bs-te-reset" title="' + esc(T.TOKEN_RESET) + '" aria-label="' + esc(T.TOKEN_RESET) + '">↺</button></div></div>';
@@ -164,8 +188,58 @@
       const row = editor.querySelector('.bs-te-row[data-token="' + token + '"]');
       if (row) row.classList.toggle('is-changed', String(value) !== String(preset));
       updateHead(key);
+      deps(key);
       mock(root.querySelector('.bs-theme-card[data-theme="' + key + '"]'), tokensOf(key));
       save();
+    }
+
+    // rows that depend on another one: the Google font name, the accent colour under "as in Gridbox"
+    function deps(key) {
+      const t = tokensOf(key);
+      const g = editor.querySelector('.bs-te-row[data-token="google_font"]');
+      if (g) g.hidden = t.font !== 'google';
+      const a = editor.querySelector('.bs-te-row[data-token="accent"]');
+      if (a) {
+        a.classList.toggle('is-site', t.accent_site === '1');
+        a.querySelectorAll('input').forEach((i) => { i.disabled = t.accent_site === '1'; });
+        a.querySelector('.bs-te-sw').style.setProperty('--sw', accentOf(t));
+      }
+    }
+
+    // a Google font: find the weights it has (and whether it exists at all)
+    async function checkGoogle(key, family) {
+      const row = editor.querySelector('.bs-te-row[data-token="google_font"]');
+      const state = row && row.querySelector('.bs-te-gstate');
+      const mine = ++checkSeq;
+      family = family.trim().replace(/\s+/g, ' ');
+      if (!family) {
+        setToken(key, 'google_spec', '');
+        if (state) { state.className = 'bs-te-gstate text-muted'; state.textContent = T.GOOGLE_EMPTY; }
+        return;
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9 ]{0,59}$/.test(family)) {
+        if (state) { state.className = 'bs-te-gstate text-danger'; state.textContent = '✗ ' + T.GOOGLE_FAIL.replace('%s', family); }
+        return;
+      }
+      if (state) { state.className = 'bs-te-gstate text-muted'; state.textContent = T.GOOGLE_CHECKING; }
+      for (const w of GOOGLE_WEIGHTS) {
+        const spec = family + ':wght@' + w;
+        try {
+          const r = await fetch('https://fonts.googleapis.com/css2?family=' + spec.replace(/ /g, '+') + '&display=swap', { mode: 'cors', credentials: 'omit' });
+          if (mine !== checkSeq) return;
+          if (r.ok) {
+            loadFont(spec);
+            setToken(key, 'google_spec', spec);
+            if (state) { state.className = 'bs-te-gstate text-success'; state.textContent = '✓ ' + T.GOOGLE_OK.replace('%s', family).replace('%w', w.replace(/;/g, ', ')); }
+            return;
+          }
+        } catch (e) {
+          break;
+        }
+      }
+      if (mine !== checkSeq) return;
+      setToken(key, 'google_spec', '');
+      if (state) { state.className = 'bs-te-gstate text-danger'; state.textContent = '✗ ' + T.GOOGLE_FAIL.replace('%s', family); }
     }
 
     function updateHead(key) {
@@ -211,6 +285,12 @@
         + '<div class="bs-te-body">' + (view === 'visual' ? visualPane(key) : cssPane(key)) + '</div>';
       updateHead(key);
       if (view === 'css') bindCss(key);
+      else if (key !== 'default') {
+        deps(key);
+        const t = tokensOf(key);
+        if (t.font === 'google' && t.google_font) checkGoogle(key, t.google_font);
+        else if (t.font === 'google') { const st = editor.querySelector('.bs-te-gstate'); if (st) st.textContent = T.GOOGLE_EMPTY; }
+      }
     }
 
     // ---- CSS editor
@@ -272,6 +352,7 @@
       if (reset) {
         const token = reset.closest('.bs-te-row').dataset.token;
         setToken(key, token, (cfg.presets[key] || {})[token]);
+        if (token === 'google_font') setToken(key, 'google_spec', (cfg.presets[key] || {}).google_spec || '');
         render();
         return;
       }
@@ -308,6 +389,17 @@
       const key = current();
       const token = row.dataset.token;
       const kind = cfg.tokens[token];
+      if (kind === 'bool') {
+        setToken(key, token, e.target.checked ? '1' : '0');
+        return;
+      }
+      if (kind === 'gfamily') {
+        const family = e.target.value.trim().replace(/\s+/g, ' ');
+        if ((tokensOf(key).google_font || '') !== family) setToken(key, token, family);
+        clearTimeout(checkTimer);
+        checkTimer = setTimeout(() => checkGoogle(key, family), e.type === 'change' ? 0 : 700);
+        return;
+      }
       if (kind === 'color') {
         const wrap = row.querySelector('.bs-te-color');
         const text = row.querySelector('[data-part="text"]');
@@ -328,7 +420,7 @@
       } else if (Array.isArray(kind)) {
         setToken(key, token, e.target.value);
       } else {
-        row.querySelector('output').textContent = e.target.value + ' px';
+        row.querySelector('output').textContent = e.target.value + (token === 'bg_opacity' ? ' %' : ' px');
         setToken(key, token, e.target.value);
       }
     };

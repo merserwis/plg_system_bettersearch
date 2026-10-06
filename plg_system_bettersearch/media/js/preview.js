@@ -22,6 +22,14 @@
   const visible = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  // the Google font of the theme and the primary colour of the site's Gridbox theme
+  function head(r) {
+    let out = '';
+    if (r.fonts && /^https:\/\/fonts\.googleapis\.com\//.test(r.fonts)) out += '<link rel="stylesheet" href="' + esc(r.fonts) + '">';
+    if (r.primary && /^[#a-z0-9(),.\s%-]+$/i.test(r.primary)) out += '<style>html body{--primary:' + r.primary + '}</style>';
+    return out;
+  }
+
   function liveDocument(r, device) {
     const l = r.layout || {};
     // JSON inside an inline script: "<" must not be able to close the script element
@@ -36,7 +44,7 @@
       ? '<div class="bs-live is-open is-full" id="bs-live" style="position:fixed"><div class="bs-full-head"><input type="search" value="' + esc(r.q)
         + '" readonly><button type="button" aria-label="close">&times;</button></div>' + r.html + '</div>'
       : '<div class="bs-live is-open" id="bs-live" style="position:absolute">' + r.html + '</div>';
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>' + BASE + r.css
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + head(r) + '<style>' + BASE + r.css
       + '</style></head><body><div class="demo-bar"><div class="demo-logo"></div><div class="demo-search"><span>' + esc(r.q) + '</span>'
       + '<svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.4-1.42 1.4-5.39-5.38A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg></div></div>'
       + '<div class="demo-page demo-lines">' + '<div style="width:70%"></div><div></div><div style="width:85%"></div>'.repeat(4) + '</div>'
@@ -44,7 +52,7 @@
   }
 
   function pageDocument(r) {
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>' + BASE + r.css
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + head(r) + '<style>' + BASE + r.css
       + '</style></head><body><div class="demo-page">' + (r.heading ? '<h1 class="demo-heading">' + esc(r.heading) + '</h1>' : '') + r.html + '</div></body></html>';
   }
 
