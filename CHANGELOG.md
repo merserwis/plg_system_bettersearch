@@ -2,6 +2,21 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.0 — 2026-10-06
+
+### 🎨 Themes
+
+- **New tab *Appearance* with a theme gallery.** Five modern looks for the live results and the results page, each with a miniature: **Minimal** (clean lines, hairline borders, outlined buttons), **Soft** (large rounded corners, airy shadows, pill buttons), **Glass** (frosted translucent panel with a blurred background), **Dark** (dark surfaces, sky-blue accent) and **Bold** (thick black outlines, hard offset shadows, vivid orange).
+- **Nothing changes after the update.** The theme **Basic** is selected by default: it is the look of earlier versions, driven by the colour and shape settings of the *Live results* and *Results page* tabs — the rendered result is identical, pixel for pixel. *Back to the Basic theme* returns to it at any time; the colour settings of those tabs are kept untouched while another theme is active (they are hidden there, with a note).
+- **Visual theme editor:** every part of the theme — 15 colours (accent, text on accent, backgrounds, texts, names, prices, hover, borders, images, highlight, fields), corners of the panel, cards and buttons, border width, panel and card shadows (soft, strong, floating, hard offset, glow), the card hover effect (lift, shadow, zoom, border, glow, shift), font, weight of names, section titles, button style (solid, outlined, tinted) and the glass blur. Changed values are marked and can be reset one by one or all together; the miniature in the gallery follows the changes.
+- **CSS editor:** own CSS for each theme (also for Basic), added after the theme so it wins over it — paste or write code with line numbers, a brace check and Tab indenting. *Insert theme CSS* puts the theme's variables and rules into the editor to change them as code. Selectors of the results page written with `.bettersearch-results` get the block's id automatically, so they win over the plugin's own rules.
+- **Live preview beside the editors:** every change — a colour, a slider, a line of CSS — shows at once in the preview of the live results and of the results page (desktop, tablet, phone).
+- Changes are kept **per theme**: trying another theme and coming back loses nothing.
+
+### 🎚️ Basic and advanced settings
+
+- A switch **Basic / Advanced** above the tabs. *Basic* shows the settings most sites need; *Advanced* shows all of them (weights, timings, sizes, texts, synchronisation, Google Search Console…). Tabs left without a setting are hidden. Hidden settings keep their values; the choice is saved with the settings.
+
 ## 1.5.3 — 2026-10-05
 
 ### 🏷️ Product badges in the results

@@ -3,10 +3,10 @@
     <name>plg_system_bettersearch</name>
     <author>Merserwis</author>
     <authorUrl>https://github.com/merserwis/</authorUrl>
-    <creationDate>2026-10-05</creationDate>
+    <creationDate>2026-10-06</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.5.3</version>
+    <version>1.6.0</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -52,6 +52,7 @@
             <!-- ============================================================ General -->
             <fieldset name="basic">
                 <field name="info" type="note" class="alert alert-info" label="PLG_SYSTEM_BETTERSEARCH_INFO_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INFO_DESC" />
+                <field name="settings_mode" type="bsmode" default="basic" label="PLG_SYSTEM_BETTERSEARCH_SETTINGS_MODE_LABEL" hiddenLabel="true" />
                 <field name="apps" type="bsapps" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_APPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_APPS_DESC" />
                 <field name="index_pages" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_INDEX_PAGES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_PAGES_DESC">
                     <option value="0">JNO</option>
@@ -66,31 +67,31 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="results_url" type="text" default="" hint="/szukaj" label="PLG_SYSTEM_BETTERSEARCH_RESULTS_URL_LABEL" description="PLG_SYSTEM_BETTERSEARCH_RESULTS_URL_DESC" />
-                <field name="input_selector" type="text" default="" hint=".ba-item-store-search input, .ba-item-search input, input.bettersearch-input" label="PLG_SYSTEM_BETTERSEARCH_SELECTOR_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SELECTOR_DESC" />
-                <field name="load_everywhere" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_LOAD_EVERYWHERE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LOAD_EVERYWHERE_DESC">
+                <field name="input_selector" parentclass="bs-adv" type="text" default="" hint=".ba-item-store-search input, .ba-item-search input, input.bettersearch-input" label="PLG_SYSTEM_BETTERSEARCH_SELECTOR_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SELECTOR_DESC" />
+                <field name="load_everywhere" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_LOAD_EVERYWHERE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LOAD_EVERYWHERE_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="icon_submit" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_ICON_SUBMIT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_ICON_SUBMIT_DESC">
+                <field name="icon_submit" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_ICON_SUBMIT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_ICON_SUBMIT_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="auto_sync" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_AUTO_SYNC_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AUTO_SYNC_DESC">
+                <field name="auto_sync" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_AUTO_SYNC_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AUTO_SYNC_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="sync_interval" type="number" default="10" min="1" max="1440" showon="auto_sync:1" label="PLG_SYSTEM_BETTERSEARCH_SYNC_INTERVAL_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SYNC_INTERVAL_DESC" />
-                <field name="sync_budget" type="number" default="300" min="10" max="5000" showon="auto_sync:1" label="PLG_SYSTEM_BETTERSEARCH_SYNC_BUDGET_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SYNC_BUDGET_DESC" />
-                <field name="instant_reindex" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INSTANT_REINDEX_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INSTANT_REINDEX_DESC">
+                <field name="sync_interval" parentclass="bs-adv" type="number" default="10" min="1" max="1440" showon="auto_sync:1" label="PLG_SYSTEM_BETTERSEARCH_SYNC_INTERVAL_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SYNC_INTERVAL_DESC" />
+                <field name="sync_budget" parentclass="bs-adv" type="number" default="300" min="10" max="5000" showon="auto_sync:1" label="PLG_SYSTEM_BETTERSEARCH_SYNC_BUDGET_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SYNC_BUDGET_DESC" />
+                <field name="instant_reindex" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INSTANT_REINDEX_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INSTANT_REINDEX_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="cache_time" type="number" default="15" min="0" max="1440" label="PLG_SYSTEM_BETTERSEARCH_CACHE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_CACHE_DESC" />
-                <field name="log_searches" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LOG_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LOG_DESC">
+                <field name="cache_time" parentclass="bs-adv" type="number" default="15" min="0" max="1440" label="PLG_SYSTEM_BETTERSEARCH_CACHE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_CACHE_DESC" />
+                <field name="log_searches" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LOG_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LOG_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="track_conversions" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_TRACK_CONVERSIONS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_TRACK_CONVERSIONS_DESC">
+                <field name="track_conversions" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_TRACK_CONVERSIONS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_TRACK_CONVERSIONS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -101,15 +102,15 @@
             <fieldset name="engine" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_ENGINE">
                 <field name="engine_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_ENGINE_NOTE" />
                 <field name="index_fields" type="bsfields" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_INDEX_FIELDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_FIELDS_DESC" />
-                <field name="index_variation_sku" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_VARIATION_SKU_LABEL">
+                <field name="index_variation_sku" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_VARIATION_SKU_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="index_parent_cats" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_PARENT_CATS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_PARENT_CATS_DESC">
+                <field name="index_parent_cats" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_PARENT_CATS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_PARENT_CATS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="index_tags" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_TAGS_LABEL">
+                <field name="index_tags" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_TAGS_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -117,21 +118,21 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="index_intro" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="search_body:1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_INTRO_LABEL">
+                <field name="index_intro" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="search_body:1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_INTRO_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="index_meta" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="search_body:1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_META_LABEL">
+                <field name="index_meta" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="search_body:1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_META_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="index_content" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="search_body:1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_CONTENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_CONTENT_DESC">
+                <field name="index_content" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="search_body:1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_CONTENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_CONTENT_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="content_limit" type="number" default="20000" min="1000" max="200000" showon="search_body:1[AND]index_content:1" label="PLG_SYSTEM_BETTERSEARCH_CONTENT_LIMIT_LABEL" />
-                <field name="min_chars" type="number" default="2" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_MIN_CHARS_LABEL" />
-                <field name="stemming" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_STEMMING_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STEMMING_DESC">
+                <field name="content_limit" parentclass="bs-adv" type="number" default="20000" min="1000" max="200000" showon="search_body:1[AND]index_content:1" label="PLG_SYSTEM_BETTERSEARCH_CONTENT_LIMIT_LABEL" />
+                <field name="min_chars" parentclass="bs-adv" type="number" default="2" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_MIN_CHARS_LABEL" />
+                <field name="stemming" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_STEMMING_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STEMMING_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -139,35 +140,35 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="partial_matches" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PARTIAL_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PARTIAL_DESC">
+                <field name="partial_matches" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PARTIAL_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PARTIAL_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="tech_params" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_TECH_PARAMS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_TECH_PARAMS_DESC">
+                <field name="tech_params" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_TECH_PARAMS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_TECH_PARAMS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="min_relevance" type="number" default="15" min="0" max="90" label="PLG_SYSTEM_BETTERSEARCH_MIN_RELEVANCE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_MIN_RELEVANCE_DESC" />
+                <field name="min_relevance" parentclass="bs-adv" type="number" default="15" min="0" max="90" label="PLG_SYSTEM_BETTERSEARCH_MIN_RELEVANCE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_MIN_RELEVANCE_DESC" />
                 <field name="synonyms" type="textarea" rows="7" default="" filter="raw" hint="multimetr, miernik uniwersalny&#10;kamera termowizyjna, termowizor, kamera ir&#10;rcd => wyłącznik różnicowoprądowy" label="PLG_SYSTEM_BETTERSEARCH_SYNONYMS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SYNONYMS_DESC" />
                 <field name="synonyms_editor" type="bsdict" target="synonyms" mode="synonyms" hiddenLabel="true" />
-                <field name="redirects" type="textarea" rows="5" default="" filter="raw" hint="sonel => /oferta/producent/sonel | Sonel&#10;wzorcowanie, kalibracja => /laboratorium" label="PLG_SYSTEM_BETTERSEARCH_REDIRECTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REDIRECTS_DESC" />
-                <field name="redirects_editor" type="bsdict" target="redirects" mode="redirects" hiddenLabel="true" />
+                <field name="redirects" parentclass="bs-adv" type="textarea" rows="5" default="" filter="raw" hint="sonel => /oferta/producent/sonel | Sonel&#10;wzorcowanie, kalibracja => /laboratorium" label="PLG_SYSTEM_BETTERSEARCH_REDIRECTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REDIRECTS_DESC" />
+                <field name="redirects_editor" parentclass="bs-adv" type="bsdict" target="redirects" mode="redirects" hiddenLabel="true" />
                 <field name="did_you_mean" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_DID_YOU_MEAN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DID_YOU_MEAN_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="stopwords" type="textarea" rows="3" default="i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in" label="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_DESC" />
-                <field name="weights_spacer" type="spacer" hr="true" />
-                <field name="weights_note" type="note" class="alert alert-light" label="PLG_SYSTEM_BETTERSEARCH_WEIGHTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_WEIGHTS_DESC" />
-                <field name="w_sku" type="number" default="12" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_SKU_LABEL" />
-                <field name="w_title" type="number" default="10" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_TITLE_LABEL" />
-                <field name="w_fields" type="number" default="4" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_FIELDS_LABEL" />
-                <field name="w_cats" type="number" default="3" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_CATS_LABEL" />
-                <field name="w_body" type="number" default="1" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_BODY_LABEL" />
-                <field name="w_params" type="number" default="8" min="0" max="100" step="0.5" showon="tech_params:1" label="PLG_SYSTEM_BETTERSEARCH_W_PARAMS_LABEL" />
-                <field name="w_digits" type="number" default="1.5" min="1" max="5" step="0.1" label="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_DESC" />
-                <field name="popularity_boost" type="number" default="1" min="0" max="20" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_POPULARITY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_POPULARITY_DESC" />
-                <field name="max_candidates" type="number" default="3000" min="100" max="5000" label="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_LABEL" />
+                <field name="stopwords" parentclass="bs-adv" type="textarea" rows="3" default="i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in" label="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_DESC" />
+                <field name="weights_spacer" parentclass="bs-adv" type="spacer" hr="true" />
+                <field name="weights_note" parentclass="bs-adv" type="note" class="alert alert-light" label="PLG_SYSTEM_BETTERSEARCH_WEIGHTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_WEIGHTS_DESC" />
+                <field name="w_sku" parentclass="bs-adv" type="number" default="12" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_SKU_LABEL" />
+                <field name="w_title" parentclass="bs-adv" type="number" default="10" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_TITLE_LABEL" />
+                <field name="w_fields" parentclass="bs-adv" type="number" default="4" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_FIELDS_LABEL" />
+                <field name="w_cats" parentclass="bs-adv" type="number" default="3" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_CATS_LABEL" />
+                <field name="w_body" parentclass="bs-adv" type="number" default="1" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_BODY_LABEL" />
+                <field name="w_params" parentclass="bs-adv" type="number" default="8" min="0" max="100" step="0.5" showon="tech_params:1" label="PLG_SYSTEM_BETTERSEARCH_W_PARAMS_LABEL" />
+                <field name="w_digits" parentclass="bs-adv" type="number" default="1.5" min="1" max="5" step="0.1" label="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_DESC" />
+                <field name="popularity_boost" parentclass="bs-adv" type="number" default="1" min="0" max="20" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_POPULARITY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_POPULARITY_DESC" />
+                <field name="max_candidates" parentclass="bs-adv" type="number" default="3000" min="100" max="5000" label="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_LABEL" />
             </fieldset>
 
             <!-- ============================================================ Ranking and exclusions -->
@@ -194,13 +195,13 @@
                         <field name="note" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_RULE_NOTE_LABEL" />
                     </form>
                 </field>
-                <field name="product_boosts" type="subform" multiple="true" layout="joomla.form.field.subform.repeatable-table" buttons="add,remove" label="PLG_SYSTEM_BETTERSEARCH_PRODUCT_BOOSTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PRODUCT_BOOSTS_DESC">
+                <field name="product_boosts" parentclass="bs-adv" type="subform" multiple="true" layout="joomla.form.field.subform.repeatable-table" buttons="add,remove" label="PLG_SYSTEM_BETTERSEARCH_PRODUCT_BOOSTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PRODUCT_BOOSTS_DESC">
                     <form>
                         <field name="product" type="bsproducts" multiple="false" default="" label="PLG_SYSTEM_BETTERSEARCH_PRODUCT_LABEL" />
                         <field name="boost" type="number" default="10" min="-1000" max="1000" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_BOOST_LABEL" />
                     </form>
                 </field>
-                <field name="category_boosts" type="subform" multiple="true" layout="joomla.form.field.subform.repeatable-table" buttons="add,remove" label="PLG_SYSTEM_BETTERSEARCH_CATEGORY_BOOSTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_CATEGORY_BOOSTS_DESC">
+                <field name="category_boosts" parentclass="bs-adv" type="subform" multiple="true" layout="joomla.form.field.subform.repeatable-table" buttons="add,remove" label="PLG_SYSTEM_BETTERSEARCH_CATEGORY_BOOSTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_CATEGORY_BOOSTS_DESC">
                     <form>
                         <field name="category" type="bscategories" default="" label="PLG_SYSTEM_BETTERSEARCH_CATEGORY_LABEL">
                             <option value="">JSELECT</option>
@@ -210,7 +211,7 @@
                 </field>
                 <field name="exclude_spacer" type="spacer" hr="true" />
                 <field name="exclude_categories" type="bscategories" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_EXCLUDE_CATEGORIES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_EXCLUDE_CATEGORIES_DESC" />
-                <field name="exclude_children" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_EXCLUDE_CHILDREN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_EXCLUDE_CHILDREN_DESC">
+                <field name="exclude_children" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_EXCLUDE_CHILDREN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_EXCLUDE_CHILDREN_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -232,34 +233,41 @@
                 </field>
             </fieldset>
 
+            <!-- ============================================================ Appearance: themes -->
+            <fieldset name="appearance" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_APPEARANCE">
+                <field name="preview_theme" type="bspreview" mode="both" hiddenLabel="true" />
+                <field name="theme" type="bstheme" default="default" label="PLG_SYSTEM_BETTERSEARCH_THEME_LABEL" hiddenLabel="true" />
+                <field name="theme_custom" type="hidden" default="" filter="raw" />
+            </fieldset>
+
             <!-- ============================================================ Live results -->
             <fieldset name="live" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_LIVE">
                 <field name="preview_live" type="bspreview" mode="live" hiddenLabel="true" />
-                <field name="live_min_chars" type="number" default="2" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MIN_CHARS_LABEL" />
-                <field name="live_debounce" type="number" default="220" min="0" max="2000" step="10" label="PLG_SYSTEM_BETTERSEARCH_LIVE_DEBOUNCE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_DEBOUNCE_DESC" />
+                <field name="live_min_chars" parentclass="bs-adv" type="number" default="2" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MIN_CHARS_LABEL" />
+                <field name="live_debounce" parentclass="bs-adv" type="number" default="220" min="0" max="2000" step="10" label="PLG_SYSTEM_BETTERSEARCH_LIVE_DEBOUNCE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_DEBOUNCE_DESC" />
                 <field name="live_limit" type="number" default="8" min="1" max="50" label="PLG_SYSTEM_BETTERSEARCH_LIVE_LIMIT_LABEL" />
                 <field name="live_suggestions" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_SUGGESTIONS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_SUGGESTIONS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_suggestions_limit" type="number" default="4" min="1" max="10" showon="live_suggestions:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_SUGGESTIONS_LIMIT_LABEL" />
+                <field name="live_suggestions_limit" parentclass="bs-adv" type="number" default="4" min="1" max="10" showon="live_suggestions:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_SUGGESTIONS_LIMIT_LABEL" />
                 <field name="live_recent" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_RECENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_RECENT_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_recent_limit" type="number" default="5" min="1" max="20" showon="live_recent:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_RECENT_LIMIT_LABEL" />
-                <field name="suggest_min_searches" type="number" default="2" min="1" max="100" showon="live_suggestions:1" label="PLG_SYSTEM_BETTERSEARCH_SUGGEST_MIN_SEARCHES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SUGGEST_MIN_SEARCHES_DESC" />
-                <field name="live_group_apps" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_GROUP_APPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_GROUP_APPS_DESC">
+                <field name="live_recent_limit" parentclass="bs-adv" type="number" default="5" min="1" max="20" showon="live_recent:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_RECENT_LIMIT_LABEL" />
+                <field name="suggest_min_searches" parentclass="bs-adv" type="number" default="2" min="1" max="100" showon="live_suggestions:1" label="PLG_SYSTEM_BETTERSEARCH_SUGGEST_MIN_SEARCHES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SUGGEST_MIN_SEARCHES_DESC" />
+                <field name="live_group_apps" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_GROUP_APPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_GROUP_APPS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_limit_other" type="number" default="3" min="0" max="20" showon="live_group_apps:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_LIMIT_OTHER_LABEL" />
+                <field name="live_limit_other" parentclass="bs-adv" type="number" default="3" min="0" max="20" showon="live_group_apps:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_LIMIT_OTHER_LABEL" />
                 <field name="live_categories" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_CATEGORIES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_CATEGORIES_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_categories_limit" type="number" default="4" min="1" max="20" showon="live_categories:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_CATEGORIES_LIMIT_LABEL" />
-                <field name="live_section_titles" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_SECTION_TITLES_LABEL">
+                <field name="live_categories_limit" parentclass="bs-adv" type="number" default="4" min="1" max="20" showon="live_categories:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_CATEGORIES_LIMIT_LABEL" />
+                <field name="live_section_titles" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_SECTION_TITLES_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -277,8 +285,8 @@
                     <option value="flip">PLG_SYSTEM_BETTERSEARCH_EFFECT_FLIP</option>
                     <option value="expand">PLG_SYSTEM_BETTERSEARCH_EFFECT_EXPAND</option>
                 </field>
-                <field name="live_anim_duration" type="number" default="200" min="0" max="2000" step="10" showon="live_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIM_DURATION_LABEL" />
-                <field name="live_item_animation" type="list" default="none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_ANIMATION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_ANIMATION_DESC">
+                <field name="live_anim_duration" parentclass="bs-adv" type="number" default="200" min="0" max="2000" step="10" showon="live_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIM_DURATION_LABEL" />
+                <field name="live_item_animation" parentclass="bs-adv" type="list" default="none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_ANIMATION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_ANIMATION_DESC">
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_EFFECT_NONE</option>
                     <option value="fade">PLG_SYSTEM_BETTERSEARCH_EFFECT_FADE</option>
                     <option value="fade_up">PLG_SYSTEM_BETTERSEARCH_EFFECT_FADE_UP</option>
@@ -286,8 +294,8 @@
                     <option value="zoom">PLG_SYSTEM_BETTERSEARCH_EFFECT_ZOOM</option>
                     <option value="blur">PLG_SYSTEM_BETTERSEARCH_EFFECT_BLUR</option>
                 </field>
-                <field name="live_item_duration" type="number" default="260" min="0" max="2000" step="10" showon="live_item_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_DURATION_LABEL" />
-                <field name="live_item_stagger" type="number" default="35" min="0" max="500" step="5" showon="live_item_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_STAGGER_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_STAGGER_DESC" />
+                <field name="live_item_duration" parentclass="bs-adv" type="number" default="260" min="0" max="2000" step="10" showon="live_item_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_DURATION_LABEL" />
+                <field name="live_item_stagger" parentclass="bs-adv" type="number" default="35" min="0" max="500" step="5" showon="live_item_animation!:none" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_STAGGER_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ITEM_STAGGER_DESC" />
                 <field name="live_layout_spacer" type="spacer" hr="true" />
                 <field name="live_width_mode" type="list" default="wide" label="PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_MODE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_MODE_DESC">
                     <option value="input">PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_INPUT</option>
@@ -295,13 +303,13 @@
                     <option value="fixed">PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_FIXED</option>
                 </field>
                 <field name="live_width" type="number" default="640" min="200" max="1600" showon="live_width_mode!:input" label="PLG_SYSTEM_BETTERSEARCH_LIVE_WIDTH_LABEL" />
-                <field name="live_max_height" type="number" default="560" min="200" max="2000" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MAX_HEIGHT_LABEL" />
-                <field name="live_align" type="list" default="left" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ALIGN_LABEL">
+                <field name="live_max_height" parentclass="bs-adv" type="number" default="560" min="200" max="2000" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MAX_HEIGHT_LABEL" />
+                <field name="live_align" parentclass="bs-adv" type="list" default="left" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ALIGN_LABEL">
                     <option value="left">PLG_SYSTEM_BETTERSEARCH_ALIGN_LEFT</option>
                     <option value="center">PLG_SYSTEM_BETTERSEARCH_ALIGN_CENTER</option>
                     <option value="right">PLG_SYSTEM_BETTERSEARCH_ALIGN_RIGHT</option>
                 </field>
-                <field name="live_offset" type="number" default="8" min="-50" max="100" label="PLG_SYSTEM_BETTERSEARCH_LIVE_OFFSET_LABEL" />
+                <field name="live_offset" parentclass="bs-adv" type="number" default="8" min="-50" max="100" label="PLG_SYSTEM_BETTERSEARCH_LIVE_OFFSET_LABEL" />
                 <field name="live_layout" type="list" default="list" label="PLG_SYSTEM_BETTERSEARCH_LIVE_LAYOUT_LABEL">
                     <option value="list">PLG_SYSTEM_BETTERSEARCH_LAYOUT_LIST</option>
                     <option value="grid">PLG_SYSTEM_BETTERSEARCH_LAYOUT_GRID</option>
@@ -311,28 +319,28 @@
                     <option value="fullscreen">PLG_SYSTEM_BETTERSEARCH_LIVE_MOBILE_FULL</option>
                     <option value="dropdown">PLG_SYSTEM_BETTERSEARCH_LIVE_MOBILE_DROPDOWN</option>
                 </field>
-                <field name="live_mobile_breakpoint" type="number" default="768" min="0" max="1400" showon="live_mobile:fullscreen" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MOBILE_BREAKPOINT_LABEL" />
+                <field name="live_mobile_breakpoint" parentclass="bs-adv" type="number" default="768" min="0" max="1400" showon="live_mobile:fullscreen" label="PLG_SYSTEM_BETTERSEARCH_LIVE_MOBILE_BREAKPOINT_LABEL" />
                 <field name="live_content_spacer" type="spacer" hr="true" />
                 <field name="live_image" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SHOW_IMAGE_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_image_position" type="list" default="left" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_POSITION_LABEL">
+                <field name="live_image_position" parentclass="bs-adv" type="list" default="left" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_POSITION_LABEL">
                     <option value="left">PLG_SYSTEM_BETTERSEARCH_POS_LEFT</option>
                     <option value="right">PLG_SYSTEM_BETTERSEARCH_POS_RIGHT</option>
                     <option value="top">PLG_SYSTEM_BETTERSEARCH_POS_TOP</option>
                 </field>
-                <field name="live_image_size" type="number" default="64" min="24" max="400" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_SIZE_LABEL" />
-                <field name="live_image_shape" type="list" default="rounded" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_SHAPE_LABEL">
+                <field name="live_image_size" parentclass="bs-adv" type="number" default="64" min="24" max="400" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_SIZE_LABEL" />
+                <field name="live_image_shape" parentclass="bs-adv" type="list" default="rounded" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_SHAPE_LABEL">
                     <option value="rect">PLG_SYSTEM_BETTERSEARCH_SHAPE_RECT</option>
                     <option value="rounded">PLG_SYSTEM_BETTERSEARCH_SHAPE_ROUNDED</option>
                     <option value="circle">PLG_SYSTEM_BETTERSEARCH_SHAPE_CIRCLE</option>
                 </field>
-                <field name="live_image_fit" type="list" default="contain" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_FIT_LABEL">
+                <field name="live_image_fit" parentclass="bs-adv" type="list" default="contain" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_FIT_LABEL">
                     <option value="contain">PLG_SYSTEM_BETTERSEARCH_FIT_CONTAIN</option>
                     <option value="cover">PLG_SYSTEM_BETTERSEARCH_FIT_COVER</option>
                 </field>
-                <field name="live_image_bg" type="color" default="#ffffff" showon="live_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_BG_LABEL" />
+                <field name="live_image_bg" parentclass="bs-adv" type="color" default="#ffffff" showon="live_image:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_BG_LABEL" />
                 <field name="live_show_price" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SHOW_PRICE_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
@@ -345,31 +353,32 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_show_stock" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_STOCK_LABEL">
+                <field name="live_show_stock" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_STOCK_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_show_excerpt" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_EXCERPT_LABEL">
+                <field name="live_show_excerpt" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_EXCERPT_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="live_excerpt_length" type="number" default="90" min="20" max="400" showon="live_show_excerpt:1" label="PLG_SYSTEM_BETTERSEARCH_EXCERPT_LENGTH_LABEL" />
-                <field name="live_title_lines" type="number" default="2" min="1" max="5" label="PLG_SYSTEM_BETTERSEARCH_TITLE_LINES_LABEL" />
+                <field name="live_excerpt_length" parentclass="bs-adv" type="number" default="90" min="20" max="400" showon="live_show_excerpt:1" label="PLG_SYSTEM_BETTERSEARCH_EXCERPT_LENGTH_LABEL" />
+                <field name="live_title_lines" parentclass="bs-adv" type="number" default="2" min="1" max="5" label="PLG_SYSTEM_BETTERSEARCH_TITLE_LINES_LABEL" />
                 <field name="live_style_spacer" type="spacer" hr="true" />
+                <field name="live_theme_note" type="note" class="alert alert-info" showon="theme!:default" description="PLG_SYSTEM_BETTERSEARCH_THEME_ACTIVE_NOTE" />
                 <field name="live_font_size" type="number" default="14" min="10" max="24" label="PLG_SYSTEM_BETTERSEARCH_FONT_SIZE_LABEL" />
-                <field name="live_bg" type="color" default="#ffffff" label="PLG_SYSTEM_BETTERSEARCH_BG_LABEL" />
-                <field name="live_text" type="color" default="#1f2328" label="PLG_SYSTEM_BETTERSEARCH_TEXT_COLOR_LABEL" />
-                <field name="live_muted" type="color" default="#6b7280" label="PLG_SYSTEM_BETTERSEARCH_MUTED_COLOR_LABEL" />
-                <field name="live_accent" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_ACCENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_ACCENT_DESC" />
-                <field name="live_hover_bg" type="color" default="#f3f4f6" label="PLG_SYSTEM_BETTERSEARCH_HOVER_BG_LABEL" />
-                <field name="live_border" type="color" default="#e5e7eb" label="PLG_SYSTEM_BETTERSEARCH_BORDER_LABEL" />
-                <field name="live_radius" type="number" default="10" min="0" max="40" label="PLG_SYSTEM_BETTERSEARCH_RADIUS_LABEL" />
-                <field name="live_shadow" type="list" default="strong" label="PLG_SYSTEM_BETTERSEARCH_SHADOW_LABEL">
+                <field name="live_bg" type="color" default="#ffffff" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_BG_LABEL" />
+                <field name="live_text" type="color" default="#1f2328" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_TEXT_COLOR_LABEL" />
+                <field name="live_muted" parentclass="bs-adv" type="color" default="#6b7280" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_MUTED_COLOR_LABEL" />
+                <field name="live_accent" type="color" default="" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_ACCENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_ACCENT_DESC" />
+                <field name="live_hover_bg" parentclass="bs-adv" type="color" default="#f3f4f6" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_HOVER_BG_LABEL" />
+                <field name="live_border" type="color" default="#e5e7eb" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_BORDER_LABEL" />
+                <field name="live_radius" type="number" default="10" min="0" max="40" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_RADIUS_LABEL" />
+                <field name="live_shadow" type="list" default="strong" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_SHADOW_LABEL">
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_SHADOW_NONE</option>
                     <option value="soft">PLG_SYSTEM_BETTERSEARCH_SHADOW_SOFT</option>
                     <option value="strong">PLG_SYSTEM_BETTERSEARCH_SHADOW_STRONG</option>
                 </field>
-                <field name="live_z" type="number" default="99999" min="1" max="2147483647" label="PLG_SYSTEM_BETTERSEARCH_Z_LABEL" />
+                <field name="live_z" parentclass="bs-adv" type="number" default="99999" min="1" max="2147483647" label="PLG_SYSTEM_BETTERSEARCH_Z_LABEL" />
             </fieldset>
 
             <!-- ============================================================ Results page -->
@@ -380,7 +389,7 @@
                     <option value="custom">PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_CUSTOM</option>
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_NONE</option>
                 </field>
-                <field name="page_count" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_COUNT_LABEL">
+                <field name="page_count" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_COUNT_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -388,7 +397,7 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_sorts" type="checkboxes" default="relevance,title,price,price_desc,newest" showon="page_sort:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_SORTS_LABEL">
+                <field name="page_sorts" parentclass="bs-adv" type="checkboxes" default="relevance,title,price,price_desc,newest" showon="page_sort:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_SORTS_LABEL">
                     <option value="title">PLG_SYSTEM_BETTERSEARCH_SORT_TITLE</option>
                     <option value="title_desc">PLG_SYSTEM_BETTERSEARCH_SORT_TITLE_DESC</option>
                     <option value="price">PLG_SYSTEM_BETTERSEARCH_SORT_PRICE</option>
@@ -400,12 +409,12 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_cat_level" type="list" default="direct" showon="page_cat_filter:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LEVEL_LABEL">
+                <field name="page_cat_level" parentclass="bs-adv" type="list" default="direct" showon="page_cat_filter:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LEVEL_LABEL">
                     <option value="direct">PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LEVEL_DIRECT</option>
                     <option value="top">PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LEVEL_TOP</option>
                 </field>
-                <field name="page_cat_limit" type="number" default="12" min="1" max="100" showon="page_cat_filter:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LIMIT_LABEL" />
-                <field name="page_app_filter" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_APP_FILTER_LABEL">
+                <field name="page_cat_limit" parentclass="bs-adv" type="number" default="12" min="1" max="100" showon="page_cat_filter:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LIMIT_LABEL" />
+                <field name="page_app_filter" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_APP_FILTER_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -413,22 +422,22 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_facets_position" type="list" default="side" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_FACETS_POSITION_LABEL">
+                <field name="page_facets_position" parentclass="bs-adv" type="list" default="side" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_FACETS_POSITION_LABEL">
                     <option value="side">PLG_SYSTEM_BETTERSEARCH_PAGE_FACETS_POSITION_SIDE</option>
                     <option value="top">PLG_SYSTEM_BETTERSEARCH_PAGE_FACETS_POSITION_TOP</option>
                 </field>
-                <field name="facet_brand_field" type="bsfields" selectonly="true" default="" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_BRAND_FIELD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_BRAND_FIELD_DESC">
+                <field name="facet_brand_field" parentclass="bs-adv" type="bsfields" selectonly="true" default="" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_BRAND_FIELD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_BRAND_FIELD_DESC">
                     <option value="">PLG_SYSTEM_BETTERSEARCH_FACET_BRAND_NONE</option>
                 </field>
-                <field name="facet_price" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_PRICE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_PRICE_DESC">
+                <field name="facet_price" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_PRICE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_PRICE_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="facet_sale" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SALE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SALE_DESC">
+                <field name="facet_sale" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SALE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SALE_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="facet_stock" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_STOCK_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_STOCK_DESC">
+                <field name="facet_stock" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_STOCK_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_STOCK_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -446,20 +455,20 @@
                 <field name="page_cols" type="number" default="4" min="1" max="8" showon="page_layout:grid" label="PLG_SYSTEM_BETTERSEARCH_COLS_LABEL" />
                 <field name="page_cols_tablet" type="number" default="3" min="1" max="8" showon="page_layout:grid" label="PLG_SYSTEM_BETTERSEARCH_COLS_TABLET_LABEL" />
                 <field name="page_cols_mobile" type="number" default="2" min="1" max="4" showon="page_layout:grid" label="PLG_SYSTEM_BETTERSEARCH_COLS_MOBILE_LABEL" />
-                <field name="page_gap" type="number" default="20" min="0" max="80" label="PLG_SYSTEM_BETTERSEARCH_GAP_LABEL" />
-                <field name="page_max_width" type="number" default="0" min="0" max="3000" label="PLG_SYSTEM_BETTERSEARCH_MAX_WIDTH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_MAX_WIDTH_DESC" />
+                <field name="page_gap" parentclass="bs-adv" type="number" default="20" min="0" max="80" label="PLG_SYSTEM_BETTERSEARCH_GAP_LABEL" />
+                <field name="page_max_width" parentclass="bs-adv" type="number" default="0" min="0" max="3000" label="PLG_SYSTEM_BETTERSEARCH_MAX_WIDTH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_MAX_WIDTH_DESC" />
                 <field name="page_image_spacer" type="spacer" hr="true" />
                 <field name="page_image" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SHOW_IMAGE_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_image_position" type="list" default="top" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_POSITION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PAGE_IMAGE_POSITION_DESC">
+                <field name="page_image_position" parentclass="bs-adv" type="list" default="top" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_POSITION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PAGE_IMAGE_POSITION_DESC">
                     <option value="top">PLG_SYSTEM_BETTERSEARCH_POS_TOP</option>
                     <option value="left">PLG_SYSTEM_BETTERSEARCH_POS_LEFT</option>
                     <option value="right">PLG_SYSTEM_BETTERSEARCH_POS_RIGHT</option>
                 </field>
-                <field name="page_image_width" type="number" default="32" min="10" max="70" showon="page_image:1[AND]page_image_position!:top" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_WIDTH_LABEL" />
-                <field name="page_image_ratio" type="list" default="1-1" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_RATIO_LABEL">
+                <field name="page_image_width" parentclass="bs-adv" type="number" default="32" min="10" max="70" showon="page_image:1[AND]page_image_position!:top" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_WIDTH_LABEL" />
+                <field name="page_image_ratio" parentclass="bs-adv" type="list" default="1-1" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_RATIO_LABEL">
                     <option value="1-1">1:1</option>
                     <option value="4-3">4:3</option>
                     <option value="3-2">3:2</option>
@@ -467,18 +476,18 @@
                     <option value="3-4">3:4</option>
                     <option value="auto">PLG_SYSTEM_BETTERSEARCH_RATIO_AUTO</option>
                 </field>
-                <field name="page_image_fit" type="list" default="contain" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_FIT_LABEL">
+                <field name="page_image_fit" parentclass="bs-adv" type="list" default="contain" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_FIT_LABEL">
                     <option value="contain">PLG_SYSTEM_BETTERSEARCH_FIT_CONTAIN</option>
                     <option value="cover">PLG_SYSTEM_BETTERSEARCH_FIT_COVER</option>
                 </field>
-                <field name="page_image_shape" type="list" default="rect" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_SHAPE_LABEL">
+                <field name="page_image_shape" parentclass="bs-adv" type="list" default="rect" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_SHAPE_LABEL">
                     <option value="rect">PLG_SYSTEM_BETTERSEARCH_SHAPE_RECT</option>
                     <option value="rounded">PLG_SYSTEM_BETTERSEARCH_SHAPE_ROUNDED</option>
                     <option value="circle">PLG_SYSTEM_BETTERSEARCH_SHAPE_CIRCLE</option>
                 </field>
-                <field name="page_image_bg" type="color" default="#ffffff" showon="page_image:1" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_BG_LABEL" />
+                <field name="page_image_bg" parentclass="bs-adv" type="color" default="#ffffff" showon="page_image:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_IMAGE_BG_LABEL" />
                 <field name="page_content_spacer" type="spacer" hr="true" />
-                <field name="page_align" type="list" default="left" label="PLG_SYSTEM_BETTERSEARCH_ALIGN_TEXT_LABEL">
+                <field name="page_align" parentclass="bs-adv" type="list" default="left" label="PLG_SYSTEM_BETTERSEARCH_ALIGN_TEXT_LABEL">
                     <option value="left">PLG_SYSTEM_BETTERSEARCH_ALIGN_LEFT</option>
                     <option value="center">PLG_SYSTEM_BETTERSEARCH_ALIGN_CENTER</option>
                 </field>
@@ -486,17 +495,17 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_show_app" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_APP_LABEL">
+                <field name="page_show_app" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_APP_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_title_tag" type="list" default="h3" label="PLG_SYSTEM_BETTERSEARCH_TITLE_TAG_LABEL">
+                <field name="page_title_tag" parentclass="bs-adv" type="list" default="h3" label="PLG_SYSTEM_BETTERSEARCH_TITLE_TAG_LABEL">
                     <option value="h2">H2</option>
                     <option value="h3">H3</option>
                     <option value="h4">H4</option>
                     <option value="div">DIV</option>
                 </field>
-                <field name="page_show_sku" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_SKU_LABEL">
+                <field name="page_show_sku" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_SKU_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -504,12 +513,12 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_excerpt_length" type="number" default="140" min="20" max="1000" showon="page_show_excerpt:1" label="PLG_SYSTEM_BETTERSEARCH_EXCERPT_LENGTH_LABEL" />
+                <field name="page_excerpt_length" parentclass="bs-adv" type="number" default="140" min="20" max="1000" showon="page_show_excerpt:1" label="PLG_SYSTEM_BETTERSEARCH_EXCERPT_LENGTH_LABEL" />
                 <field name="page_show_price" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SHOW_PRICE_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="page_show_stock" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_STOCK_LABEL">
+                <field name="page_show_stock" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SHOW_STOCK_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -518,23 +527,24 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="page_style_spacer" type="spacer" hr="true" />
+                <field name="page_theme_note" type="note" class="alert alert-info" showon="theme!:default" description="PLG_SYSTEM_BETTERSEARCH_THEME_ACTIVE_NOTE" />
                 <field name="page_font_size" type="number" default="14" min="10" max="24" label="PLG_SYSTEM_BETTERSEARCH_FONT_SIZE_LABEL" />
-                <field name="page_title_size" type="number" default="16" min="10" max="40" label="PLG_SYSTEM_BETTERSEARCH_TITLE_SIZE_LABEL" />
-                <field name="page_title_lines" type="number" default="2" min="1" max="6" label="PLG_SYSTEM_BETTERSEARCH_TITLE_LINES_LABEL" />
-                <field name="page_title_color" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_TITLE_COLOR_LABEL" />
-                <field name="page_text_color" type="color" default="#4b5563" label="PLG_SYSTEM_BETTERSEARCH_TEXT_COLOR_LABEL" />
-                <field name="page_price_color" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_PRICE_COLOR_LABEL" />
-                <field name="page_accent" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_ACCENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_ACCENT_DESC" />
-                <field name="page_card_bg" type="color" default="#ffffff" label="PLG_SYSTEM_BETTERSEARCH_CARD_BG_LABEL" />
-                <field name="page_card_border" type="color" default="#e5e7eb" label="PLG_SYSTEM_BETTERSEARCH_BORDER_LABEL" />
-                <field name="page_card_radius" type="number" default="10" min="0" max="40" label="PLG_SYSTEM_BETTERSEARCH_RADIUS_LABEL" />
-                <field name="page_card_padding" type="number" default="16" min="0" max="60" label="PLG_SYSTEM_BETTERSEARCH_CARD_PADDING_LABEL" />
-                <field name="page_card_shadow" type="list" default="none" label="PLG_SYSTEM_BETTERSEARCH_SHADOW_LABEL">
+                <field name="page_title_size" parentclass="bs-adv" type="number" default="16" min="10" max="40" label="PLG_SYSTEM_BETTERSEARCH_TITLE_SIZE_LABEL" />
+                <field name="page_title_lines" parentclass="bs-adv" type="number" default="2" min="1" max="6" label="PLG_SYSTEM_BETTERSEARCH_TITLE_LINES_LABEL" />
+                <field name="page_title_color" parentclass="bs-adv" type="color" default="" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_TITLE_COLOR_LABEL" />
+                <field name="page_text_color" parentclass="bs-adv" type="color" default="#4b5563" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_TEXT_COLOR_LABEL" />
+                <field name="page_price_color" parentclass="bs-adv" type="color" default="" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_PRICE_COLOR_LABEL" />
+                <field name="page_accent" type="color" default="" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_ACCENT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_ACCENT_DESC" />
+                <field name="page_card_bg" type="color" default="#ffffff" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_CARD_BG_LABEL" />
+                <field name="page_card_border" type="color" default="#e5e7eb" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_BORDER_LABEL" />
+                <field name="page_card_radius" type="number" default="10" min="0" max="40" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_RADIUS_LABEL" />
+                <field name="page_card_padding" parentclass="bs-adv" type="number" default="16" min="0" max="60" label="PLG_SYSTEM_BETTERSEARCH_CARD_PADDING_LABEL" />
+                <field name="page_card_shadow" type="list" default="none" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_SHADOW_LABEL">
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_SHADOW_NONE</option>
                     <option value="soft">PLG_SYSTEM_BETTERSEARCH_SHADOW_SOFT</option>
                     <option value="strong">PLG_SYSTEM_BETTERSEARCH_SHADOW_STRONG</option>
                 </field>
-                <field name="page_hover" type="list" default="lift" label="PLG_SYSTEM_BETTERSEARCH_HOVER_LABEL">
+                <field name="page_hover" type="list" default="lift" showon="theme:default" label="PLG_SYSTEM_BETTERSEARCH_HOVER_LABEL">
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_HOVER_NONE</option>
                     <option value="lift">PLG_SYSTEM_BETTERSEARCH_HOVER_LIFT</option>
                     <option value="shadow">PLG_SYSTEM_BETTERSEARCH_HOVER_SHADOW</option>
@@ -552,42 +562,42 @@
                     <option value="live">PLG_SYSTEM_BETTERSEARCH_PRODUCT_BADGES_LIVE</option>
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_PRODUCT_BADGES_NONE</option>
                 </field>
-                <field name="product_badges_max" type="number" default="3" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_PRODUCT_BADGES_MAX_LABEL" showon="product_badges!:none" />
+                <field name="product_badges_max" parentclass="bs-adv" type="number" default="3" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_PRODUCT_BADGES_MAX_LABEL" showon="product_badges!:none" />
                 <field name="featured_badge" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_FEATURED_BADGE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FEATURED_BADGE_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="featured_frame" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_FEATURED_FRAME_LABEL">
+                <field name="featured_frame" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_FEATURED_FRAME_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="featured_color" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_FEATURED_COLOR_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FEATURED_COLOR_DESC" />
-                <field name="avail_spacer" type="spacer" hr="true" />
+                <field name="featured_color" parentclass="bs-adv" type="color" default="" label="PLG_SYSTEM_BETTERSEARCH_FEATURED_COLOR_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FEATURED_COLOR_DESC" />
+                <field name="avail_spacer" parentclass="bs-adv" type="spacer" hr="true" />
                 <field name="avail_enabled" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_ENABLED_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AVAIL_ENABLED_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="avail_where" type="list" default="both" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_WHERE_LABEL">
+                <field name="avail_where" parentclass="bs-adv" type="list" default="both" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_WHERE_LABEL">
                     <option value="both">PLG_SYSTEM_BETTERSEARCH_WHERE_BOTH</option>
                     <option value="live">PLG_SYSTEM_BETTERSEARCH_WHERE_LIVE</option>
                     <option value="page">PLG_SYSTEM_BETTERSEARCH_WHERE_PAGE</option>
                 </field>
-                <field name="avail_low" type="number" default="3" min="0" max="100000" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_LOW_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AVAIL_LOW_DESC" />
-                <field name="avail_qty" type="radio" layout="joomla.form.field.radio.switcher" default="0" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_QTY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AVAIL_QTY_DESC">
+                <field name="avail_low" parentclass="bs-adv" type="number" default="3" min="0" max="100000" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_LOW_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AVAIL_LOW_DESC" />
+                <field name="avail_qty" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_AVAIL_QTY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_AVAIL_QTY_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="delivery_field" type="bsfields" default="" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_DELIVERY_FIELD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DELIVERY_FIELD_DESC">
+                <field name="delivery_field" parentclass="bs-adv" type="bsfields" default="" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_DELIVERY_FIELD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DELIVERY_FIELD_DESC">
                     <option value="">PLG_SYSTEM_BETTERSEARCH_DELIVERY_FIELD_NONE</option>
                 </field>
-                <field name="delivery_in" type="text" default="" maxlength="120" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_DELIVERY_IN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DELIVERY_IN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_DELIVERY_IN_HINT" translateHint="true" />
-                <field name="delivery_out" type="text" default="" maxlength="120" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_DELIVERY_OUT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DELIVERY_OUT_DESC" hint="PLG_SYSTEM_BETTERSEARCH_DELIVERY_OUT_HINT" translateHint="true" />
+                <field name="delivery_in" parentclass="bs-adv" type="text" default="" maxlength="120" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_DELIVERY_IN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DELIVERY_IN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_DELIVERY_IN_HINT" translateHint="true" />
+                <field name="delivery_out" parentclass="bs-adv" type="text" default="" maxlength="120" showon="avail_enabled:1" label="PLG_SYSTEM_BETTERSEARCH_DELIVERY_OUT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_DELIVERY_OUT_DESC" hint="PLG_SYSTEM_BETTERSEARCH_DELIVERY_OUT_HINT" translateHint="true" />
                 <field name="buttons_spacer" type="spacer" hr="true" />
                 <field name="cart_button" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_CART_BUTTON_LABEL" description="PLG_SYSTEM_BETTERSEARCH_CART_BUTTON_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="cart_after" type="list" default="cart" showon="cart_button:1" label="PLG_SYSTEM_BETTERSEARCH_CART_AFTER_LABEL">
+                <field name="cart_after" parentclass="bs-adv" type="list" default="cart" showon="cart_button:1" label="PLG_SYSTEM_BETTERSEARCH_CART_AFTER_LABEL">
                     <option value="cart">PLG_SYSTEM_BETTERSEARCH_CART_AFTER_CART</option>
                     <option value="message">PLG_SYSTEM_BETTERSEARCH_CART_AFTER_MESSAGE</option>
                 </field>
@@ -595,7 +605,7 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="quote_when" type="list" default="no_price" showon="quote_button:1" label="PLG_SYSTEM_BETTERSEARCH_QUOTE_WHEN_LABEL">
+                <field name="quote_when" parentclass="bs-adv" type="list" default="no_price" showon="quote_button:1" label="PLG_SYSTEM_BETTERSEARCH_QUOTE_WHEN_LABEL">
                     <option value="no_price">PLG_SYSTEM_BETTERSEARCH_QUOTE_WHEN_NO_PRICE</option>
                     <option value="out_of_stock">PLG_SYSTEM_BETTERSEARCH_QUOTE_WHEN_OUT</option>
                     <option value="no_price_or_out">PLG_SYSTEM_BETTERSEARCH_QUOTE_WHEN_NO_PRICE_OR_OUT</option>
@@ -622,30 +632,30 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="seo_title" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_DESC">
+                <field name="seo_title" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="seo_title_pattern" type="text" default="" maxlength="200" showon="seo_title:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_PATTERN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_PATTERN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_T_SEO_TITLE" translateHint="true" />
-                <field name="seo_description" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_DESCRIPTION_LABEL">
+                <field name="seo_title_pattern" parentclass="bs-adv" type="text" default="" maxlength="200" showon="seo_title:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_TITLE_PATTERN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_PATTERN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_T_SEO_TITLE" translateHint="true" />
+                <field name="seo_description" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_DESCRIPTION_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="seo_description_pattern" type="text" default="" maxlength="300" showon="seo_description:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_DESCRIPTION_PATTERN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_PATTERN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_T_SEO_DESCRIPTION" translateHint="true" />
-                <field name="seo_nofollow" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_NOFOLLOW_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_NOFOLLOW_DESC">
+                <field name="seo_description_pattern" parentclass="bs-adv" type="text" default="" maxlength="300" showon="seo_description:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_DESCRIPTION_PATTERN_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_PATTERN_DESC" hint="PLG_SYSTEM_BETTERSEARCH_T_SEO_DESCRIPTION" translateHint="true" />
+                <field name="seo_nofollow" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_NOFOLLOW_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_NOFOLLOW_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="seo_jsonld" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_JSONLD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_JSONLD_DESC">
+                <field name="seo_jsonld" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_JSONLD_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_JSONLD_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="seo_opensearch" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_DESC">
+                <field name="seo_opensearch" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="seo_opensearch_name" type="text" default="" maxlength="16" showon="seo_opensearch:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_NAME_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_NAME_DESC" />
-                <field name="seo_sitelinks" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SEO_SITELINKS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_SITELINKS_DESC">
+                <field name="seo_opensearch_name" parentclass="bs-adv" type="text" default="" maxlength="16" showon="seo_opensearch:1" label="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_NAME_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_OPENSEARCH_NAME_DESC" />
+                <field name="seo_sitelinks" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_SEO_SITELINKS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SEO_SITELINKS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -659,40 +669,40 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="highlight_bg" type="color" default="" showon="highlight:1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BG_LABEL" />
-                <field name="highlight_color" type="color" default="" showon="highlight:1" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_COLOR_LABEL" />
+                <field name="highlight_bg" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_BG_LABEL" />
+                <field name="highlight_color" parentclass="bs-adv" type="color" default="" showon="highlight:1[AND]theme:default" label="PLG_SYSTEM_BETTERSEARCH_HIGHLIGHT_COLOR_LABEL" />
                 <field name="text_no_results" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_NO_RESULTS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS" translateHint="true" />
-                <field name="text_corrected" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CORRECTED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CORRECTED" translateHint="true" />
-                <field name="text_partial" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PARTIAL_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PARTIAL" translateHint="true" />
-                <field name="text_heading" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_HEADING_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_HEADING" translateHint="true" />
-                <field name="text_count" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_COUNT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_COUNT" translateHint="true" />
+                <field name="text_corrected" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CORRECTED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CORRECTED" translateHint="true" />
+                <field name="text_partial" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PARTIAL_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PARTIAL" translateHint="true" />
+                <field name="text_heading" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_HEADING_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_HEADING" translateHint="true" />
+                <field name="text_count" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_COUNT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_COUNT" translateHint="true" />
                 <field name="text_show_all" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_SHOW_ALL_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SHOW_ALL" translateHint="true" />
-                <field name="text_categories" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CATEGORIES_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CATEGORIES" translateHint="true" />
-                <field name="text_products" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PRODUCTS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PRODUCTS" translateHint="true" />
+                <field name="text_categories" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CATEGORIES_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CATEGORIES" translateHint="true" />
+                <field name="text_products" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PRODUCTS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PRODUCTS" translateHint="true" />
                 <field name="text_button" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_BUTTON_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_BUTTON" translateHint="true" />
-                <field name="text_sort" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_SORT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SORT" translateHint="true" />
-                <field name="text_load_more" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_LOAD_MORE_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_LOAD_MORE" translateHint="true" />
-                <field name="text_price_from" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PRICE_FROM_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PRICE_FROM" translateHint="true" />
-                <field name="text_sku" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_SKU_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SKU" translateHint="true" />
-                <field name="text_in_stock" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_IN_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_IN_STOCK" translateHint="true" />
-                <field name="text_out_of_stock" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_OUT_OF_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_OUT_OF_STOCK" translateHint="true" />
-                <field name="text_enter_query" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ENTER_QUERY_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ENTER_QUERY" translateHint="true" />
-                <field name="text_pages" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PAGES_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SITE_PAGES" translateHint="true" />
-                <field name="text_recent" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_RECENT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_RECENT" translateHint="true" />
-                <field name="text_featured" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_FEATURED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_FEATURED" translateHint="true" />
-                <field name="text_low_stock" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_LOW_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_LOW_STOCK" translateHint="true" />
-                <field name="text_quantity" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_QUANTITY_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_QUANTITY" translateHint="true" />
-                <field name="text_add_to_cart" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ADD_TO_CART_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ADD_TO_CART" translateHint="true" />
-                <field name="text_added" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ADDED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ADDED" translateHint="true" />
-                <field name="text_choose_options" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CHOOSE_OPTIONS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CHOOSE_OPTIONS" translateHint="true" />
-                <field name="text_ask_quote" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ASK_QUOTE_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ASK_QUOTE" translateHint="true" />
-                <field name="images_spacer" type="spacer" hr="true" />
-                <field name="thumbnails" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_THUMBS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_THUMBS_DESC">
+                <field name="text_sort" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_SORT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SORT" translateHint="true" />
+                <field name="text_load_more" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_LOAD_MORE_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_LOAD_MORE" translateHint="true" />
+                <field name="text_price_from" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PRICE_FROM_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_PRICE_FROM" translateHint="true" />
+                <field name="text_sku" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_SKU_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SKU" translateHint="true" />
+                <field name="text_in_stock" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_IN_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_IN_STOCK" translateHint="true" />
+                <field name="text_out_of_stock" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_OUT_OF_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_OUT_OF_STOCK" translateHint="true" />
+                <field name="text_enter_query" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ENTER_QUERY_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ENTER_QUERY" translateHint="true" />
+                <field name="text_pages" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_PAGES_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_SITE_PAGES" translateHint="true" />
+                <field name="text_recent" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_RECENT_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_RECENT" translateHint="true" />
+                <field name="text_featured" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_FEATURED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_FEATURED" translateHint="true" />
+                <field name="text_low_stock" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_LOW_STOCK_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_LOW_STOCK" translateHint="true" />
+                <field name="text_quantity" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_QUANTITY_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_QUANTITY" translateHint="true" />
+                <field name="text_add_to_cart" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ADD_TO_CART_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ADD_TO_CART" translateHint="true" />
+                <field name="text_added" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ADDED_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ADDED" translateHint="true" />
+                <field name="text_choose_options" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_CHOOSE_OPTIONS_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_CHOOSE_OPTIONS" translateHint="true" />
+                <field name="text_ask_quote" parentclass="bs-adv" type="text" default="" label="PLG_SYSTEM_BETTERSEARCH_TEXT_ASK_QUOTE_LABEL" hint="PLG_SYSTEM_BETTERSEARCH_T_ASK_QUOTE" translateHint="true" />
+                <field name="images_spacer" parentclass="bs-adv" type="spacer" hr="true" />
+                <field name="thumbnails" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_THUMBS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_THUMBS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="thumb_quality" type="number" default="80" min="40" max="95" showon="thumbnails:1" label="PLG_SYSTEM_BETTERSEARCH_THUMB_QUALITY_LABEL" />
-                <field name="thumb_budget" type="number" default="0.5" min="0" max="5" step="0.1" showon="thumbnails:1" label="PLG_SYSTEM_BETTERSEARCH_THUMB_BUDGET_LABEL" description="PLG_SYSTEM_BETTERSEARCH_THUMB_BUDGET_DESC" />
+                <field name="thumb_quality" parentclass="bs-adv" type="number" default="80" min="40" max="95" showon="thumbnails:1" label="PLG_SYSTEM_BETTERSEARCH_THUMB_QUALITY_LABEL" />
+                <field name="thumb_budget" parentclass="bs-adv" type="number" default="0.5" min="0" max="5" step="0.1" showon="thumbnails:1" label="PLG_SYSTEM_BETTERSEARCH_THUMB_BUDGET_LABEL" description="PLG_SYSTEM_BETTERSEARCH_THUMB_BUDGET_DESC" />
             </fieldset>
 
             <!-- ============================================================ Index and tools -->
@@ -709,12 +719,12 @@
                     <option value="monthly">PLG_SYSTEM_BETTERSEARCH_REPORT_MONTHLY</option>
                 </field>
                 <field name="report_recipients" type="text" default="" filter="string" maxlength="1000" hint="biuro@example.com, sklep@example.com" label="PLG_SYSTEM_BETTERSEARCH_REPORT_RECIPIENTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REPORT_RECIPIENTS_DESC" />
-                <field name="report_top" type="number" default="20" min="5" max="100" label="PLG_SYSTEM_BETTERSEARCH_REPORT_TOP_LABEL" />
-                <field name="report_zero" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_ZERO_LABEL">
+                <field name="report_top" parentclass="bs-adv" type="number" default="20" min="5" max="100" label="PLG_SYSTEM_BETTERSEARCH_REPORT_TOP_LABEL" />
+                <field name="report_zero" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_ZERO_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="report_conversions" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_CONVERSIONS_LABEL">
+                <field name="report_conversions" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_CONVERSIONS_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
@@ -723,11 +733,11 @@
 
             <!-- ============================================================ Google Search Console -->
             <fieldset name="gsc" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_GSC">
-                <field name="gsc_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_GSC_NOTE" />
-                <field name="gsc_property" type="text" default="" hint="sc-domain:example.com" filter="string" label="PLG_SYSTEM_BETTERSEARCH_GSC_PROPERTY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_GSC_PROPERTY_DESC" />
-                <field name="gsc_key" type="textarea" rows="4" default="" filter="raw" hint="{&quot;type&quot;: &quot;service_account&quot;, &quot;client_email&quot;: &quot;…&quot;, &quot;private_key&quot;: &quot;…&quot;}" label="PLG_SYSTEM_BETTERSEARCH_GSC_KEY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_GSC_KEY_DESC" />
-                <field name="gsc_days" type="number" default="28" min="7" max="480" label="PLG_SYSTEM_BETTERSEARCH_GSC_DAYS_LABEL" />
-                <field name="gsc_tools" type="bstools" mode="gsc" label="" parentclass="stack bs-tools-wrap" />
+                <field name="gsc_note" parentclass="bs-adv" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_GSC_NOTE" />
+                <field name="gsc_property" parentclass="bs-adv" type="text" default="" hint="sc-domain:example.com" filter="string" label="PLG_SYSTEM_BETTERSEARCH_GSC_PROPERTY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_GSC_PROPERTY_DESC" />
+                <field name="gsc_key" parentclass="bs-adv" type="textarea" rows="4" default="" filter="raw" hint="{&quot;type&quot;: &quot;service_account&quot;, &quot;client_email&quot;: &quot;…&quot;, &quot;private_key&quot;: &quot;…&quot;}" label="PLG_SYSTEM_BETTERSEARCH_GSC_KEY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_GSC_KEY_DESC" />
+                <field name="gsc_days" parentclass="bs-adv" type="number" default="28" min="7" max="480" label="PLG_SYSTEM_BETTERSEARCH_GSC_DAYS_LABEL" />
+                <field name="gsc_tools" type="bstools" mode="gsc" label="" parentclass="bs-adv stack bs-tools-wrap" />
             </fieldset>
 
             <fieldset name="tools" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_TOOLS">

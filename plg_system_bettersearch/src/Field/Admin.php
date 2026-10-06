@@ -30,6 +30,7 @@ final class Admin
         $wa->registerAndUseStyle('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/css/admin.css', ['version' => $v('media/plg_system_bettersearch/css/admin.css')]);
         $wa->registerAndUseScript('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/js/admin.js', ['version' => $v('media/plg_system_bettersearch/js/admin.js')], ['defer' => true]);
         $wa->registerAndUseScript('plg_system_bettersearch.preview', 'media/plg_system_bettersearch/js/preview.js', ['version' => $v('media/plg_system_bettersearch/js/preview.js')], ['defer' => true]);
+        $wa->registerAndUseScript('plg_system_bettersearch.theme', 'media/plg_system_bettersearch/js/theme.js', ['version' => $v('media/plg_system_bettersearch/js/theme.js')], ['defer' => true]);
 
         $keys = ['PICKER_EMPTY', 'PICKER_NONE', 'PICKER_REMOVE', 'PICKER_UP', 'PICKER_DOWN', 'PICKER_UNPUBLISHED', 'TOOLS_ITEMS', 'TOOLS_PAGES',
             'TOOLS_PENDING', 'TOOLS_CHECKED', 'TOOLS_COMPLETE', 'TOOLS_APPS', 'TOOLS_CONFIG_CHANGED', 'TOOLS_DONE', 'TOOLS_REBUILD_CONFIRM',
