@@ -136,8 +136,8 @@
       let input = '';
       if (kind === 'color') {
         const hex = /^#[0-9a-f]{6}$/i.test(value) ? value : (/^#[0-9a-f]{3}$/i.test(value) ? '#' + value.slice(1).replace(/./g, '$&$&') : '#ffffff');
-        input = '<span class="bs-te-color' + (value ? '' : ' is-empty') + '"><input type="color" id="' + id + '" value="' + hex + '" data-part="picker">'
-          + '<input type="text" class="form-control form-control-sm" value="' + esc(value) + '" placeholder="' + esc(T.AS_SITE) + '" data-part="text" spellcheck="false" aria-label="' + esc(T['T_' + token]) + '"></span>';
+        input = '<span class="bs-te-color' + (value ? '' : ' is-empty') + '"><span class="bs-te-sw" style="--sw:' + esc(value || 'transparent') + '"><input type="color" id="' + id + '" value="' + hex + '" data-part="picker"></span>'
+          + '<input type="text" class="form-control form-control-sm" value="' + esc(value) + '" title="' + esc(value) + '" placeholder="' + esc(T.AS_SITE) + '" data-part="text" spellcheck="false" aria-label="' + esc(T['T_' + token]) + '"></span>';
       } else if (Array.isArray(kind)) {
         if (kind.length <= 3) {
           input = '<span class="bs-te-seg" role="radiogroup" aria-label="' + esc(T['T_' + token]) + '">' + kind.map((o) => '<button type="button" class="' + (o === String(value) ? 'is-on' : '')
@@ -322,6 +322,8 @@
           if (/^#[0-9a-f]{6}$/i.test(v)) picker.value = v;
         }
         wrap.classList.toggle('is-empty', text.value.trim() === '');
+        row.querySelector('.bs-te-sw').style.setProperty('--sw', text.value.trim() || 'transparent');
+        text.title = text.value.trim();
         setToken(key, token, text.value.trim());
       } else if (Array.isArray(kind)) {
         setToken(key, token, e.target.value);
