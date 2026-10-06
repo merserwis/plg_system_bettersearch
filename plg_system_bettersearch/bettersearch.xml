@@ -257,6 +257,7 @@
                 </field>
                 <field name="live_recent_limit" parentclass="bs-adv" type="number" default="5" min="1" max="20" showon="live_recent:1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_RECENT_LIMIT_LABEL" />
                 <field name="suggest_min_searches" parentclass="bs-adv" type="number" default="2" min="1" max="100" showon="live_suggestions:1" label="PLG_SYSTEM_BETTERSEARCH_SUGGEST_MIN_SEARCHES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SUGGEST_MIN_SEARCHES_DESC" />
+                <field name="results_order" type="bsorder" default="" label="PLG_SYSTEM_BETTERSEARCH_RESULTS_ORDER_LABEL" description="PLG_SYSTEM_BETTERSEARCH_RESULTS_ORDER_DESC" />
                 <field name="live_group_apps" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LIVE_GROUP_APPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_GROUP_APPS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
@@ -415,6 +416,10 @@
                 </field>
                 <field name="page_cat_limit" parentclass="bs-adv" type="number" default="12" min="1" max="100" showon="page_cat_filter:1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_CAT_LIMIT_LABEL" />
                 <field name="page_app_filter" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_PAGE_APP_FILTER_LABEL">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="page_group_order" type="radio" layout="joomla.form.field.radio.switcher" default="0" label="PLG_SYSTEM_BETTERSEARCH_PAGE_GROUP_ORDER_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PAGE_GROUP_ORDER_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>

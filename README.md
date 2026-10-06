@@ -48,6 +48,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **E-mail report (new in 1.5.0):** every week, two weeks or month: searches compared with the period before, the most searched phrases with their change, phrases without results and phrases that led to the cart; preview and “send now” in the settings.
 * **Sortable Search Console table (new in 1.5.0):** sort the Google queries by query, clicks, impressions, CTR, position or results here; filter them and show up to 1 000.
 * **Themes (new in 1.6.0):** five modern looks — Minimal, Soft, Glass, Dark and Bold — beside the unchanged **Basic** look, chosen from a gallery with miniatures; a **visual theme editor** (colours, corners, shadows, hover effects, font, buttons, glass blur) and a **CSS editor** for each theme, both with the live preview.
+* **Order of the result sections (new in 1.6.1):** drag categories, each app (store, blog…) and pages into the order you want in the live results; optionally group the results page the same way.
 * **Basic and advanced settings (new in 1.6.0):** a switch above the tabs shows only the settings most sites need, or all of them.
 * **Administrator menu entry:** *Better Search for Gridbox* appears in the Joomla 6 administrator menu and opens the plugin settings directly.
 
@@ -566,7 +567,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
-* **1.6.1** — “Accent as in Gridbox” for every theme, 14 system font stacks and Google Fonts, background opacity; theme editor on wide screens (two roomy columns, real colour swatches).
+* **1.6.1** — Order of the result sections (categories, apps, pages) for the live results and the results page; “Accent as in Gridbox” for every theme, 14 system font stacks and Google Fonts, background opacity; theme editor on wide screens (two roomy columns, real colour swatches).
 * **1.6.0** — Themes: Minimal, Soft, Glass, Dark and Bold beside the unchanged Basic look, a visual theme editor and a CSS editor with the live preview. A Basic / Advanced switch for the settings.
 * **1.5.3** — Gridbox product badges (“New!”, “Bestseller”, sale “- X%”) in the results.
 * **1.5.0** — Technical values compared as numbers (`1 kV` = `1000 V`, ranges, CAT, IP), featured products for chosen phrases, pages in the results, recent searches, availability and delivery time, “Add to cart” and “Ask for a quote” buttons, e-mail report, sortable Search Console table.

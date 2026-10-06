@@ -441,10 +441,66 @@
     render();
   }
 
+  // ================================================================ order of the result sections
+
+  function initOrder() {
+    document.querySelectorAll('.bs-order').forEach((box) => {
+      const list = box.querySelector('.bs-order-list');
+      const input = box.querySelector('input[type="hidden"]');
+      let dragged = null;
+      const sync = (changed) => {
+        [...list.children].forEach((li, i) => { li.querySelector('.bs-order-pos').textContent = (i + 1) + '.'; });
+        if (!changed) return;
+        const keys = [...list.children].map((li) => li.dataset.key).join(',');
+        input.value = keys === box.dataset.default ? '' : keys;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      list.addEventListener('dragstart', (e) => {
+        dragged = e.target.closest('.bs-order-item');
+        if (!dragged) return;
+        dragged.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragged.dataset.key);
+      });
+      list.addEventListener('dragover', (e) => {
+        if (!dragged) return;
+        e.preventDefault();
+        const over = e.target.closest('.bs-order-item');
+        if (!over || over === dragged) return;
+        const r = over.getBoundingClientRect();
+        list.insertBefore(dragged, e.clientY > r.top + r.height / 2 ? over.nextSibling : over);
+      });
+      list.addEventListener('dragend', () => {
+        if (!dragged) return;
+        dragged.classList.remove('is-dragging');
+        dragged = null;
+        sync(true);
+      });
+      list.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-move]');
+        if (!b) return;
+        const li = b.closest('.bs-order-item');
+        if (b.dataset.move === '-1' && li.previousElementSibling) list.insertBefore(li, li.previousElementSibling);
+        else if (b.dataset.move === '1' && li.nextElementSibling) list.insertBefore(li.nextElementSibling, li);
+        else return;
+        sync(true);
+        b.focus();
+      });
+      box.querySelector('.bs-order-reset').addEventListener('click', () => {
+        const items = Object.fromEntries([...list.children].map((li) => [li.dataset.key, li]));
+        box.dataset.default.split(',').forEach((k) => { if (items[k]) list.appendChild(items[k]); });
+        sync(true);
+      });
+      sync(false);
+    });
+  }
+
   function start() {
     if (!opts) return;
     initMode();
     initThemes();
+    initOrder();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
