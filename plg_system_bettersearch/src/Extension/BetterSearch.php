@@ -43,10 +43,11 @@ use Merserwis\Plugin\System\BetterSearch\Render\Renderer;
 use Merserwis\Plugin\System\BetterSearch\Render\Seo;
 use Merserwis\Plugin\System\BetterSearch\Render\Store;
 use Merserwis\Plugin\System\BetterSearch\Render\Thumbs;
+use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.5.3';
+    public const VERSION = '1.6.0';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -2048,7 +2049,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview', 'theme_css'], true)) {
             $this->params = new Registry($form['params']);
         }
 
@@ -2084,6 +2085,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             case 'preview':
                 return $this->preview((string) $input->getCmd('mode', 'live'), (string) $input->getCmd('device', 'desktop'),
                     mb_substr(trim((string) $input->get('q', '', 'raw')), 0, 200));
+
+            case 'theme_css':
+                return ['css' => Themes::export($this->params, Text::_('PLG_SYSTEM_BETTERSEARCH_THEME_' . strtoupper(Themes::key($this->params))))];
 
             case 'products':
                 return ['items' => $this->findProducts(trim((string) $input->get('q', '', 'raw')), $input->getCmd('scope', 'products'))];

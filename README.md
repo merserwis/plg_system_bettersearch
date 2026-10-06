@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.5.3-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.6.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -47,6 +47,8 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **“Add to cart” and “Ask for a quote” (new in 1.5.0, off by default):** one click puts a product into the Gridbox cart from the results (products with variants get “Choose options”); “Ask for a quote” opens your contact page or an e-mail with the product named — for products without a price, out of stock, or all.
 * **E-mail report (new in 1.5.0):** every week, two weeks or month: searches compared with the period before, the most searched phrases with their change, phrases without results and phrases that led to the cart; preview and “send now” in the settings.
 * **Sortable Search Console table (new in 1.5.0):** sort the Google queries by query, clicks, impressions, CTR, position or results here; filter them and show up to 1 000.
+* **Themes (new in 1.6.0):** five modern looks — Minimal, Soft, Glass, Dark and Bold — beside the unchanged **Basic** look, chosen from a gallery with miniatures; a **visual theme editor** (colours, corners, shadows, hover effects, font, buttons, glass blur) and a **CSS editor** for each theme, both with the live preview.
+* **Basic and advanced settings (new in 1.6.0):** a switch above the tabs shows only the settings most sites need, or all of them.
 * **Administrator menu entry:** *Better Search for Gridbox* appears in the Joomla 6 administrator menu and opens the plugin settings directly.
 
 ---
@@ -78,7 +80,7 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ## 🚀 Installation & Package Structure
 
-1. Download `pkg_bettersearch-1.5.3.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
+1. Download `pkg_bettersearch-1.6.0.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
 2. In the Joomla administrator go to **System → Install → Extensions** and upload the package.
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
@@ -130,9 +132,28 @@ The settings follow the language of the administrator, the texts on the site (no
 
 ---
 
+## 🎨 Themes & Appearance
+
+The *Appearance* tab sets the look of the live results and of the results page at once.
+
+* **Basic** *(default)* — the look of earlier versions, set by the colour and shape options of the *Live results* and *Results page* tabs. Selected after installing and after updating, so nothing changes until you pick another theme.
+* **Minimal** — clean lines, hairline borders, dark accent, outlined buttons.
+* **Soft** — large rounded corners, airy floating shadows, tinted pill buttons, indigo accent, rounded font.
+* **Glass** — a frosted translucent panel with a blurred background; the results page on a soft colour gradient.
+* **Dark** — dark surfaces with a sky-blue accent; the results page on its own dark background.
+* **Bold** — thick black outlines, hard offset shadows, vivid orange (neo-brutalism).
+
+**Visual editor.** Every theme token can be changed: colours (accent, text on accent, panel/card background, results page background, text, secondary text, names, prices, hover, borders, image background, highlight, fields), corners (panel, cards, buttons), border width, shadows (none, soft, strong, floating, hard offset, glow), card hover (lift, shadow, zoom image, border, glow, shift), font (as the site, system, rounded, geometric, serif, monospace — no web fonts are loaded), weight of names, section titles (uppercase / normal), buttons (solid, outlined, tinted) and the glass blur. Changed values are marked; ↺ restores one, *Restore theme defaults* all of them.
+
+**CSS editor.** Own CSS for the chosen theme (also for Basic), added after the theme. Start selectors of the live results with `.bs-live` and of the results page with `.bettersearch-results` — the latter get the id of the results block automatically, so they win over the plugin's rules. *Insert theme CSS* pastes the theme's custom properties (`--bs-*`, `--bsr-*`) and rules for editing. The code cannot close the `<style>` element.
+
+Changes are stored per theme (setting `theme_custom`), so switching themes loses nothing. *Back to the Basic theme* restores the earlier look exactly.
+
+---
+
 ## 👀 Live Preview
 
-The *Live results*, *Results page* and *Texts & images* tabs have a **live preview column**. It shows exactly what the plugin renders — real products, categories, prices and images from your store, as a guest of the site sees them — using the values currently in the form, before you save.
+The *Appearance*, *Live results*, *Results page* and *Texts & images* tabs have a **live preview column**. It shows exactly what the plugin renders — real products, categories, prices and images from your store, as a guest of the site sees them — using the values currently in the form, before you save.
 
 * **Live results:** the panel opened under a search field of a mock page header, at its configured width, alignment and distance; on *Phone* the full-screen search. **Replay** shows the appearing effects again.
 * **Results page:** the results block under the Gridbox headline, with filters, sorting and cards.
@@ -188,6 +209,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 
 | Option | Default | Description |
 |---|---|---|
+| Settings (Basic / Advanced) | Basic | The switch above the tabs: *Basic* shows the settings most sites need, *Advanced* all of them. Hidden settings keep their values. |
 | Searched apps | *(empty)* | Gridbox apps whose pages are found. Empty = every store app. Add blog apps to find articles too (they are shown as their own group). |
 | Search pages too | No | Single Gridbox pages (Pages and single-page apps), e.g. services, contact, about us, are found too. They are shown as their own group “Pages”, without price or cart. Single pages can be excluded on the tab “Ranking & exclusions”. |
 | Live results | Yes | Results under the search field while typing. Off = the field only leads to the results page. |
@@ -203,6 +225,13 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Cache results (minutes) | `15` | Results of the same query are kept for this time. Every index update and every change of settings starts afresh. 0 = no cache. |
 | Search statistics | Yes | Counts the queries of the results page (no personal data): most searched, without results. See tab “Index & tools”. |
 | Conversion statistics | Yes | Count clicks on search results and products put into the cart after such a click, per query (Tools → Conversions). A first-party cookie (bs_src: product id → query, for 30 days) links the cart to the search; no personal data is stored. |
+
+### Appearance
+
+| Option | Default | Description |
+|---|---|---|
+| Theme | Basic | Basic (the colour and shape options of the Live results and Results page tabs), Minimal, Soft, Glass, Dark or Bold. With another theme than Basic, the colour, corner, shadow and hover options of those tabs are replaced by the theme. |
+| Theme editor | *(theme values)* | Visual editor of the theme tokens and own CSS per theme (stored together in `theme_custom`). |
 
 ### Search engine
 
@@ -537,6 +566,8 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.0** — Themes: Minimal, Soft, Glass, Dark and Bold beside the unchanged Basic look, a visual theme editor and a CSS editor with the live preview. A Basic / Advanced switch for the settings.
+* **1.5.3** — Gridbox product badges (“New!”, “Bestseller”, sale “- X%”) in the results.
 * **1.5.0** — Technical values compared as numbers (`1 kV` = `1000 V`, ranges, CAT, IP), featured products for chosen phrases, pages in the results, recent searches, availability and delivery time, “Add to cart” and “Ask for a quote” buttons, e-mail report, sortable Search Console table.
 * **1.4.3** — Help tooltips rebuilt: shown by CSS next to the “?” on hover, keyboard focus and click, on every administrator template.
 * **1.4.2** — Help tooltips shown next to the “?” (also on a scrolled page). Search Console queries that differ only in accents (“pętli” / “petli”) are added up instead of stopping the import. Languages reduced to English, Polish, Ukrainian and German.
