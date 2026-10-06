@@ -12,6 +12,12 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 - **Advanced:** *Leave out logged-in users of the groups* — searches of logged-in members of chosen user groups (e.g. staff) are not counted, from any address.
 - The addresses are only compared, never stored. The search itself works the same for everybody.
 
+### 📅 E-mail report for any period
+
+- The *E-mail report* tab has a **period with a calendar (from – to)**: *Preview* and *Send now* prepare the report for any days of the last 400 (the statistics are kept that long), both days included, compared with the period of the same length before.
+- Quick choices: **last 7 days, last 30 days, previous month, this month, this year**, and *Automatic period* (the period of the regular report, filled in at first).
+- The subject of the e-mail names the period. The regular automatic report keeps its own schedule and period.
+
 ## 1.6.1 — 2026-10-06
 
 ### ↕️ Order of the result sections

@@ -46,7 +46,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Recent searches (new in 1.5.0):** a click into an empty search field lists the visitor's last searches — kept only in the visitor's browser, removable one by one or all at once.
 * **Availability and delivery time (new in 1.5.0, off by default):** in stock / last items / out of stock from the Gridbox stock, optionally the quantity, and the delivery time from a product field or a text for products in and out of stock.
 * **“Add to cart” and “Ask for a quote” (new in 1.5.0, off by default):** one click puts a product into the Gridbox cart from the results (products with variants get “Choose options”); “Ask for a quote” opens your contact page or an e-mail with the product named — for products without a price, out of stock, or all.
-* **E-mail report (new in 1.5.0):** every week, two weeks or month: searches compared with the period before, the most searched phrases with their change, phrases without results and phrases that led to the cart; preview and “send now” in the settings.
+* **E-mail report (new in 1.5.0):** every week, two weeks or month: searches compared with the period before, the most searched phrases with their change, phrases without results and phrases that led to the cart; preview and “send now” in the settings — **for any period since 1.6.2** (calendar from – to, last 7 / 30 days, previous or this month, this year).
 * **Sortable Search Console table (new in 1.5.0):** sort the Google queries by query, clicks, impressions, CTR, position or results here; filter them and show up to 1 000.
 * **Themes (new in 1.6.0):** five modern looks — Minimal, Soft, Glass, Dark and Bold — beside the unchanged **Basic** look, chosen from a gallery with miniatures; a **visual theme editor** (colours, corners, shadows, hover effects, font, buttons, glass blur) and a **CSS editor** for each theme, both with the live preview.
 * **Order of the result sections (new in 1.6.1):** drag categories, each app (store, blog…) and pages into the order you want in the live results; optionally group the results page the same way.
@@ -568,7 +568,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
-* **1.6.2** — Statistics of customers only: IP addresses / networks (also behind Cloudflare) and user groups left out of search statistics, conversions and the e-mail report; “Add my address”.
+* **1.6.2** — Statistics of customers only: IP addresses / networks (also behind Cloudflare) and user groups left out of search statistics, conversions and the e-mail report; “Add my address”; the e-mail report for any period (calendar from – to, quick ranges).
 * **1.6.1** — Order of the result sections (categories, apps, pages) for the live results and the results page; “Accent as in Gridbox” for every theme, 14 system font stacks and Google Fonts, background opacity; theme editor on wide screens (two roomy columns, real colour swatches).
 * **1.6.0** — Themes: Minimal, Soft, Glass, Dark and Bold beside the unchanged Basic look, a visual theme editor and a CSS editor with the live preview. A Basic / Advanced switch for the settings.
 * **1.5.3** — Gridbox product badges (“New!”, “Bestseller”, sale “- X%”) in the results.
