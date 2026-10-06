@@ -703,6 +703,16 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $store = $this->store();
         $items = $result['items'];
 
+        // results grouped by app in the order of the sections (best match only; stable inside a group)
+        if ($sort === 'relevance' && $this->params->get('page_group_order', 0)) {
+            $rank = array_flip(array_map([Renderer::class, 'appKey'], $this->orderedAppIds()));
+            $pos  = array_flip(array_keys($items));
+            uksort($items, fn ($a, $b) => [$rank[Renderer::appKey($items[$a]['app_id'])] ?? PHP_INT_MAX, $pos[$a]]
+                <=> [$rank[Renderer::appKey($items[$b]['app_id'])] ?? PHP_INT_MAX, $pos[$b]]);
+            $items = array_values($items);
+            $result['items'] = $items;
+        }
+
         // the address of the results page with other filters
         $base = Uri::getInstance();
         $f    = $this->facetInput();
@@ -728,6 +738,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($this->params->get('page_app_filter', 1) && count($appCounts) > 1) {
             $appChips[] = ['title' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_ALL'), 'count' => count($items), 'active' => $appId === 0,
                 'url' => $url(['bs_app' => null, 'bs_cat' => null])];
+            $order = array_flip(array_map([Renderer::class, 'appKey'], $this->orderedAppIds()));
+            uksort($appCounts, fn ($a, $b) => ($order[Renderer::appKey($a)] ?? PHP_INT_MAX) <=> ($order[Renderer::appKey($b)] ?? PHP_INT_MAX));
             foreach ($appCounts as $id => $count) {
                 // the pages (app 0 of the index) are chosen with -1: 0 means "all"
                 $chipId     = $id === 0 ? -1 : $id;
@@ -1123,7 +1135,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($this->params->get('live_group_apps', 1)) {
             $other = max(0, (int) $this->params->get('live_limit_other', 3));
             $first = true;
-            foreach ($this->appIds() as $appId) {
+            foreach ($this->orderedAppIds() as $appId) {
                 if (isset($byApp[$appId])) {
                     $items = array_merge($items, array_slice($byApp[$appId], 0, $first ? $limit : $other));
                     $first = false;
@@ -2545,6 +2557,17 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private function appIds(): array
     {
         return $this->appIdsMemo ??= $this->indexer()->appIds();
+    }
+
+    /** The searched apps (0 = pages) in the order of "Order of the result sections". */
+    private function orderedAppIds(): array
+    {
+        $byKey = [];
+        foreach ($this->appIds() as $id) {
+            $byKey[Renderer::appKey($id)] = $id;
+        }
+
+        return array_map(fn ($key) => $byKey[$key], Renderer::sectionOrder($this->params, array_keys($byKey)));
     }
 
     /** Version of the index and the visibility stamp of its pages, read together once per request. */

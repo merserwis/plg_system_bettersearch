@@ -189,3 +189,16 @@
 .bs-te-gfont{display:flex;flex-direction:column;gap:.25rem;min-width:0}
 .bs-te-gstate{font-size:.78rem;min-height:1em}
 .bs-te-gnote{font-size:.72rem;line-height:1.3;color:var(--bs-secondary-color,#6c757d)}
+
+/* ---- order of the result sections */
+.bs-order{max-width:34rem}
+.bs-order-list{list-style:none;margin:0 0 .5rem;padding:0;border:1px solid var(--template-bg-dark-10,#dfe3e7);border-radius:.5rem;background:var(--body-bg,#fff);overflow:hidden}
+.bs-order-item{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--template-bg-dark-7,#eef0f2);cursor:grab;user-select:none;background:var(--body-bg,#fff)}
+.bs-order-item:last-child{border-bottom:0}
+.bs-order-item.is-dragging{opacity:.45;background:var(--template-bg-dark-3,#f8f9fa)}
+.bs-order-item.is-off .bs-order-title{opacity:.6}
+.bs-order-handle{color:var(--bs-secondary-color,#6c757d);letter-spacing:-2px}
+.bs-order-pos{min-width:1.6rem;color:var(--bs-secondary-color,#6c757d);font-variant-numeric:tabular-nums}
+.bs-order-title{flex:1 1 auto;min-width:0}
+.bs-order-off{font-style:italic;color:var(--bs-secondary-color,#6c757d)}
+.bs-order-item .btn-link{padding:0 .35rem;text-decoration:none}

@@ -124,6 +124,32 @@ final class Renderer
         return $value !== '' ? $value : Text::_($languageKey);
     }
 
+    // ================================================================ order of the sections
+
+    /** Key of a result group in the setting results_order: "pages" for the pages (app 0), else "app<id>". */
+    public static function appKey(int $appId): string
+    {
+        return $appId === 0 ? 'pages' : 'app' . $appId;
+    }
+
+    /**
+     * $keys (in their default order) sorted as set in "Order of the result sections" (results_order,
+     * e.g. "app4,cats,app2,pages"); keys missing there keep their default order after the listed ones.
+     */
+    public static function sectionOrder(Registry $params, array $keys): array
+    {
+        $set = array_values(array_filter(array_map('trim', explode(',', (string) $params->get('results_order', '')))));
+        if (!$set) {
+            return array_values($keys);
+        }
+        $rank = array_flip($set);
+        $pos  = array_flip(array_values($keys));
+        $keys = array_values($keys);
+        usort($keys, fn ($a, $b) => [$rank[$a] ?? PHP_INT_MAX, $pos[$a]] <=> [$rank[$b] ?? PHP_INT_MAX, $pos[$b]]);
+
+        return $keys;
+    }
+
     // ================================================================ live results
 
     /**
@@ -167,7 +193,12 @@ final class Renderer
             }
             $html .= '</ul></div>';
         }
+        // categories and the groups of results, in the order set by the administrator
+        $sections = [];
         if ($categories && $this->bool('live_categories', true)) {
+            $head  = $html;
+            $html  = '';
+            $start = $opt;
             $all   = $this->store->categories();
             $html .= '<div class="bs-section bs-section-cats">';
             if ($this->bool('live_section_titles', true)) {
@@ -186,6 +217,9 @@ final class Renderer
                     . ($path ? '<span class="bs-cat-path">' . $esc(implode(' › ', $path)) . '</span>' : '') . '</a></li>';
             }
             $html .= '</ul></div>';
+            $sections['cats'] = $html;
+            $html = $head;
+            $opt  = $start;
         }
 
         if ($items) {
@@ -200,18 +234,32 @@ final class Renderer
             }
             $counts = $result['app_counts'] ?? [];
             foreach ($byApp as $appId => $rows) {
-                $html .= '<div class="bs-section' . ($appId === 0 ? ' bs-section-pages' : '') . '">';
+                $key  = $appId === -1 ? 'list' : self::appKey($appId);
+                $sec  = '<div class="bs-section' . ($appId === 0 ? ' bs-section-pages' : '') . '">';
                 if ($this->bool('live_section_titles', true) && (count($byApp) > 1 || $categories)) {
                     $title = $appId >= 0 ? $this->store->appTitle($appId) : $this->text('text_products', 'PLG_SYSTEM_BETTERSEARCH_T_PRODUCTS');
                     $count = $appId >= 0 ? ($counts[$appId] ?? count($rows)) : $result['total'];
-                    $html .= '<div class="bs-section-title">' . $esc($title) . ' <span class="bs-section-count">' . (int) $count . '</span></div>';
+                    $sec .= '<div class="bs-section-title">' . $esc($title) . ' <span class="bs-section-count">' . (int) $count . '</span></div>';
                 }
-                $html .= '<ul class="bs-list" role="presentation">';
-                foreach ($rows as $row) {
-                    $html .= $this->liveItem($row, $opt++);
-                }
-                $html .= '</ul></div>';
+                $sections[$key] = [$sec, $rows];
             }
+        }
+        // option numbers (keyboard navigation, effects) follow the order on screen
+        foreach (self::sectionOrder($this->params, array_keys($sections)) as $key) {
+            if ($key === 'cats') {
+                $html .= preg_replace_callback('/id="bs-opt-\d+" style="--i:\d+"/', function () use (&$opt) {
+                    $n = $opt++;
+
+                    return 'id="bs-opt-' . $n . '" style="--i:' . $n . '"';
+                }, $sections['cats']);
+                continue;
+            }
+            [$sec, $rows] = $sections[$key];
+            $html .= $sec . '<ul class="bs-list" role="presentation">';
+            foreach ($rows as $row) {
+                $html .= $this->liveItem($row, $opt++);
+            }
+            $html .= '</ul></div>';
         }
 
         if (!$items && !$categories) {

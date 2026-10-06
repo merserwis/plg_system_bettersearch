@@ -4,6 +4,12 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 
 ## 1.6.1 — 2026-10-06
 
+### ↕️ Order of the result sections
+
+- **New option *Order of the result sections*** (tab *Live results*): drag the matching categories, each app (store, blog…) and the pages into the order in which they appear in the live results — e.g. pages first, then products, then blog posts. The first section gets the most results (*Products shown*), the others *Items of other apps*. Keyboard navigation follows the order on the screen; the arrows ↑ ↓ work without a mouse; *Default order* goes back to the order of earlier versions (categories, the searched apps, pages).
+- The **app filters of the results page** follow the same order.
+- **New option *Group by the order of the sections*** (tab *Results page*, off by default): with *Best match* the results page lists the results of the first section first, then the next one, by relevance inside each.
+
 ### 🎨 Accent as in Gridbox
 
 - **Every theme can keep the accent colour of the site:** the switch *Accent as in Gridbox* uses the primary colour of the Gridbox theme (`--primary`) instead of the theme's own accent. Colours the theme derives from its accent — prices, highlights, the hovered row — follow it too, unless you changed them. The preview and the gallery show the site's real colour.
