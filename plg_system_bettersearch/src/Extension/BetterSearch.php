@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.6';
+    public const VERSION = '1.6.7';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -71,7 +71,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private const REPORT_HOUR = 7;
 
     /** Default words left out of queries (Polish and English connectors). */
-    private const STOPWORDS = 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
+    /** The default list of ignored words up to 1.6.6; a site that still has it gets the built-in list of its language. */
+    private const OLD_STOPWORDS = 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
 
     protected $autoloadLanguage = true;
 
@@ -2628,8 +2629,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private function normalizer(): Normalizer
     {
         if ($this->normalizer === null) {
-            $words = (string) $this->params->get('stopwords', self::STOPWORDS);
-            $this->normalizer = new Normalizer(array_map('trim', explode(',', $words)));
+            $words = trim((string) $this->params->get('stopwords', ''));
+            $words = preg_replace('/\s*,\s*/', ', ', $words) === self::OLD_STOPWORDS ? '' : $words;
+            $this->normalizer = new Normalizer($words === '' ? [] : array_map('trim', explode(',', $words)));
         }
 
         return $this->normalizer;

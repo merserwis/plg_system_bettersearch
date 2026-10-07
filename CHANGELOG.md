@@ -2,6 +2,14 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.7 — 2026-10-07
+
+### 🌍 Word endings and ignored words in every language
+
+- **Word endings** for **English, German, French, Czech and Dutch** besides Polish: “Messgeräten” finds *Messgerät*, “appareils” *appareil*, “multimetrů” *multimetr*, “zoekopdrachten” *zoekopdracht*, “batteries” *battery*. The Polish rules (with English plurals) are always used, because the products of a shop are often not in the language Joomla runs in; the rules of the site language are added to them. Searches give the same results as before plus the new forms. No reindex is needed — the endings are applied to the query.
+- **Ignored words**: an empty list (the new default) uses a built-in list — Polish and English words plus those of the site language (e.g. *für, und, mit* in German, *pour, avec, l'* in French, *na, pro, nebo* in Czech, *voor, met, van* in Dutch). Sites that kept the old default list get the built-in list automatically; an own list is kept as it is.
+- **Typo correction** and **synonyms** already worked in every language: typos are corrected against the words of your own products, and synonyms are your own dictionary.
+
 ## 1.6.6 — 2026-10-07
 
 ### 🌍 Languages

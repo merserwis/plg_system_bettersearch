@@ -29,19 +29,71 @@ final class Normalizer
         'µ' => 'u', 'μ' => 'u', 'Ω' => 'ohm', 'ω' => 'ohm', '²' => '2', '³' => '3', '½' => '1 2',
     ];
 
-    /** Polish (and a few English) endings tried, longest first, by the light stemmer. */
+    /**
+     * Endings tried in this order by the light stemmer (written folded: no diacritics). The Polish set
+     * (with a few English plurals) is always used — the content of a shop is often not in the language
+     * Joomla runs in — and the set of the site language is added to it.
+     */
     private const SUFFIXES = [
-        'owego', 'owych', 'owymi', 'iami', 'ach', 'ami', 'owi', 'owa', 'owe', 'owy', 'ego', 'emu', 'ych', 'ymi', 'imi',
-        'iem', 'iach', 'om', 'ow', 'ie', 'ia', 'ii', 'ej', 'ym', 'im', 'es', 'a', 'e', 'i', 'y', 'u', 'o', 's',
+        'pl' => ['owego', 'owych', 'owymi', 'iami', 'ach', 'ami', 'owi', 'owa', 'owe', 'owy', 'ego', 'emu', 'ych', 'ymi', 'imi',
+            'iem', 'iach', 'om', 'ow', 'ie', 'ia', 'ii', 'ej', 'ym', 'im', 'es', 'a', 'e', 'i', 'y', 'u', 'o', 's'],
+        'en' => ['ings', 'ing', 'ies', 'es', 'ed', 's'],
+        'de' => ['ern', 'em', 'en', 'er', 'es', 'e', 's'],
+        'fr' => ['euses', 'euse', 'eaux', 'aux', 'ees', 'ee', 'es', 's', 'x', 'e'],
+        'cs' => ['ovych', 'ovymi', 'atech', 'etech', 'ovou', 'emi', 'ami', 'ach', 'ech', 'ich', 'ove', 'ovi', 'ovy', 'eho', 'emu',
+            'ymi', 'imi', 'ych', 'ou', 'um', 'em', 'om', 'am', 'ho', 'a', 'e', 'i', 'o', 'u', 'y', 's'],
+        'nl' => ['heden', 'ingen', 'etjes', 'tjes', 'jes', 'tje', 'je', 'en', 'es', 's', 'e'],
     ];
 
-    /** @var string[] */
+    /** Words ignored in queries when the administrator keeps the built-in list: Polish, English and the site language. */
+    private const STOPWORDS = [
+        'pl' => 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy',
+        'en' => 'the, and, of, for, with, to, in, a, an, or, on, by',
+        'de' => 'der, die, das, den, dem, des, ein, eine, einen, einem, einer, und, oder, mit, für, von, vom, zu, zum, zur, im, in, am, an, auf, aus, bei',
+        'fr' => 'le, la, les, l, un, une, des, du, de, d, et, ou, pour, avec, en, au, aux, à, sur, par',
+        'cs' => 'a, i, v, ve, s, se, z, ze, na, do, pro, od, po, o, u, k, ke, nebo, či',
+        'nl' => 'de, het, een, en, of, van, voor, met, in, op, aan, te, bij, uit, door',
+    ];
+
+    /** @var array<string, bool> */
     private array $stopwords;
 
-    /** @param string[] $stopwords */
+    /** @var array<int, string[]> */
+    private array $suffixSets = [self::SUFFIXES['pl']];
+
+    private bool $builtinStopwords;
+
+    /**
+     * @param string[] $stopwords  the administrator's list; empty = the built-in list of the site language
+     *                             (applied by forLanguage())
+     */
     public function __construct(array $stopwords = [])
     {
-        $this->stopwords = array_fill_keys(array_filter(array_map(fn ($w) => $this->fold($w), $stopwords)), true);
+        $this->stopwords        = array_fill_keys(array_filter(array_map(fn ($w) => $this->fold($w), $stopwords)), true);
+        $this->builtinStopwords = !$this->stopwords;
+        if ($this->builtinStopwords) {
+            $this->stopwords = $this->words(self::STOPWORDS['pl'] . ',' . self::STOPWORDS['en']);
+        }
+    }
+
+    /** A copy with the endings and (unless the administrator has an own list) the ignored words of a language tag. */
+    public function forLanguage(string $tag): self
+    {
+        $lang = strtolower(substr($tag, 0, 2));
+        $lang = isset(self::SUFFIXES[$lang]) ? $lang : 'en';
+        $copy = clone $this;
+        $copy->suffixSets = $lang === 'pl' ? [self::SUFFIXES['pl']] : [self::SUFFIXES['pl'], self::SUFFIXES[$lang]];
+        if ($this->builtinStopwords) {
+            $copy->stopwords = $this->words(self::STOPWORDS['pl'] . ',' . self::STOPWORDS['en'] . ',' . self::STOPWORDS[$lang]);
+        }
+
+        return $copy;
+    }
+
+    /** @return array<string, bool> */
+    private function words(string $list): array
+    {
+        return array_fill_keys(array_filter(array_map(fn ($w) => $this->fold(trim($w)), explode(',', $list))), true);
     }
 
     /**
@@ -188,15 +240,30 @@ final class Normalizer
      */
     public function stem(string $term): string
     {
+        return $this->stems($term)[0] ?? $term;
+    }
+
+    /**
+     * The stems of a word, one per set of endings (Polish first, then the site language), without
+     * repeats and without the word itself.
+     *
+     * @return string[]
+     */
+    public function stems(string $term): array
+    {
         if (strlen($term) < 6 || preg_match('/[0-9]/', $term)) {
-            return $term;
+            return [];
         }
-        foreach (self::SUFFIXES as $suffix) {
-            if (str_ends_with($term, $suffix) && strlen($term) - strlen($suffix) >= 5) {
-                return substr($term, 0, -strlen($suffix));
+        $out = [];
+        foreach ($this->suffixSets as $suffixes) {
+            foreach ($suffixes as $suffix) {
+                if (str_ends_with($term, $suffix) && strlen($term) - strlen($suffix) >= 5) {
+                    $out[substr($term, 0, -strlen($suffix))] = true;
+                    break;
+                }
             }
         }
 
-        return $term;
+        return array_keys($out);
     }
 }

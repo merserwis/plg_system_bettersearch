@@ -60,7 +60,7 @@ final class Searcher
     {
         $this->db       = $db;
         $this->params   = $params;
-        $this->norm     = $norm;
+        $this->norm     = $norm->forLanguage($language);
         $this->levels   = array_map('intval', $levels) ?: [1];
         $this->language = $language;
         $this->scorer   = new Scorer([
@@ -206,8 +206,7 @@ final class Searcher
                 $alts[] = ['c' => $syn, 'kind' => 'syn'];
             }
             if ($stem) {
-                $s = $this->norm->stem($group['term']);
-                if ($s !== $group['term']) {
+                foreach ($this->norm->stems($group['term']) as $s) {
                     $alts[] = ['c' => $s, 'kind' => 'stem'];
                 }
             }

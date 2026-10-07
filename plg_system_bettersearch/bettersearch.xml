@@ -6,7 +6,7 @@
     <creationDate>2026-10-07</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.6</version>
+    <version>1.6.7</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -172,7 +172,7 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="stopwords" parentclass="bs-adv" type="textarea" rows="3" default="i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in" label="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_DESC" />
+                <field name="stopwords" parentclass="bs-adv" type="textarea" rows="3" default="" hint="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_HINT" label="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_STOPWORDS_DESC" />
                 <field name="weights_spacer" parentclass="bs-adv" type="spacer" hr="true" />
                 <field name="weights_note" parentclass="bs-adv" type="note" class="alert alert-light" label="PLG_SYSTEM_BETTERSEARCH_WEIGHTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_WEIGHTS_DESC" />
                 <field name="w_sku" parentclass="bs-adv" type="number" default="12" min="0" max="100" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_W_SKU_LABEL" />

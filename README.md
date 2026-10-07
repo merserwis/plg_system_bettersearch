@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.6.5-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.6.7-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -17,7 +17,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Model codes match however they are typed:** Neighbouring parts of a code are joined (`MI 3155` → `mi3155`, `MPI 530` → `mpi530`) and compared with the product text without spaces, dashes or dots. A short word after another one is its ending written apart: `eurotest xd` finds *EurotestXD*.
 * **Own search index:** Names, product codes (also of variants), chosen product fields, categories with their parent categories, tags and — with a much lower weight — intro texts, meta data and the text of the product page. Descriptions use a MySQL full-text index when the server allows it.
 * **Always up to date, without cron:** Gridbox saves products without notifying other extensions. The plugin compares a signature of every product (name, save time, categories, codes, prices, stock, fields, tags) with the index **after the page has been sent** to the visitor, and indexes new and changed products in batches. Publishing, access and dates are checked live, so they need no reindex.
-* **Polish shoppers' habits:** word endings (`mierników` → *miernik*, `kamery` ~ *kamera*), typo correction (`eurotset` → *eurotest*, `miernk` → *miernik*), synonyms (`multimetr, miernik uniwersalny`; one-way `rcd => wyłącznik różnicowoprądowy`), ignored words, partial matches with a note when no product has all the words.
+* **Shoppers' habits in six languages:** word endings — Polish always, plus English, German, French, Czech or Dutch by the language of the site (`mierników` → *miernik*, `Messgeräten` → *Messgerät*, `appareils` → *appareil*), typo correction (`eurotset` → *eurotest*, `miernk` → *miernik*), synonyms (`multimetr, miernik uniwersalny`; one-way `rcd => wyłącznik różnicowoprądowy`), ignored words (a built-in list per language), partial matches with a note when no product has all the words.
 * **Manual ranking:** **Query rules** pin products to the top of chosen queries **in the order you set** (drag and drop) or hide them; the query is matched exactly, by its start or anywhere, and spaces or dashes in it do not matter. **Product boosts** and **category boosts** move products up or down in every search.
 * **Exclusions:** excluded categories (with or without their subcategories), excluded products, products out of stock shown normally, at the end or hidden. Subscription add-ons hidden by Gridbox stay hidden.
 * **Explainable relevance:** weights per field (code, name, fields, categories, descriptions), a factor for words with digits, popularity (page views) and a cut-off of weak matches. The **test console** shows every result with its score and the reasons.
@@ -583,6 +583,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.7** — Word endings and ignored words for English, German, French, Czech and Dutch added to the Polish ones, by the site language.
 * **1.6.6** — Languages: English, German, Polish, French, Czech and Dutch (Ukrainian removed); German and Polish texts reviewed; the report's recipients and its “To” date have their own labels.
 * **1.6.5** — The product and page pickers of the settings list only published items.
 * **1.6.4** — The query in the results bold, highlighted, underlined, together or not at all (one option in Appearance); the appearing effect of the live panel plays when the results come (also after the list of last searches) and is more visible.
