@@ -3,10 +3,10 @@
     <name>mod_bettersearch</name>
     <author>Merserwis</author>
     <authorUrl>https://github.com/merserwis/</authorUrl>
-    <creationDate>2026-10-06</creationDate>
+    <creationDate>2026-10-07</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.5</version>
+    <version>1.6.6</version>
     <description>MOD_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Module\BetterSearch</namespace>
     <files>

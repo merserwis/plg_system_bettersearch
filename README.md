@@ -27,7 +27,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Results page in the Gridbox results element:** category and app filters with counts, sorting (best match, name, price, newest, most viewed), page numbers and/or *load more*, grid or list. Gridbox does no search work on that page at all.
 * **Full visual control:** width (as the field / at least / fixed), height, alignment and distance of the live results; list or grid; image left / right / top, size, proportions, fit, shape and background; columns for desktop / tablet / phone; card colours, border, radius, padding, shadow and hover effect; text alignment; what each result shows; every text shown on the site.
 * **SEO of the results page (new in 1.3.0):** robots `noindex, follow` by default, a canonical address of the query alone (no sorting, filters, page numbers or tracking parameters — it also replaces a theme's canonical that points to the home page), a title and meta description with the query and the number of results, schema.org `SearchResultsPage` with the products listed, `rel="nofollow"` on sorting, filter and page links, an OpenSearch description (browsers can search the shop from the address bar), `X-Robots-Tag: noindex` on the search endpoints, an optional WebSite SearchAction on the home page.
-* **4 languages:** English (default), Polish, Ukrainian and German — chosen automatically by the language of the administrator (settings) and of the site (texts shown to shoppers); any other language falls back to English, text by text. Right-to-left layouts are supported.
+* **6 languages:** English (default), German, Polish, French, Czech and Dutch — chosen automatically by the language of the administrator (settings) and of the site (texts shown to shoppers); any other language falls back to English, text by text. Right-to-left layouts are supported.
 * **Prices like in the store:** sale prices, active store sales and variations (“from …”), in the currency picked in Gridbox's currency switcher, formatted like Gridbox.
 * **Fast WebP thumbnails:** a 64 px result image is a ~1.5 KB WebP copy instead of a full-size photo — made once, kept on the server, EXIF rotation and transparency preserved.
 * **Old names through redirects (new in 1.6.3):** when a product is replaced and its address is redirected to the new one (Joomla *Redirects*), a search for the old name finds the new product with the badge **“Replaced”** (the old name on hover); chains of redirects are followed.
@@ -127,11 +127,13 @@ The live-search and “load more” answers are sent with `X-Robots-Tag: noindex
 | Language | Joomla tag |
 |---|---|
 | English (default) | `en-GB` |
-| Polish | `pl-PL` |
-| Ukrainian | `uk-UA` |
 | German | `de-DE` |
+| Polish | `pl-PL` |
+| French | `fr-FR` |
+| Czech | `cs-CZ` |
+| Dutch | `nl-NL` |
 
-The settings follow the language of the administrator, the texts on the site (no results, sorting, buttons, prices) the language of the site page. Joomla loads English first and the translation over it, so any language without a translation — or a text a translation lacks — shows English. The files are installed for the languages the site has and also kept in the plugin folder, so a language added later is found too. Every text shown on the site can still be replaced in the *Texts & images* tab. (Versions 1.3.0–1.4.1 also had Czech, Slovak, Lithuanian, French, Hindi, Chinese, Arabic and Spanish; since 1.4.2 those languages show English, and their files are removed on update.)
+The settings follow the language of the administrator, the texts on the site (no results, sorting, buttons, prices) the language of the site page. Joomla loads English first and the translation over it, so any language without a translation — or a text a translation lacks — shows English. The files are installed for the languages the site has and also kept in the plugin folder, so a language added later is found too. Every text shown on the site can still be replaced in the *Texts & images* tab. (Since 1.6.6 Ukrainian is no longer included and French, Czech and Dutch are back; the files of languages that are no longer included are removed on update, and those sites show English.)
 
 ---
 
@@ -581,6 +583,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.6** — Languages: English, German, Polish, French, Czech and Dutch (Ukrainian removed); German and Polish texts reviewed; the report's recipients and its “To” date have their own labels.
 * **1.6.5** — The product and page pickers of the settings list only published items.
 * **1.6.4** — The query in the results bold, highlighted, underlined, together or not at all (one option in Appearance); the appearing effect of the live panel plays when the results come (also after the list of last searches) and is more visible.
 * **1.6.3** — Products found by the old name of a product redirected to them (Joomla Redirects), with the badge “Replaced”; bold type and highlight of the query switched separately; the theme editor shows and removes values of the own CSS that overrode its settings (shadow, font…).

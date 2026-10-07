@@ -27,12 +27,12 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
      * fail on an existing column and stop the whole update.)
      */
     /**
-     * Since 1.4.2 the extension ships English, Polish, Ukrainian and German only: the files of the
-     * other languages installed by 1.3.0–1.4.1 are removed (Joomla keeps them on an update).
+     * Since 1.6.6 the extension ships English, German, Polish, French, Czech and Dutch: the files of
+     * the other languages installed by earlier versions are removed (Joomla keeps them on an update).
      */
     private function removeDroppedLanguages(): void
     {
-        foreach (['ar-AA', 'cs-CZ', 'es-ES', 'fr-FR', 'hi-IN', 'lt-LT', 'sk-SK', 'zh-CN'] as $tag) {
+        foreach (['ar-AA', 'es-ES', 'hi-IN', 'lt-LT', 'sk-SK', 'uk-UA', 'zh-CN'] as $tag) {
             foreach ([JPATH_ADMINISTRATOR . '/language/' . $tag . '/plg_system_bettersearch', JPATH_SITE . '/language/' . $tag . '/mod_bettersearch',
                 JPATH_PLUGINS . '/system/bettersearch/language/' . $tag . '/plg_system_bettersearch', JPATH_SITE . '/modules/mod_bettersearch/language/' . $tag . '/mod_bettersearch'] as $base) {
                 foreach (['.ini', '.sys.ini'] as $ext) {

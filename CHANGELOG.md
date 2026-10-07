@@ -2,6 +2,19 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.6 — 2026-10-07
+
+### 🌍 Languages
+
+- The extension now ships **English (default), German, Polish, French, Czech and Dutch** — the settings follow the language of the Joomla administrator and the texts on the site the language of the site; any other language shows English, also text by text where a translation lacks one.
+- **French, Czech and Dutch** translated in full (plugin settings, tools, the search module and every text shoppers see).
+- **German and Polish** reviewed against the English texts and corrected.
+- **Ukrainian removed**; its files left by earlier versions are removed on update, so those sites show English.
+
+### 🐞 Fixes
+
+- *Tools → Report*: the label in front of the recipients said “To” (in German “Bis”) — one text was used for both the recipients and the end date of the period. They now have separate texts.
+
 ## 1.6.5 — 2026-10-06
 
 ### 🚫 Only published items in the pickers

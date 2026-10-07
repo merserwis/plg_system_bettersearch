@@ -32,7 +32,7 @@ class BstoolsField extends FormField
                 . '<div class="bs-report-status small"></div>'
                 . '<fieldset class="bs-report-period"><legend>' . $t('REPORT_RANGE') . '</legend>'
                 . '<div class="bs-report-dates"><label>' . $t('REPORT_FROM') . ' <input type="date" class="form-control form-control-sm" data-bs-from></label>'
-                . '<label>' . $t('REPORT_TO') . ' <input type="date" class="form-control form-control-sm" data-bs-to></label>'
+                . '<label>' . $t('REPORT_DATE_TO') . ' <input type="date" class="form-control form-control-sm" data-bs-to></label>'
                 . '<button type="button" class="btn btn-sm btn-link" data-bs-range="auto">↺ ' . $t('REPORT_AUTO') . '</button></div>'
                 . '<div class="bs-report-presets">'
                 . '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-range="7">' . $t('REPORT_LAST7') . '</button>'
