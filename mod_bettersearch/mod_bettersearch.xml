@@ -18,12 +18,16 @@
     <languages folder="language">
         <language tag="en-GB">en-GB/mod_bettersearch.ini</language>
         <language tag="en-GB">en-GB/mod_bettersearch.sys.ini</language>
-        <language tag="pl-PL">pl-PL/mod_bettersearch.ini</language>
-        <language tag="pl-PL">pl-PL/mod_bettersearch.sys.ini</language>
-        <language tag="uk-UA">uk-UA/mod_bettersearch.ini</language>
-        <language tag="uk-UA">uk-UA/mod_bettersearch.sys.ini</language>
         <language tag="de-DE">de-DE/mod_bettersearch.ini</language>
         <language tag="de-DE">de-DE/mod_bettersearch.sys.ini</language>
+        <language tag="pl-PL">pl-PL/mod_bettersearch.ini</language>
+        <language tag="pl-PL">pl-PL/mod_bettersearch.sys.ini</language>
+        <language tag="fr-FR">fr-FR/mod_bettersearch.ini</language>
+        <language tag="fr-FR">fr-FR/mod_bettersearch.sys.ini</language>
+        <language tag="cs-CZ">cs-CZ/mod_bettersearch.ini</language>
+        <language tag="cs-CZ">cs-CZ/mod_bettersearch.sys.ini</language>
+        <language tag="nl-NL">nl-NL/mod_bettersearch.ini</language>
+        <language tag="nl-NL">nl-NL/mod_bettersearch.sys.ini</language>
     </languages>
     <config>
         <fields name="params">
