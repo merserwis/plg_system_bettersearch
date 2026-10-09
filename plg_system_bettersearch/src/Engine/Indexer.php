@@ -277,6 +277,9 @@ final class Indexer
         }
 
         $this->setState('checked_at', (string) time());
+        // the panel shows these figures instead of computing the signatures again on every opening
+        $this->setState('pages', (string) count($current));
+        $this->setState('pending', (string) (count($changed) - count($todo)));
         if (count($todo) === count($changed)) {
             $this->setState('complete_at', (string) time());
         }
@@ -307,6 +310,7 @@ final class Indexer
     public function truncate(): void
     {
         $this->db->setQuery('TRUNCATE TABLE ' . $this->db->quoteName('#__bettersearch_items'))->execute();
+        $this->setState('pending', (string) $this->state('pages', '0'));
         $this->setState('version', (string) (((int) $this->state('version', '0')) + 1));
     }
 

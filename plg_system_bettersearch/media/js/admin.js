@@ -803,7 +803,8 @@
         function showStatus(s) {
             status.innerHTML = '<table class="table table-sm bs-status-table"><tbody>'
                 + '<tr><th>' + esc(T.TOOLS_ITEMS) + '</th><td>' + s.items + ' / ' + s.pages + '</td></tr>'
-                + '<tr><th>' + esc(T.TOOLS_PENDING) + '</th><td>' + s.pending + (s.configOk ? '' : ' <span class="badge bg-warning text-dark">' + esc(T.TOOLS_CONFIG_CHANGED) + '</span>') + '</td></tr>'
+                + '<tr><th>' + esc(T.TOOLS_PENDING) + '</th><td>' + s.pending + (s.configOk ? '' : ' <span class="badge bg-warning text-dark">' + esc(T.TOOLS_CONFIG_CHANGED) + '</span>')
+                    + (s.pendingLive === false ? ' <small class="text-muted">(' + esc(T.TOOLS_PENDING_LAST) + ')</small> <a href="#" class="bs-count-now small">' + esc(T.TOOLS_COUNT_NOW) + '</a>' : '') + '</td></tr>'
                 + '<tr><th>' + esc(T.TOOLS_APPS) + '</th><td>' + (s.apps || []).map(function (a) {
                     return esc(a.title) + ' <small class="text-muted">#' + a.id + '</small>';
                 }).join(', ') + '</td></tr>'
@@ -834,6 +835,17 @@
                 status.textContent = e.message;
             });
         }
+
+        // the exact count (compares every page with the index: a few seconds on a large shop)
+        status.addEventListener('click', function (e) {
+            var link = e.target.closest('.bs-count-now');
+            if (!link) return;
+            e.preventDefault();
+            link.textContent = T.TOOLS_COUNTING;
+            call('status', { fresh: 1 }).then(showStatus).catch(function (err) {
+                status.textContent = err.message;
+            });
+        });
 
         function run(force) {
             var buttons = root.querySelectorAll('[data-bs-tool]');

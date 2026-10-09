@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.7';
+    public const VERSION = '1.6.8';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -2138,7 +2138,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         switch ($task) {
             case 'status':
-                return $this->status();
+                return $this->status($input->getInt('fresh', 0) === 1);
 
             case 'sync':
                 $force  = $input->getInt('force', 0) === 1;
@@ -2147,7 +2147,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                     $this->cleanCaches();
                 }
 
-                return $result + $this->status();
+                return $result + $this->status(false, $result);
 
             case 'test':
                 $query    = mb_substr(trim((string) $input->get('q', '', 'raw')), 0, 200);
@@ -2363,7 +2363,13 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
     }
 
-    private function status(): array
+    /**
+     * The figures of the Tools tab. Comparing every page with the index (the signatures) reads all
+     * pages of the indexed apps: seconds on a large shop. So the panel shows the figures of the last
+     * check (every sync keeps them) and computes them anew only when asked ($fresh: the "Count now"
+     * link), or when there are none yet. A sync passes its own result ($sync) instead.
+     */
+    private function status(bool $fresh = false, ?array $sync = null): array
     {
         $db      = $this->db();
         $indexer = $this->indexer();
@@ -2371,20 +2377,30 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $last    = (int) $indexer->state('checked_at', '0');
         $done    = (int) $indexer->state('complete_at', '0');
         $pending = 0;
+        $total   = 0;
+        $live    = false;
         try {
-            $current = $indexer->signatures();
-            $stored  = [];
-            foreach ($db->setQuery('SELECT id, sig FROM ' . $db->quoteName('#__bettersearch_items'))->loadRowList() ?: [] as [$id, $sig]) {
-                $stored[(int) $id] = (int) $sig;
+            $config = $indexer->state('config') === $indexer->configSignature();
+            if ($sync !== null) {
+                [$total, $pending, $live] = [(int) $sync['total'], (int) $sync['remaining'], true];
+            } elseif (!$fresh && $indexer->state('pages') !== null && $indexer->state('pending') !== null) {
+                [$total, $pending] = [(int) $indexer->state('pages'), (int) $indexer->state('pending')];
+            } else {
+                $current = $indexer->signatures();
+                $stored  = [];
+                foreach ($db->setQuery('SELECT id, sig FROM ' . $db->quoteName('#__bettersearch_items'))->loadRowList() ?: [] as [$id, $sig]) {
+                    $stored[(int) $id] = (int) $sig;
+                }
+                foreach ($current as $id => $sig) {
+                    $pending += ($stored[$id] ?? null) !== $sig ? 1 : 0;
+                }
+                $pending += count(array_diff_key($stored, $current));
+                $total    = count($current);
+                $live     = true;
+                $indexer->setState('pages', (string) $total);
+                $indexer->setState('pending', (string) $pending);
             }
-            foreach ($current as $id => $sig) {
-                $pending += ($stored[$id] ?? null) !== $sig ? 1 : 0;
-            }
-            $pending += count(array_diff_key($stored, $current));
-            $total    = count($current);
-            $config   = $indexer->state('config') === $indexer->configSignature();
         } catch (\Throwable $e) {
-            $total  = 0;
             $config = false;
         }
 
@@ -2392,6 +2408,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'items'      => $count,
             'pages'      => $total,
             'pending'    => $pending,
+            // false: the figures of the last check (time in 'checked'), not counted now
+            'pendingLive' => $live,
             'configOk'   => $config,
             'checked'    => $last ? gmdate('Y-m-d H:i:s', $last) . ' UTC' : '—',
             'complete'   => $done ? gmdate('Y-m-d H:i:s', $done) . ' UTC' : '—',

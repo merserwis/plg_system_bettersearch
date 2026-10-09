@@ -2,6 +2,14 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.8 — 2026-10-09
+
+### ⚡ Lighter Tools tab
+
+- Opening the **Tools** tab no longer compares every page with the index. That comparison (the page signatures) reads all pages of the indexed apps: on a shop with about 4,600 products it took up to 6 s on the server and showed up in the hosting's slow query log. The tab now shows the figures of the last check — every update of the index keeps them — marked *as of the last check*, with a **Count now** link for the exact count.
+- Each step of **Update index** no longer counts the signatures a second time: it shows the figures of the update it has just made.
+- Tip: Gridbox's tables have no indexes besides the primary key; with an index on `#__gridbox_store_product_data.product_id` the signature query itself is about 20× faster (MerTools for Gridbox 0.0.26 creates and keeps these indexes).
+
 ## 1.6.7 — 2026-10-07
 
 ### 🌍 Word endings and ignored words in every language
