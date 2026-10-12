@@ -74,6 +74,21 @@ final class Searcher
     }
 
     /**
+     * An unfilled URL template taken literally, e.g. "{searchTerms}" from the OpenSearch description
+     * or "{search_term_string}" from the WebSite SearchAction: some crawlers open the template as a
+     * link. Not something a shopper typed.
+     */
+    public static function isPlaceholder(string $query): bool
+    {
+        $query = trim($query);
+        if (stripos($query, '%7B') === 0) {
+            $query = rawurldecode($query);
+        }
+
+        return (bool) preg_match('/^\{\s*[\p{L}\p{N}_:.?-]{1,40}\s*\}$/u', $query);
+    }
+
+    /**
      * @param int[] $apps only these apps (empty = all indexed)
      *
      * @return array{query: string, mode: string, corrected: string, total: int,
@@ -87,7 +102,7 @@ final class Searcher
         $result = ['query' => $query, 'mode' => 'none', 'corrected' => '', 'total' => 0, 'items' => [], 'groups' => [], 'ms' => 0.0];
         $phrase = $this->norm->compact($query);
 
-        if (mb_strlen($phrase) < max(1, (int) $this->params->get('min_chars', 2))) {
+        if (self::isPlaceholder($query) || mb_strlen($phrase) < max(1, (int) $this->params->get('min_chars', 2))) {
             return $result;
         }
 

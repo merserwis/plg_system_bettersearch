@@ -2,6 +2,12 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.9 — 2026-10-12
+
+### 🐞 Fixes
+
+- **“{searchterms}” in the search report.** The OpenSearch description of the site (what lets a browser add a search of your site to its address bar) gives the results address as `/search?query={searchTerms}`; the browser puts the typed words in place of `{searchTerms}`. Some crawlers that present themselves as an ordinary browser open that address as it is, so the report counted a search for “{searchterms}”. A query that is only such an unfilled template — `{searchTerms}`, `{search_term_string}` (the Google sitelinks search box) and the like, also URL-encoded — is no longer logged, searched or offered a “Did you mean”: the results page shows no results at once, without a database query. Such entries logged by earlier versions are removed from the report when the update is installed.
+
 ## 1.6.8 — 2026-10-09
 
 ### ⚡ Lighter Tools tab

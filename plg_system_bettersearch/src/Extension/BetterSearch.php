@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.8';
+    public const VERSION = '1.6.9';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -269,7 +269,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     {
         $norm   = $this->normalizer();
         $target = $norm->compact($query);
-        if (strlen($target) < 3) {
+        if (strlen($target) < 3 || Searcher::isPlaceholder($query)) {
             return [];
         }
         try {
@@ -2529,8 +2529,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
         $results = max(-1, $results);
         $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8'), 0, 120);
-        // statistics are for what shoppers type: not for noise or very long strings
-        if ($q === '' || preg_match('/[\x00-\x1F]/', $q) || mb_strlen($this->normalizer()->compact($q)) < 2 || substr_count($q, ' ') > 9) {
+        // statistics are for what shoppers type: not for noise, very long strings or unfilled URL templates
+        if ($q === '' || Searcher::isPlaceholder($q) || preg_match('/[\x00-\x1F]/', $q) || mb_strlen($this->normalizer()->compact($q)) < 2 || substr_count($q, ' ') > 9) {
             return;
         }
         try {

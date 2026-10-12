@@ -49,6 +49,26 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
         }
     }
 
+    /**
+     * 1.6.9: searches for an unfilled URL template ("{searchterms}" from the OpenSearch description,
+     * "{search_term_string}" from the sitelinks search box) are no longer logged; the ones logged by
+     * earlier versions are removed from the report tables.
+     */
+    private function removePlaceholderSearches($db): void
+    {
+        $have = array_map('strval', $db->getTableList());
+        foreach (['#__bettersearch_log', '#__bettersearch_daily', '#__bettersearch_events'] as $table) {
+            if (!in_array($db->replacePrefix($table), $have, true)) {
+                continue;
+            }
+            try {
+                $db->setQuery('DELETE FROM ' . $db->quoteName($table) . ' WHERE ' . $db->quoteName('query') . ' LIKE ' . $db->quote('{%}')
+                    . ' AND ' . $db->quoteName('query') . ' REGEXP ' . $db->quote('^[{] *[^{} ]{1,40} *[}]$'))->execute();
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
     private function upgradeColumns($db): void
     {
         try {
@@ -92,6 +112,7 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
                 }
             }
             $this->upgradeColumns($db);
+            $this->removePlaceholderSearches($db);
             $this->removeDroppedLanguages();
             $this->fulltextIndex($db);
             Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_ADMINISTRATOR)
