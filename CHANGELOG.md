@@ -2,6 +2,13 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.10 — 2026-10-13
+
+### ✨ New
+
+- **“Update index” button in the administrator's top bar.** The top bar of the administrator, next to the Joomla version, has an **Update index** button: one click brings the search index up to date from any screen — the same steps as *Update index* on the *Index & tools* tab (new, changed and removed pages), without opening the plugin. The progress is shown on the button (*Indexing… 400 / 644*) and a Joomla message says how many pages were indexed and removed, or that the index is already up to date.
+- Shown only to users who may manage plugins; the request needs the form token. On narrow screens the button moves into the *more* (⋯) menu of the bar with the other items. Can be turned off: *Update index button in the top bar* (tab *Search engine*, on by default).
+
 ## 1.6.9 — 2026-10-12
 
 ### 🐞 Fixes

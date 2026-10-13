@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.9';
+    public const VERSION = '1.6.10';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -126,6 +126,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'onAjaxBettersearch'    => 'onAjax',
             'onExtensionAfterSave'  => 'onExtensionAfterSave',
             'onBetterSearchModule'  => 'onModule',
+            // the administrator: the update-index button in the top bar, next to the Joomla version
+            'onAfterModuleList'     => 'onAfterModuleList',
         ];
     }
 
@@ -2117,6 +2119,68 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     }
 
     // ================================================================ administrator tools
+
+    /**
+     * The update-index button in the top bar of the administrator: a module of the "status" position
+     * added to the list (its content ready, so no module is booted), first in the bar. Being a
+     * module, Atum also puts it in its "more" menu when the bar is too narrow. The button runs the
+     * same steps as "Update index" in the Tools tab (admin_sync, until nothing is left).
+     */
+    public function onAfterModuleList($event): void
+    {
+        $app = $this->getApplication();
+        if (!$app->isClient('administrator') || !(int) $this->params->get('admin_index_button', 1)
+            || $app->getInput()->getCmd('tmpl', '') === 'component') {
+            return;
+        }
+        $user     = $app->getIdentity();
+        $document = $app->getDocument();
+        if (!$user || $user->guest || !$user->authorise('core.manage', 'com_plugins') || !$document || $document->getType() !== 'html') {
+            return;
+        }
+        $this->loadLanguage();
+        $texts = [];
+        foreach (['HEADER_LABEL', 'HEADER_WORKING', 'HEADER_UPDATED', 'HEADER_ERROR', 'TOOLS_DONE'] as $k) {
+            $texts[$k] = Text::_('PLG_SYSTEM_BETTERSEARCH_' . $k);
+        }
+        try {
+            $document->addScriptOptions('plg_system_bettersearch.header', [
+                'ajax'  => Uri::base(true) . '/index.php?option=com_ajax&plugin=bettersearch&group=system&format=json&' . Session::getFormToken() . '=1',
+                'texts' => $texts,
+            ]);
+            $file = 'media/plg_system_bettersearch/js/header.js';
+            $document->getWebAssetManager()->registerAndUseScript('plg_system_bettersearch.header', $file,
+                ['version' => self::VERSION . '-' . (int) @filemtime(JPATH_ROOT . '/' . $file)], ['defer' => true]);
+        } catch (\Throwable $e) {
+            return;
+        }
+        $title  = htmlspecialchars(Text::_('PLG_SYSTEM_BETTERSEARCH_HEADER_TITLE'), ENT_QUOTES, 'UTF-8');
+        $label  = htmlspecialchars($texts['HEADER_LABEL'], ENT_QUOTES, 'UTF-8');
+        $module = (object) [
+            'id'              => -84102,
+            'title'           => 'Better Search',
+            'module'          => 'mod_bettersearch_header',
+            'position'        => 'status',
+            'content'         => '<button type="button" class="header-item-content" data-bettersearch-sync title="' . $title . '">'
+                . '<div class="header-item-icon"><span class="icon-sync" aria-hidden="true"></span></div>'
+                . '<div class="header-item-text">' . $label . '</div></button>',
+            'contentRendered' => true,
+            'showtitle'       => 0,
+            'params'          => '{}',
+            'menuid'          => 0,
+        ];
+        $modules = $event->getArgument('modules', []);
+        $modules = is_array($modules) ? array_values($modules) : [];
+        $at      = count($modules);
+        foreach ($modules as $i => $existing) {
+            if (strtolower((string) ($existing->position ?? '')) === 'status') {
+                $at = $i;
+                break;
+            }
+        }
+        array_splice($modules, $at, 0, [$module]);
+        $event->setArgument('modules', $modules);
+    }
 
     private function adminTask(string $task): array
     {
