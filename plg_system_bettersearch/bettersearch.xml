@@ -55,6 +55,7 @@
 
             <!-- ============================================================ General -->
             <fieldset name="basic">
+                <field name="gb_return" type="gbreturn" hiddenLabel="true" />
                 <field name="info" type="note" class="alert alert-info" label="PLG_SYSTEM_BETTERSEARCH_INFO_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INFO_DESC" />
                 <field name="settings_mode" type="bsmode" default="basic" label="PLG_SYSTEM_BETTERSEARCH_SETTINGS_MODE_LABEL" hiddenLabel="true" />
                 <field name="apps" type="bsapps" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_APPS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_APPS_DESC" />

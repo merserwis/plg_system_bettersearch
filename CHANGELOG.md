@@ -8,6 +8,7 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 
 - **“Update index” button in the administrator's top bar.** The top bar of the administrator, next to the Joomla version, has an **Update index** button: one click brings the search index up to date from any screen — the same steps as *Update index* on the *Index & tools* tab (new, changed and removed pages), without opening the plugin. The progress is shown on the button (*Indexing… 400 / 644*) and a Joomla message says how many pages were indexed and removed, or that the index is already up to date.
 - Shown only to users who may manage plugins; the request needs the form token. On narrow screens the button moves into the *more* (⋯) menu of the bar with the other items. Can be turned off: *Update index button in the top bar* (tab *Search engine*, on by default).
+- **Close goes to the Gridbox panel.** **Close**, **Save & Close** and **Save** then **Close** in the Better Search settings now go to the Gridbox panel instead of the list of plugins, as in MerTools (when Gridbox is installed; otherwise the list of plugins as before).
 
 ## 1.6.9 — 2026-10-12
 
