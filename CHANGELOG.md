@@ -2,6 +2,20 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.11 — 2026-10-14
+
+### ✨ New
+
+- **Orders placed on the site in the e-mail report.** The report has a new section *Orders placed on the site*: the Gridbox store orders that visitors placed in the period (not those created in the store panel), compared with the period before — **orders**, **cart value** (the products after the discount, without shipping, in the prices of the store: net when the store adds the tax), **average cart** and **from the search** (orders with a product put into the cart from the search results, with the value of those products).
+- Below the tiles: the **orders of the period** (number, date, status with its colour from the store settings, items, cart value, the phrases that brought their products, up to *Phrases in the report* rows) and the **phrases that led to orders**, by the value of their products. Works in the preview and *Send now* for any period.
+- Refunded orders are listed (struck through) but left out of the sums; orders in another currency are summed separately (the change of the value is shown when both periods are in one currency). On a site without the Gridbox store the section is left out.
+- **How an order is put down to the search:** when a product goes into the cart from the search results (a conversion counted since 1.4.0), the plugin now also notes the Gridbox cart it went into — also a cart opened by this very product. An order placed from that cart counts for the search, also when the payment gateway confirms it later. Orders are attributed from the update to 1.6.11 on; the totals of the orders work for any period. Staff left out of the statistics are not noted. The notes are kept for a year (new table `#__bettersearch_carts`).
+- Can be turned off: *Orders placed on the site* (tab *E-mail report*, on by default).
+
+### 🐞 Fixes
+
+- Uninstalling the plugin also removes its table of searches per day (`#__bettersearch_daily`), left behind since 1.5.0.
+
 ## 1.6.10 — 2026-10-13
 
 ### ✨ New

@@ -3,10 +3,10 @@
     <name>plg_system_bettersearch</name>
     <author>Merserwis</author>
     <authorUrl>https://github.com/merserwis/</authorUrl>
-    <creationDate>2026-10-13</creationDate>
+    <creationDate>2026-10-14</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.10</version>
+    <version>1.6.11</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -763,6 +763,10 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="report_conversions" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_CONVERSIONS_LABEL">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="report_orders" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>

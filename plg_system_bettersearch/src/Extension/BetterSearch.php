@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.10';
+    public const VERSION = '1.6.11';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -336,7 +336,51 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $q = mb_substr(mb_strtolower(trim($map[(string) $id]), 'UTF-8'), 0, 120);
         if ($q !== '') {
             $this->recordEvent($q, $id, 2);
+            $this->rememberCart($id, $q);
         }
+    }
+
+    /**
+     * The Gridbox cart the product went into, with the query: an order placed from that cart is
+     * counted for the search in the e-mail report. Gridbox ends the request with exit, and a first
+     * product opens a new cart in this very request (its number only in the Set-Cookie header),
+     * so the cart is looked up at shutdown, once the product is in it.
+     */
+    private function rememberCart(int $id, string $q): void
+    {
+        $app    = $this->getApplication();
+        $cookie = $app->getInput()->cookie->getInt('gridbox_store_cart', 0);
+        $user   = (int) ($app->getIdentity()?->id ?? 0);
+        $db     = $this->db();
+        register_shutdown_function(function () use ($db, $id, $q, $cookie, $user): void {
+            try {
+                $carts = [];
+                foreach (headers_list() as $header) {
+                    if (preg_match('/^Set-Cookie:\s*gridbox_store_cart=([1-9]\d*)/i', $header, $m)) {
+                        array_unshift($carts, (int) $m[1]);
+                    }
+                }
+                $carts[] = $cookie;
+                if ($user > 0) {
+                    $carts[] = (int) $db->setQuery('SELECT MAX(id) FROM ' . $db->quoteName('#__gridbox_store_cart') . ' WHERE user_id = ' . $user)->loadResult();
+                }
+                foreach (array_unique(array_filter($carts)) as $cart) {
+                    $has = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__gridbox_store_cart_products')
+                        . ' WHERE cart_id = ' . (int) $cart . ' AND product_id = ' . $id)->loadResult();
+                    if ($has) {
+                        $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_carts') . ' (cart_id, item_id, query, day) VALUES (' . (int) $cart . ', ' . $id . ', '
+                            . $db->quote($q) . ', ' . $db->quote(gmdate('Y-m-d')) . ') ON DUPLICATE KEY UPDATE query = VALUES(query), day = VALUES(day)')->execute();
+
+                        return;
+                    }
+                }
+            } catch (\Throwable $e) {
+                try {
+                    $this->ensureTables();
+                } catch (\Throwable $ignored) {
+                }
+            }
+        });
     }
 
     /** kind: 1 = click, 2 = cart. One row per day, query, product and kind (counted up). */
@@ -349,6 +393,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             // now and then: a year of history, at most EVENT_ROWS rows
             if (random_int(1, 100) === 1) {
                 $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_events') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - 366 * 86400)))->execute();
+                $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_carts') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - 366 * 86400)))->execute();
                 $over = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_events'))->loadResult() - self::EVENT_ROWS;
                 if ($over > 0) {
                     $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_events') . ' ORDER BY day ASC LIMIT ' . $over)->execute();
@@ -1855,12 +1900,197 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             }
         }
 
+        if ($this->params->get('report_orders', 1)) {
+            $html .= $this->reportOrdersHtml($from, $to, $pFrom, $limit, ['esc' => $esc, 'n' => $n, 'change' => $change, 'th' => $th, 'td' => $td, 'tdr' => $tdr, 'h2' => $h2]);
+        }
+
         $id    = (int) $this->db()->setQuery($this->db()->createQuery()->select('extension_id')->from($this->db()->quoteName('#__extensions'))
             ->where($this->db()->quoteName('type') . ' = ' . $this->db()->quote('plugin'))->where($this->db()->quoteName('element') . ' = ' . $this->db()->quote('bettersearch')))->loadResult();
         $admin = rtrim(Uri::root(), '/') . '/administrator/index.php?option=com_plugins&task=plugin.edit&extension_id=' . $id;
         $html .= '<p style="margin:28px 0 0"><a href="' . $esc($admin) . '" style="display:inline-block;background:' . $accent . ';color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;font-weight:700">'
             . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_OPEN')) . '</a></p><p style="margin:16px 0 0;color:#9ca3af;font-size:12px">'
             . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_FOOTER', $site !== '' ? $site : Uri::root())) . '</p></div>';
+
+        return $html;
+    }
+
+    /**
+     * Orders placed on the site (Gridbox store, published, from a visitor's cart: not those created in
+     * the store panel) in the period: their number and cart value against the period before, the
+     * orders with their status, and which of them hold products put into the cart from the search.
+     * Cart value = the products after the discount, without the shipping, in the prices of the store
+     * (net when the store adds the tax). Refunded orders are listed but left out of the sums.
+     *
+     * @param  array<string, mixed>  $ui  the escaping, number and style helpers of reportHtml()
+     */
+    private function reportOrdersHtml(string $from, string $to, string $pFrom, int $limit, array $ui): string
+    {
+        $db = $this->db();
+        ['esc' => $esc, 'n' => $n, 'change' => $change, 'th' => $th, 'td' => $td, 'tdr' => $tdr, 'h2' => $h2] = $ui;
+        $orders   = $db->quoteName('#__gridbox_store_orders');
+        $products = $db->quoteName('#__gridbox_store_order_products');
+        $carts    = $db->quoteName('#__bettersearch_carts');
+        $cart     = 'CAST(o.subtotal AS DECIMAL(16,4)) - IFNULL((SELECT SUM(CAST(d.value AS DECIMAL(16,4))) FROM ' . $db->quoteName('#__gridbox_store_orders_discount')
+            . ' AS d WHERE d.order_id = o.id), 0)';
+        $where    = fn (string $a, string $b) => ' WHERE o.published = 1 AND o.cart_id > 0 AND o.date >= ' . $db->quote($a) . ' AND o.date < ' . $db->quote($b);
+        $line     = 'CAST(IF(p.sale_price <> ' . $db->quote('') . ', p.sale_price, p.price) AS DECIMAL(16,4))';
+        $tdn      = str_replace('style="', 'style="white-space:nowrap;', $td);
+
+        try {
+            $list = $db->setQuery('SELECT o.id, o.order_number, o.date, o.status, o.currency_symbol AS symbol, o.currency_position AS position, ' . $cart . ' AS cart FROM '
+                . $orders . ' AS o' . $where($from, $to) . ' ORDER BY o.date DESC, o.id DESC')->loadAssocList() ?: [];
+            $prev = $db->setQuery('SELECT o.currency_symbol AS symbol, o.currency_position AS position, COUNT(*) AS orders, SUM(' . $cart . ') AS cart FROM ' . $orders . ' AS o'
+                . $where($pFrom, $from) . ' AND o.status <> ' . $db->quote('refunded') . ' GROUP BY o.currency_symbol, o.currency_position')->loadAssocList() ?: [];
+        } catch (\Throwable $e) {
+            // no Gridbox store on this site
+            return '';
+        }
+
+        $ids    = array_map(fn ($r) => (int) $r['id'], $list);
+        $qty    = [];
+        $found  = [];
+        $prevFound = 0;
+        try {
+            if ($ids) {
+                $in = ' IN (' . implode(',', $ids) . ')';
+                foreach ($db->setQuery('SELECT order_id, SUM(quantity) FROM ' . $products . ' WHERE order_id' . $in . ' GROUP BY order_id')->loadRowList() ?: [] as [$oid, $count]) {
+                    $qty[(int) $oid] = (int) $count;
+                }
+                foreach ($db->setQuery('SELECT p.order_id, c.query, SUM(' . $line . ') AS value FROM ' . $products . ' AS p INNER JOIN ' . $orders . ' AS o ON o.id = p.order_id INNER JOIN '
+                    . $carts . ' AS c ON c.cart_id = o.cart_id AND c.item_id = p.product_id WHERE p.order_id' . $in . ' GROUP BY p.order_id, c.query ORDER BY value DESC')->loadAssocList() ?: [] as $row) {
+                    $found[(int) $row['order_id']][(string) $row['query']] = (float) $row['value'];
+                }
+            }
+            $prevFound = (int) $db->setQuery('SELECT COUNT(DISTINCT o.id) FROM ' . $orders . ' AS o INNER JOIN ' . $products . ' AS p ON p.order_id = o.id INNER JOIN ' . $carts
+                . ' AS c ON c.cart_id = o.cart_id AND c.item_id = p.product_id' . $where($pFrom, $from) . ' AND o.status <> ' . $db->quote('refunded'))->loadResult();
+        } catch (\Throwable $e) {
+            // the carts table is created on install; without it no order is put down to the search
+        }
+
+        if (!$list && !$prev) {
+            return '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS')) . '</h2><p style="margin:0;color:#6b7280">'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_NONE')) . '</p>';
+        }
+
+        // the store's number format and status names
+        $format = ['decimals' => 2, 'separator' => ',', 'thousand' => "\u{00A0}"];
+        $status = [];
+        try {
+            $store = json_decode((string) $db->setQuery($db->createQuery()->select($db->quoteName('key'))->from($db->quoteName('#__gridbox_api'))
+                ->where($db->quoteName('service') . ' = ' . $db->quote('store')))->loadResult());
+            if (is_object($store->currency ?? null)) {
+                $format = ['decimals' => max(0, min(4, (int) ($store->currency->decimals ?? 2))), 'separator' => (string) ($store->currency->separator ?? ','),
+                    'thousand' => (string) ($store->currency->thousand ?? ' ')];
+            }
+            foreach ((array) ($store->statuses ?? []) as $item) {
+                if (is_object($item) && isset($item->key)) {
+                    $status[(string) $item->key] = ['title' => (string) ($item->title ?? $item->key), 'color' => (string) ($item->color ?? '#6b7280')];
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+        $money = function (float $value, string $symbol, string $position) use ($format): string {
+            $number = number_format($value, $format['decimals'], $format['separator'], $format['thousand'] === ' ' ? "\u{00A0}" : $format['thousand']);
+            $symbol = trim($symbol);
+
+            return $symbol === '' ? $number : ($position === 'left-currency-position' ? $symbol . "\u{00A0}" . $number : $number . "\u{00A0}" . $symbol);
+        };
+        // sums per currency (an order keeps the currency it was placed in)
+        $sums = function (array $byCurrency) use ($money): string {
+            $out = [];
+            foreach ($byCurrency as $key => $value) {
+                [$symbol, $position] = explode("\x1F", $key);
+                $out[] = $money($value, $symbol, $position);
+            }
+
+            return $out ? implode(' + ', $out) : '–';
+        };
+
+        $count = 0;
+        $value = [];
+        $fromSearch = 0;
+        $searchValue = [];
+        $phrases = [];
+        foreach ($list as $row) {
+            if ($row['status'] === 'refunded') {
+                continue;
+            }
+            $key = $row['symbol'] . "\x1F" . $row['position'];
+            $count++;
+            $value[$key] = ($value[$key] ?? 0) + (float) $row['cart'];
+            if (!empty($found[(int) $row['id']])) {
+                $fromSearch++;
+                foreach ($found[(int) $row['id']] as $query => $amount) {
+                    $searchValue[$key] = ($searchValue[$key] ?? 0) + $amount;
+                    $phrases[$query]['orders'][(int) $row['id']] = true;
+                    $phrases[$query]['value'][$key] = ($phrases[$query]['value'][$key] ?? 0) + $amount;
+                }
+            }
+        }
+        $prevCount = 0;
+        $prevValue = [];
+        foreach ($prev as $row) {
+            $prevCount += (int) $row['orders'];
+            $prevValue[$row['symbol'] . "\x1F" . $row['position']] = (float) $row['cart'];
+        }
+        // the change of the value only when both periods are in one and the same currency
+        $valueChange = count($value) === 1 && array_keys($value) === array_keys($prevValue)
+            ? $change((int) round(reset($value)), (int) round(reset($prevValue))) : ($prevValue ? '' : $change($count, 0));
+        $average = [];
+        if ($count && count($value) === 1) {
+            $average[array_key_first($value)] = reset($value) / $count;
+        }
+
+        $tiles = [
+            [Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_COUNT'), $n($count), $change($count, $prevCount)],
+            [Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_VALUE'), $sums($value), $valueChange],
+            [Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_AVERAGE'), $average ? $sums($average) : '–', ''],
+            [Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_SEARCH'), $n($fromSearch), $change($fromSearch, $prevFound) . ($searchValue ? '<div>' . $esc($sums($searchValue)) . '</div>' : '')],
+        ];
+        $html = '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS')) . '</h2><p style="margin:0 0 8px;color:#6b7280;font-size:13px">'
+            . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_HINT')) . '</p><table role="presentation" style="width:100%;border-collapse:separate;border-spacing:6px"><tr>';
+        foreach ($tiles as [$label, $shown, $note]) {
+            $html .= '<td style="background:#f6f8fa;border-radius:8px;padding:10px 12px;vertical-align:top;width:25%"><div style="font-size:12px;color:#6b7280">' . $esc($label)
+                . '</div><div style="font-size:20px;font-weight:700;white-space:nowrap">' . $esc($shown) . '</div>' . ($note !== '' ? '<div style="font-size:12px">' . $note . '</div>' : '') . '</td>';
+        }
+        $html .= '</tr></table>';
+
+        if ($list) {
+            $html .= '<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_ORDER')) . '</th><th ' . $th . '>'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_DATE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_STATUS')) . '</th><th ' . $th . '>'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_ITEMS')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_CART')) . '</th><th ' . $th . '>'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_FROM_SEARCH')) . '</th></tr>';
+            foreach (array_slice($list, 0, $limit) as $row) {
+                $id       = (int) $row['id'];
+                $refunded = $row['status'] === 'refunded';
+                $state    = $status[(string) $row['status']] ?? ['title' => (string) $row['status'], 'color' => '#6b7280'];
+                $search   = [];
+                foreach ($found[$id] ?? [] as $query => $amount) {
+                    $search[] = '„' . $esc($query) . '”';
+                }
+                $html .= '<tr' . ($refunded ? ' style="color:#9ca3af"' : '') . '><td ' . $td . '>' . $esc($row['order_number']) . '</td><td ' . $tdn . '>'
+                    . $esc((new \DateTimeImmutable((string) $row['date']))->format('d.m.Y H:i')) . '</td><td ' . $td . '><span style="color:' . $esc($state['color']) . '">●</span> '
+                    . $esc($state['title']) . '</td><td ' . $tdr . '>' . $n($qty[$id] ?? 0) . '</td><td ' . $tdr . '>' . ($refunded ? '<s>' : '')
+                    . $esc($money((float) $row['cart'], (string) $row['symbol'], (string) $row['position'])) . ($refunded ? '</s>' : '') . '</td><td ' . $td . '>'
+                    . ($search ? implode(', ', $search) . ' <span style="color:#6b7280;white-space:nowrap">(' . $esc($money(array_sum($found[$id]), (string) $row['symbol'], (string) $row['position'])) . ')</span>' : '–')
+                    . '</td></tr>';
+            }
+            $html .= '</table>';
+            if (count($list) > $limit) {
+                $html .= '<p style="margin:6px 0 0;color:#6b7280;font-size:13px">' . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_MORE', count($list) - $limit)) . '</p>';
+            }
+        }
+
+        if ($phrases) {
+            uasort($phrases, fn ($a, $b) => array_sum($b['value']) <=> array_sum($a['value']) ?: count($b['orders']) <=> count($a['orders']));
+            $html .= '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_PHRASES')) . '</h2><table style="width:100%;border-collapse:collapse"><tr><th ' . $th . '>'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_COUNT')) . '</th><th ' . $th . '>'
+                . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_SEARCH_VALUE')) . '</th></tr>';
+            foreach (array_slice($phrases, 0, 10, true) as $query => $data) {
+                $html .= '<tr><td ' . $td . '>' . $esc($query) . '</td><td ' . $tdr . '>' . $n(count($data['orders'])) . '</td><td ' . $tdr . '>' . $esc($sums($data['value'])) . '</td></tr>';
+            }
+            $html .= '</table>';
+        }
 
         return $html;
     }

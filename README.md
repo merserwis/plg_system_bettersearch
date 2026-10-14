@@ -47,7 +47,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Recent searches (new in 1.5.0):** a click into an empty search field lists the visitor's last searches — kept only in the visitor's browser, removable one by one or all at once.
 * **Availability and delivery time (new in 1.5.0, off by default):** in stock / last items / out of stock from the Gridbox stock, optionally the quantity, and the delivery time from a product field or a text for products in and out of stock.
 * **“Add to cart” and “Ask for a quote” (new in 1.5.0, off by default):** one click puts a product into the Gridbox cart from the results (products with variants get “Choose options”); “Ask for a quote” opens your contact page or an e-mail with the product named — for products without a price, out of stock, or all.
-* **E-mail report (new in 1.5.0):** every week, two weeks or month: searches compared with the period before, the most searched phrases with their change, phrases without results and phrases that led to the cart; preview and “send now” in the settings — **for any period since 1.6.2** (calendar from – to, last 7 / 30 days, previous or this month, this year).
+* **E-mail report (new in 1.5.0):** every week, two weeks or month: searches compared with the period before, the most searched phrases with their change, phrases without results, phrases that led to the cart and — **since 1.6.11** — the orders placed on the site with their cart value and the orders that came from the search; preview and “send now” in the settings — **for any period since 1.6.2** (calendar from – to, last 7 / 30 days, previous or this month, this year).
 * **Sortable Search Console table (new in 1.5.0):** sort the Google queries by query, clicks, impressions, CTR, position or results here; filter them and show up to 1 000.
 * **Themes (new in 1.6.0):** five modern looks — Minimal, Soft, Glass, Dark and Bold — beside the unchanged **Basic** look, chosen from a gallery with miniatures; a **visual theme editor** (colours, corners, shadows, hover effects, font, buttons, glass blur) and a **CSS editor** for each theme, both with the live preview.
 * **Order of the result sections (new in 1.6.1):** drag categories, each app (store, blog…) and pages into the order you want in the live results; optionally group the results page the same way.
@@ -203,6 +203,8 @@ From 1.5.0 the index keeps, besides the words, the values with a unit found in t
 ## 📧 E-mail Report
 
 The report is sent to the addresses in the settings (empty = the Super Users who receive system e-mails) through the mail settings of the Global Configuration. It goes out with the first visit of the site after 7:00 site time on Monday (weekly, every other Monday) or on the 1st (monthly) and covers the previous week, two weeks or calendar month, compared with the period before. Switching it on only notes the time: the first report comes at the start of the next period; *Send now* sends one at once without changing the schedule. It counts the searches of the results page made after the update to 1.5.0 (searches per day are kept for 400 days).
+
+**Orders placed on the site (1.6.11):** the report also shows the Gridbox store orders that visitors placed in the period — not those created in the store panel — compared with the period before: their number, the cart value (the products after the discount, without shipping, in the prices of the store: net when the store adds the tax), the average cart and how many of them came from the search. Below, the orders of the period (number, date, status, items, cart value, the phrases that brought their products) and the phrases that led to orders, by the value of their products. Refunded orders are listed but left out of the sums; orders in another currency are summed separately. An order counts for the search when a product of it was put into the cart from the search results (*Add to cart* in the results, or the product page opened from them); the plugin notes the Gridbox cart at that moment, so orders are attributed from the update to 1.6.11 on, also when the payment is confirmed later by the payment gateway.
 
 ---
 
@@ -493,6 +495,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Phrases in the report | `20` |  |
 | Phrases without results | Yes |  |
 | Clicks and cart additions | Yes |  |
+| Orders placed on the site | Yes | The number and cart value of the store orders placed on the site in the period, the list of these orders and which of them hold products put into the cart from the search results. Orders are put down to the search from the update to 1.6.11 on. |
 
 ### Google Search Console
 
@@ -583,6 +586,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.11** — Orders placed on the site in the e-mail report: number, cart value, average cart and the orders that came from the search, against the period before; the list of the orders and the phrases that led to orders.
 * **1.6.7** — Word endings and ignored words for English, German, French, Czech and Dutch added to the Polish ones, by the site language.
 * **1.6.6** — Languages: English, German, Polish, French, Czech and Dutch (Ukrainian removed); German and Polish texts reviewed; the report's recipients and its “To” date have their own labels.
 * **1.6.5** — The product and page pickers of the settings list only published items.
