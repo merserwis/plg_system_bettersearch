@@ -2,32 +2,29 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
-## 1.6.13 — 2026-10-15
+## 1.7.0 — 2026-10-15
+
+### ✨ New
+
+- **Voice search.** A microphone button at the end of the search fields (Gridbox search elements and the Better Search module): the visitor taps it, says what they are looking for and the spoken words are searched. While it listens the button turns red and the field says *Listening… say what you are looking for*; a second tap stops it.
+- **On all devices or on mobile devices only** — new tab *Voice search* in the settings, setting *Voice search*: *Off* (default) / *On all devices* / *Mobile devices only (phones and tablets)*. Phones and tablets are recognised by the device (also an iPad that presents itself as a Mac), not by the width of the window, so a narrow window on a computer shows no microphone.
+- **After speaking:** *Show the live results* (default) — the words go into the field and the live results appear, so the visitor can correct them; on phones the full-screen search opens without the on-screen keyboard — or *Open the results page* at once. Without the live results the results page always opens, so voice search works with the live results switched off too.
+- **Language of speech** (advanced): the language tag the browser listens for; empty — the language of the page. A full stop or question mark the browser adds at the end is left out.
+- The speech recognition of the browser is used (Chrome, Edge, Safari, Samsung Internet). Where the browser cannot recognise speech (Firefox, a site without HTTPS) no microphone is shown. Chromium browsers that have the recognition without Google's speech service behind it (Vivaldi, Brave and the like) are found on the first try — the recognition never starts or reports a network error: the field says *This browser cannot recognise speech – use the microphone of the keyboard*, the microphone goes away and stays away in that browser (until its version changes). Listening stops by itself after 15 s. A blocked microphone or speech that was not recognised is said in the field for a moment. Chrome sends the speech to Google for recognition; the site receives only the recognised words, like a typed search.
+- **The microphone in the Permissions-Policy header** — new option *Allow the microphone in the Permissions-Policy header* (on by default): many sites send `Permissions-Policy: microphone=()` (e.g. from *System - HTTP Headers*), which forbids the microphone so that the browser does not even ask. With voice search on, the plugin sends `microphone=(self)` instead — the microphone for the pages of the site only — right before the headers go out, so also on pages sent from a page cache (MerTools). A header added by the web server or Cloudflare cannot be changed by the plugin; the tab checks the header the site really sends to visitors and says where to change it. A page whose header still forbids the microphone shows no microphone.
+- The microphone sits before the Gridbox magnifier when it is on the same side and the field gets room for it; fields shown later (menus, popups) get it too. Right-to-left layouts are supported. In the full-screen search on phones the field, the microphone and the close button are on one line also when the template gives fields a margin.
+
+- **Number of pages waiting on the “Update index” button** in the administrator's top bar, as of the last check (like the number of unread messages of Joomla); it counts down while the button indexes and disappears when nothing is left. The tooltip says the same.
+- **Why pages wait** — the Tools tab shows the waiting pages by reason: *new*, *changed*, *after a change of the index settings*, *changed page layout* (the daily check of the layouts), *removed from Gridbox*.
 
 ### 🐞 Fixes
 
 - **Thousands of pages waiting for indexing after a small change.** Until now a single new or renamed **tag** or **category** — anywhere in Gridbox, also a tag typed in a blog post or a category of another app — and any change of a field definition marked **every page of the index** for indexing. On a shop with ~4,600 products the queue then took hours (300 pages per check), and it started again with the next new tag. Now category and tag names belong to the signature of each page: renaming, adding or moving a category or a tag reindexes only the pages that have it (with its subcategories when a parent category changes); a new tag that no page has yet reindexes nothing. Every page is marked only after a change of the index settings (tab *Search engine*) or of the options of an indexed field.
 - **Prices and stock without reindexing.** A page whose price or stock alone changed — an order lowered the stock, a price list was imported, the stock of a variant changed — gets its price and availability in the index at once, in the same check, without indexing its text again and without waiting in the queue. Changed variant codes are still indexed as words.
 
-### ✨ New
-
-- **Number of pages waiting on the “Update index” button** in the administrator's top bar, as of the last check (like the number of unread messages of Joomla); it counts down while the button indexes and disappears when nothing is left. The tooltip says the same.
-- **Why pages wait** — the Tools tab shows the waiting pages by reason: *new*, *changed*, *after a change of the index settings*, *changed page layout* (the daily check of the layouts), *removed from Gridbox*.
-
 ### ⚙️ Update
 
-- No reindex after the update: the pages that were up to date with the signatures of 1.6.12 take over the new ones on the first check (one comparison of all pages), the pages that were waiting keep waiting. The index gets a new column `vsig` (price and stock signature).
-
-## 1.6.12 — 2026-10-15
-
-### ✨ New
-
-- **Voice search.** A microphone button at the end of the search fields (Gridbox search elements and the Better Search module): the visitor taps it, says what they are looking for and the spoken words are searched. While it listens the button turns red and the field says *Listening… say what you are looking for*; a second tap stops it.
-- **On all devices or on mobile devices only** — new setting *Voice search* (tab *Live results*): *Off* (default) / *On all devices* / *Mobile devices only (phones and tablets)*. Phones and tablets are recognised by the device (also an iPad that presents itself as a Mac), not by the width of the window, so a narrow window on a computer shows no microphone.
-- **After speaking:** *Show the live results* (default) — the words go into the field and the live results appear, so the visitor can correct them; on phones the full-screen search opens without the on-screen keyboard — or *Open the results page* at once. Without the live results the results page always opens, so voice search works with the live results switched off too.
-- **Language of speech** (advanced): the language tag the browser listens for; empty — the language of the page. A full stop or question mark the browser adds at the end is left out.
-- The speech recognition of the browser is used (Chrome, Edge, Safari, Samsung Internet). Where the browser cannot recognise speech (Firefox, a site without HTTPS) no microphone is shown. A blocked microphone or speech that was not recognised is said in the field for a moment. Chrome sends the speech to Google for recognition; the site receives only the recognised words, like a typed search.
-- The microphone sits before the Gridbox magnifier when it is on the same side and the field gets room for it; fields shown later (menus, popups) get it too. Right-to-left layouts are supported.
+- No reindex after the update: the pages that were up to date with the signatures of the earlier version take over the new ones on the first check (one comparison of all pages), the pages that were waiting keep waiting. The index gets a new column `vsig` (price and stock signature).
 
 ## 1.6.11 — 2026-10-14
 

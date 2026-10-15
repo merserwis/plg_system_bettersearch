@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.13';
+    public const VERSION = '1.7.0';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -118,6 +118,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
+            // first: voice search may have to allow the microphone in the headers of every answer
+            'onAfterInitialise'     => ['onAfterInitialise', Priority::MAX],
             // after Gridbox: its redirect to the SEF address is built from the request (with the query)
             'onAfterRoute'          => ['onAfterRoute', Priority::MIN],
             // after Gridbox, which builds its search elements in its own onAfterRender
@@ -129,6 +131,52 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             // the administrator: the update-index button in the top bar, next to the Joomla version
             'onAfterModuleList'     => 'onAfterModuleList',
         ];
+    }
+
+    // ================================================================ site: voice search
+
+    /**
+     * Voice search needs the microphone, which a Permissions-Policy header with microphone=() (a
+     * common hardening, e.g. in System - HTTP Headers) forbids on every page: the browser does not
+     * even ask the visitor. With voice search on, the header allows it to the site itself
+     * (microphone=(self)) — changed right before PHP sends the headers, so also on pages a page
+     * cache sends without rendering them. Headers added by the web server or Cloudflare are out of
+     * reach (the Voice search tab says so).
+     */
+    public function onAfterInitialise(): void
+    {
+        $app = $this->getApplication();
+        if (!$app->isClient('site') || $this->voiceMode() === '' || !(int) $this->params->get('voice_allow_mic', 1)
+            || !\function_exists('header_register_callback')) {
+            return;
+        }
+        header_register_callback(static function (): void {
+            $headers = [];
+            $changed = false;
+            foreach (headers_list() as $line) {
+                $pos  = strpos($line, ':');
+                $name = $pos === false ? '' : trim(substr($line, 0, $pos));
+                $kind = strtolower($name);
+                if ($kind !== 'permissions-policy' && $kind !== 'feature-policy') {
+                    continue;
+                }
+                $value = trim(substr($line, $pos + 1));
+                $new   = $kind === 'permissions-policy'
+                    ? preg_replace('/\bmicrophone=\(\s*\)/i', 'microphone=(self)', $value)
+                    : preg_replace("/\\bmicrophone\\s+'none'/i", "microphone 'self'", $value);
+                $headers[$name][] = (string) $new;
+                $changed = $changed || $new !== $value;
+            }
+            if (!$changed) {
+                return;
+            }
+            foreach ($headers as $name => $values) {
+                header_remove($name);
+                foreach ($values as $value) {
+                    header($name . ': ' . $value, false);
+                }
+            }
+        });
     }
 
     // ================================================================ site: results page
@@ -1378,6 +1426,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 'voiceListening' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_LISTENING'),
                 'voiceDenied' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_DENIED'),
                 'voiceError' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_ERROR'),
+                'voiceUnsupported' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_UNSUPPORTED'),
             ],
         ];
         $css = ($live ? $this->renderer()->liveCss() : '') . ($voice !== '' ? Renderer::voiceCss() : '');

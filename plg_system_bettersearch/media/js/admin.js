@@ -794,6 +794,29 @@
 
     // ================================================================ tools
 
+    /**
+     * Voice search: is the microphone allowed on the site? The home page is asked for as a guest and
+     * its Permissions-Policy (or old Feature-Policy) header read — what visitors' browsers get.
+     */
+    function initVoiceCheck(box) {
+        var t = {};
+        try {
+            t = JSON.parse(box.getAttribute('data-texts') || '{}');
+        } catch (e) {
+        }
+        fetch(box.getAttribute('data-url'), { credentials: 'omit', cache: 'no-store' }).then(function (r) {
+            var policy = r.headers.get('permissions-policy') || '';
+            var feature = r.headers.get('feature-policy') || '';
+            var blocked = /(^|[,\s])microphone=\(\s*\)/i.test(policy) || /(^|;)\s*microphone\s+'none'/i.test(feature);
+            var header = policy ? 'Permissions-Policy: ' + policy : (feature ? 'Feature-Policy: ' + feature : '');
+            box.innerHTML = blocked
+                ? '<div class="alert alert-danger mb-0"><strong>' + esc(t.blocked) + '</strong><br><code>' + esc(header) + '</code><br>' + esc(t.blocked_hint) + '</div>'
+                : '<span class="badge bg-success">' + esc(t.ok) + '</span>' + (header ? ' <small class="text-muted"><code>' + esc(header) + '</code></small>' : '');
+        }).catch(function () {
+            box.innerHTML = '<span class="text-muted small">' + esc(t.failed) + '</span>';
+        });
+    }
+
     /** Why the pages wait: "12 changed · 3 new" (the reasons with a count only). */
     function pendingKinds(kinds) {
         if (!kinds) {
@@ -1211,6 +1234,7 @@
             }
         });
         document.querySelectorAll('[data-bs-dict]').forEach(initDict);
+        document.querySelectorAll('.bs-voicecheck').forEach(initVoiceCheck);
         // rows added to a subform (rules, boosts) bring new pickers
         document.addEventListener('subform-row-add', function (e) {
             var row = (e.detail && e.detail.row) || e.target;

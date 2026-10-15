@@ -505,8 +505,37 @@
         return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
     }
 
+    /** The Permissions-Policy of the page may forbid the microphone (microphone=()): the browser then never asks the visitor. */
+    function micAllowed() {
+        var policy = document.permissionsPolicy || document.featurePolicy;
+        try {
+            return !policy || typeof policy.allowsFeature !== 'function' || policy.allowsFeature('microphone');
+        } catch (e) {
+            return true;
+        }
+    }
+
+    // a browser whose speech recognition never started here (some Chromium browsers have it without
+    // the service behind it): remembered in this browser, until its version changes
+    var VOICE_OFF_KEY = 'bettersearch-voice-off';
+
+    function voiceBroken() {
+        try {
+            return window.localStorage.getItem(VOICE_OFF_KEY) === navigator.userAgent;
+        } catch (e) {
+            return false;
+        }
+    }
+
     // the browser must recognise speech (not Firefox) on an HTTPS page; "mobile devices only" leaves computers out
     var voiceOn = !!(cfg.voice && Recognition && window.isSecureContext !== false && (!cfg.voice.mobileOnly || mobileDevice()));
+    if (voiceOn && !micAllowed()) {
+        voiceOn = false;
+        if (window.console) {
+            console.warn('Better Search: voice search is off on this page - its Permissions-Policy header forbids the microphone (microphone=()).');
+        }
+    }
+    voiceOn = voiceOn && !voiceBroken();
 
     function micButton() {
         var b = document.createElement('button');
@@ -530,7 +559,7 @@
             return;
         }
         var r = input.getBoundingClientRect();
-        btn.hidden = !r.width;
+        btn.hidden = !r.width || !voiceOn;
         if (!r.width) {
             return;
         }
@@ -606,13 +635,30 @@
     }
 
     /** A short message in place of the placeholder of the field (the field is empty while it shows). */
-    function voiceNote(field, text) {
+    function voiceNote(field, text, ms) {
+        var holder = recHolder;
         field.placeholder = text;
         setTimeout(function () {
             if (field.placeholder === text) {
-                field.placeholder = recHolder;
+                field.placeholder = holder;
             }
-        }, 2800);
+        }, ms || 2800);
+    }
+
+    /**
+     * This browser cannot recognise speech here: said in the field, the microphones go away and the
+     * browser is remembered (until its version changes).
+     */
+    function giveUp(field) {
+        try {
+            window.localStorage.setItem(VOICE_OFF_KEY, navigator.userAgent);
+        } catch (e) {
+        }
+        voiceOn = false;
+        document.querySelectorAll('.bs-voice').forEach(function (b) {
+            b.hidden = true;
+        });
+        voiceNote(field, cfg.texts.voiceUnsupported, 6000);
     }
 
     function listen(btn) {
@@ -636,7 +682,7 @@
             startFull(true);
         }
         var field = full ? headInput : current;
-        var heard = '', r;
+        var heard = '', r, started = false;
         try {
             r = rec = new Recognition();
         } catch (e) {
@@ -650,6 +696,9 @@
         recField = field;
         recHolder = field.placeholder;
         field.placeholder = cfg.texts.voiceListening;
+        rec.onstart = rec.onaudiostart = function () {
+            started = true;
+        };
         rec.onresult = function (e) {
             var text = '';
             for (var i = 0; i < e.results.length; i++) {
@@ -663,12 +712,20 @@
         };
         rec.onerror = function (e) {
             var err = e && e.error;
-            if (err === 'aborted') {
+            if (err === 'aborted' || r.bsAborted) {
                 return;
             }
-            voiceNote(field, err === 'not-allowed' || err === 'service-not-allowed' ? cfg.texts.voiceDenied : cfg.texts.voiceError);
+            // no speech service behind the browser's recognition (Brave and the like), while online
+            if (err === 'service-not-allowed' || (err === 'network' && !started && navigator.onLine !== false)) {
+                r.bsAborted = true;
+                giveUp(field);
+                return;
+            }
+            voiceNote(field, err === 'not-allowed' ? cfg.texts.voiceDenied : cfg.texts.voiceError);
         };
         rec.onend = function () {
+            clearTimeout(watchdog);
+            clearTimeout(limit);
             rec = null;
             recField = null;
             micState(false);
@@ -702,6 +759,40 @@
             return;
         }
         micState(true);
+        // the recognition never started (no question about the microphone, no sound): this browser
+        // cannot do it here; a visitor answering the question of the browser about the microphone
+        // gets more time
+        var watchdog = 0, limit = 0;
+        var arm = function (ms) {
+            watchdog = setTimeout(function () {
+                if (started || rec !== r) {
+                    return;
+                }
+                r.bsAborted = true;
+                try {
+                    r.abort();
+                } catch (e) {
+                }
+                rec = null;
+                micState(false);
+                giveUp(field);
+            }, ms);
+        };
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'microphone' }).then(function (p) {
+                arm(p.state === 'prompt' ? 20000 : 6000);
+            }, function () {
+                arm(12000);
+            });
+        } else {
+            arm(12000);
+        }
+        // nobody stopped it: a quarter of a minute is enough for a search
+        limit = setTimeout(function () {
+            if (rec === r) {
+                r.stop();
+            }
+        }, 15000);
     }
 
     function stopListening() {

@@ -6,7 +6,7 @@
     <creationDate>2026-10-15</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.6.13</version>
+    <version>1.7.0</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -308,17 +308,6 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="voice_spacer" type="spacer" hr="true" />
-                <field name="voice_search" type="list" default="off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_DESC">
-                    <option value="off">PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_OFF</option>
-                    <option value="all">PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_ALL</option>
-                    <option value="mobile">PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_MOBILE</option>
-                </field>
-                <field name="voice_action" type="list" default="live" showon="voice_search!:off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_DESC">
-                    <option value="live">PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_LIVE</option>
-                    <option value="submit">PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_SUBMIT</option>
-                </field>
-                <field name="voice_lang" parentclass="bs-adv" type="text" default="" hint="pl-PL" filter="string" showon="voice_search!:off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_LANG_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_LANG_DESC" />
                 <field name="live_effects_spacer" type="spacer" hr="true" />
                 <field name="live_animation" type="list" default="slide_up" label="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIMATION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LIVE_ANIMATION_DESC">
                     <option value="none">PLG_SYSTEM_BETTERSEARCH_EFFECT_NONE</option>
@@ -426,6 +415,26 @@
             </fieldset>
 
             <!-- ============================================================ Results page -->
+            <!-- ============================================================ Voice search -->
+            <fieldset name="voice" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_VOICE">
+                <field name="voice_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_VOICE_NOTE" />
+                <field name="voice_search" type="list" default="off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_DESC">
+                    <option value="off">PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_OFF</option>
+                    <option value="all">PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_ALL</option>
+                    <option value="mobile">PLG_SYSTEM_BETTERSEARCH_VOICE_SEARCH_MOBILE</option>
+                </field>
+                <field name="voice_action" type="list" default="live" showon="voice_search!:off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_DESC">
+                    <option value="live">PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_LIVE</option>
+                    <option value="submit">PLG_SYSTEM_BETTERSEARCH_VOICE_ACTION_SUBMIT</option>
+                </field>
+                <field name="voice_lang" parentclass="bs-adv" type="text" default="" hint="pl-PL" filter="string" showon="voice_search!:off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_LANG_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_LANG_DESC" />
+                <field name="voice_allow_mic" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="voice_search!:off" label="PLG_SYSTEM_BETTERSEARCH_VOICE_ALLOW_MIC_LABEL" description="PLG_SYSTEM_BETTERSEARCH_VOICE_ALLOW_MIC_DESC">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="voice_check" type="bsvoicecheck" hiddenLabel="true" showon="voice_search!:off" />
+            </fieldset>
+
             <fieldset name="page" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_PAGE">
                 <field name="preview_page" type="bspreview" mode="page" hiddenLabel="true" />
                 <field name="page_heading" type="list" default="gridbox" label="PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PAGE_HEADING_DESC">

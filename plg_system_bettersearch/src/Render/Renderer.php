@@ -502,8 +502,8 @@ CSS;
 .bs-live.is-full .bs-live-body{max-height:none;flex:1}
 .bs-live .bs-full-head{display:none}
 .bs-live.is-full .bs-full-head{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--bs-border)}
-.bs-live .bs-full-head input{flex:1;font-size:16px;padding:10px 12px;border:1px solid var(--bs-border);border-radius:8px;background:var(--bs-input-bg,#fff);color:var(--bs-input-text,#111);min-width:0}
-.bs-live .bs-full-head button{border:0;background:none;font-size:26px;line-height:1;padding:4px 8px;color:var(--bs-text);cursor:pointer}
+.bs-live .bs-full-head input{flex:1;font-size:16px;padding:10px 12px;border:1px solid var(--bs-border);border-radius:8px;background:var(--bs-input-bg,#fff);color:var(--bs-input-text,#111);min-width:0;margin:0;height:auto;box-shadow:none}
+.bs-live .bs-full-head button{border:0;background:none;font-size:26px;line-height:1;padding:4px 8px;margin:0;color:var(--bs-text);cursor:pointer;flex:0 0 auto}
 .bs-live.is-loading .bs-live-body{opacity:.55}
 .bs-live li.is-featured{background:color-mix(in srgb,var(--bs-feat) 7%,transparent)}
 .bs-live .bs-item.is-featured:hover,.bs-live .bs-item.is-featured.is-active{background:color-mix(in srgb,var(--bs-feat) 13%,transparent)}

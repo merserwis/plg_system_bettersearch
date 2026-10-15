@@ -107,11 +107,11 @@ final class Indexer
     /**
      * Everything that changes how every item is indexed: the settings of the index and the
      * definitions of the indexed fields (their option titles become words). A change marks every
-     * item for indexing. Category and tag names are not here (since 1.6.13): they are part of the
+     * item for indexing. Category and tag names are not here (since 1.7.0): they are part of the
      * signature of each page, so renaming or adding a category or a tag reindexes only the pages
      * that have it — before, any new tag of a blog post marked the whole shop.
      *
-     * $legacy: the signature of 1.6.12 and older, to take over an index made by them (migrate()).
+     * $legacy: the signature of the versions before 1.7.0, to take over an index made by them (migrate()).
      */
     public function configSignature(bool $legacy = false): string
     {
@@ -403,7 +403,7 @@ final class Indexer
     }
 
     /**
-     * The query of the signatures. $legacy: the one of 1.6.12 and older (one signature with the
+     * The query of the signatures. $legacy: the one of the versions before 1.7.0 (one signature with the
      * values in it, category and tag ids without their names), to take over their index once.
      */
     private function signatureSql(bool $legacy): string
@@ -446,7 +446,7 @@ final class Indexer
     }
 
     /**
-     * Once after the update to 1.6.13: the pages that were up to date with the signatures of the
+     * Once after the update to 1.7.0: the pages that were up to date with the signatures of the
      * older version get the new ones without being indexed again (the whole shop would wait in
      * the queue for hours otherwise). Pages that were waiting stay waiting.
      */
