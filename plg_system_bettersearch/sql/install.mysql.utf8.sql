@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_items` (
   `in_stock` tinyint(1) NOT NULL DEFAULT 1,
   `pcrc` int unsigned NOT NULL DEFAULT 0,
   `sig` bigint(20) NOT NULL DEFAULT 0,
+  `vsig` bigint(20) NOT NULL DEFAULT 0,
   `indexed_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_app` (`app_id`)

@@ -2,6 +2,22 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.13 — 2026-10-15
+
+### 🐞 Fixes
+
+- **Thousands of pages waiting for indexing after a small change.** Until now a single new or renamed **tag** or **category** — anywhere in Gridbox, also a tag typed in a blog post or a category of another app — and any change of a field definition marked **every page of the index** for indexing. On a shop with ~4,600 products the queue then took hours (300 pages per check), and it started again with the next new tag. Now category and tag names belong to the signature of each page: renaming, adding or moving a category or a tag reindexes only the pages that have it (with its subcategories when a parent category changes); a new tag that no page has yet reindexes nothing. Every page is marked only after a change of the index settings (tab *Search engine*) or of the options of an indexed field.
+- **Prices and stock without reindexing.** A page whose price or stock alone changed — an order lowered the stock, a price list was imported, the stock of a variant changed — gets its price and availability in the index at once, in the same check, without indexing its text again and without waiting in the queue. Changed variant codes are still indexed as words.
+
+### ✨ New
+
+- **Number of pages waiting on the “Update index” button** in the administrator's top bar, as of the last check (like the number of unread messages of Joomla); it counts down while the button indexes and disappears when nothing is left. The tooltip says the same.
+- **Why pages wait** — the Tools tab shows the waiting pages by reason: *new*, *changed*, *after a change of the index settings*, *changed page layout* (the daily check of the layouts), *removed from Gridbox*.
+
+### ⚙️ Update
+
+- No reindex after the update: the pages that were up to date with the signatures of 1.6.12 take over the new ones on the first check (one comparison of all pages), the pages that were waiting keep waiting. The index gets a new column `vsig` (price and stock signature).
+
 ## 1.6.12 — 2026-10-15
 
 ### ✨ New

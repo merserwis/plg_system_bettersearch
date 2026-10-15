@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.12';
+    public const VERSION = '1.6.13';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -2392,7 +2392,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
         $this->loadLanguage();
         $texts = [];
-        foreach (['HEADER_LABEL', 'HEADER_WORKING', 'HEADER_UPDATED', 'HEADER_ERROR', 'TOOLS_DONE'] as $k) {
+        foreach (['HEADER_LABEL', 'HEADER_WORKING', 'HEADER_UPDATED', 'HEADER_ERROR', 'TOOLS_DONE', 'HEADER_TITLE', 'HEADER_PENDING'] as $k) {
             $texts[$k] = Text::_('PLG_SYSTEM_BETTERSEARCH_' . $k);
         }
         try {
@@ -2406,15 +2406,24 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         } catch (\Throwable $e) {
             return;
         }
-        $title  = htmlspecialchars(Text::_('PLG_SYSTEM_BETTERSEARCH_HEADER_TITLE'), ENT_QUOTES, 'UTF-8');
+        // pages waiting for indexing, as of the last check (every update of the index keeps the figure)
+        $pending = 0;
+        try {
+            $pending = max(0, (int) ($this->indexer()->states(['pending'])['pending'] ?? 0));
+        } catch (\Throwable $e) {
+        }
+        $title = $texts['HEADER_TITLE'] . ($pending ? ' — ' . sprintf($texts['HEADER_PENDING'], $pending) : '');
+        $title  = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $label  = htmlspecialchars($texts['HEADER_LABEL'], ENT_QUOTES, 'UTF-8');
         $module = (object) [
             'id'              => -84102,
             'title'           => 'Better Search',
             'module'          => 'mod_bettersearch_header',
             'position'        => 'status',
+            // the count as in the Messages item of Joomla (a number beside the icon)
             'content'         => '<button type="button" class="header-item-content" data-bettersearch-sync title="' . $title . '">'
-                . '<div class="header-item-icon"><span class="icon-sync" aria-hidden="true"></span></div>'
+                . '<div class="header-item-icon"><div class="w-auto"><span class="icon-sync" aria-hidden="true"></span>'
+                . '<small class="header-item-count"' . ($pending ? '' : ' hidden') . '>' . $pending . '</small></div></div>'
                 . '<div class="header-item-text">' . $label . '</div></button>',
             'contentRendered' => true,
             'showtitle'       => 0,
@@ -2695,26 +2704,38 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $pending = 0;
         $total   = 0;
         $live    = false;
+        $kinds   = null;
         try {
             $config = $indexer->state('config') === $indexer->configSignature();
             if ($sync !== null) {
                 [$total, $pending, $live] = [(int) $sync['total'], (int) $sync['remaining'], true];
+                $kinds = json_decode((string) $indexer->state('pending_kinds', ''), true);
             } elseif (!$fresh && $indexer->state('pages') !== null && $indexer->state('pending') !== null) {
                 [$total, $pending] = [(int) $indexer->state('pages'), (int) $indexer->state('pending')];
+                $kinds = json_decode((string) $indexer->state('pending_kinds', ''), true);
             } else {
+                // an index of an older version first gets the signatures of this one
+                $indexer->migrate();
                 $current = $indexer->signatures();
                 $stored  = [];
                 foreach ($db->setQuery('SELECT id, sig FROM ' . $db->quoteName('#__bettersearch_items'))->loadRowList() ?: [] as [$id, $sig]) {
                     $stored[(int) $id] = (int) $sig;
                 }
+                $kinds = ['new' => 0, 'edited' => 0, 'settings' => 0, 'layout' => 0];
                 foreach ($current as $id => $sig) {
-                    $pending += ($stored[$id] ?? null) !== $sig ? 1 : 0;
+                    $old = $stored[$id] ?? null;
+                    if ($old !== $sig) {
+                        $kinds[$old === null ? 'new' : ($old === 0 ? 'settings' : 'edited')]++;
+                    }
                 }
-                $pending += count(array_diff_key($stored, $current));
+                // still in the index, gone from Gridbox: removed by the next update
+                $kinds['removed'] = count(array_diff_key($stored, $current));
+                $pending  = array_sum($kinds);
                 $total    = count($current);
                 $live     = true;
                 $indexer->setState('pages', (string) $total);
                 $indexer->setState('pending', (string) $pending);
+                $indexer->setState('pending_kinds', json_encode($kinds));
             }
         } catch (\Throwable $e) {
             $config = false;
@@ -2724,6 +2745,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'items'      => $count,
             'pages'      => $total,
             'pending'    => $pending,
+            // why they wait: new pages, edited ones, after a change of the settings, changed layouts
+            'pendingKinds' => is_array($kinds) && $pending > 0 ? array_map('intval', $kinds) : null,
             // false: the figures of the last check (time in 'checked'), not counted now
             'pendingLive' => $live,
             'configOk'   => $config,

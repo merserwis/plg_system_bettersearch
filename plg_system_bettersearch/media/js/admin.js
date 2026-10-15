@@ -794,6 +794,20 @@
 
     // ================================================================ tools
 
+    /** Why the pages wait: "12 changed · 3 new" (the reasons with a count only). */
+    function pendingKinds(kinds) {
+        if (!kinds) {
+            return '';
+        }
+        var parts = [['new', T.TOOLS_PENDING_NEW], ['edited', T.TOOLS_PENDING_EDITED], ['settings', T.TOOLS_PENDING_SETTINGS],
+            ['layout', T.TOOLS_PENDING_LAYOUT], ['removed', T.TOOLS_PENDING_REMOVED]].filter(function (k) {
+            return kinds[k[0]] > 0;
+        }).map(function (k) {
+            return esc(String(k[1] || '%d').replace('%d', kinds[k[0]]));
+        });
+        return parts.length ? '<div class="small text-muted">' + parts.join(' · ') + '</div>' : '';
+    }
+
     function initTools(root) {
         var status = root.querySelector('.bs-status');
         var progress = root.querySelector('.bs-progress');
@@ -804,7 +818,8 @@
             status.innerHTML = '<table class="table table-sm bs-status-table"><tbody>'
                 + '<tr><th>' + esc(T.TOOLS_ITEMS) + '</th><td>' + s.items + ' / ' + s.pages + '</td></tr>'
                 + '<tr><th>' + esc(T.TOOLS_PENDING) + '</th><td>' + s.pending + (s.configOk ? '' : ' <span class="badge bg-warning text-dark">' + esc(T.TOOLS_CONFIG_CHANGED) + '</span>')
-                    + (s.pendingLive === false ? ' <small class="text-muted">(' + esc(T.TOOLS_PENDING_LAST) + ')</small> <a href="#" class="bs-count-now small">' + esc(T.TOOLS_COUNT_NOW) + '</a>' : '') + '</td></tr>'
+                    + (s.pendingLive === false ? ' <small class="text-muted">(' + esc(T.TOOLS_PENDING_LAST) + ')</small> <a href="#" class="bs-count-now small">' + esc(T.TOOLS_COUNT_NOW) + '</a>' : '')
+                    + pendingKinds(s.pendingKinds) + '</td></tr>'
                 + '<tr><th>' + esc(T.TOOLS_APPS) + '</th><td>' + (s.apps || []).map(function (a) {
                     return esc(a.title) + ' <small class="text-muted">#' + a.id + '</small>';
                 }).join(', ') + '</td></tr>'

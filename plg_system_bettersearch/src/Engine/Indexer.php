@@ -105,10 +105,15 @@ final class Indexer
     }
 
     /**
-     * Everything that changes how items are indexed: the settings and the shared data (category
-     * names and tree, field definitions, tag names). A change marks every item for indexing.
+     * Everything that changes how every item is indexed: the settings of the index and the
+     * definitions of the indexed fields (their option titles become words). A change marks every
+     * item for indexing. Category and tag names are not here (since 1.6.13): they are part of the
+     * signature of each page, so renaming or adding a category or a tag reindexes only the pages
+     * that have it — before, any new tag of a blog post marked the whole shop.
+     *
+     * $legacy: the signature of 1.6.12 and older, to take over an index made by them (migrate()).
      */
-    public function configSignature(): string
+    public function configSignature(bool $legacy = false): string
     {
         $keys = ['apps', 'index_fields', 'index_intro', 'index_meta', 'index_content', 'content_limit', 'index_tags',
             'index_parent_cats', 'index_variation_sku', 'index_pages'];
@@ -117,7 +122,16 @@ final class Indexer
             $cfg[] = $this->params->get($key);
         }
 
-        $db   = $this->db;
+        $db = $this->db;
+        if (!$legacy) {
+            $fields = [];
+            foreach ($this->fields() as $id => $field) {
+                $fields[$id] = [(string) $field->field_type, (string) $field->label, (string) $field->options];
+            }
+            ksort($fields);
+
+            return md5(json_encode([$cfg, 'sig2', $fields]));
+        }
         $data = [];
         foreach ([
             ['#__gridbox_categories', "CONCAT_WS('|', id, title, parent)"],
@@ -215,12 +229,13 @@ final class Indexer
      * Brings the index up to date: removes items that left Gridbox (or an indexed app), indexes new
      * and changed ones — at most $budget items per call (the rest on the next call).
      *
-     * @return array{changed: int, indexed: int, removed: int, remaining: int, total: int, ms: float}
+     * @return array{changed: int, indexed: int, removed: int, values: int, remaining: int, total: int, ms: float}
      */
     public function sync(int $budget = 300, bool $force = false): array
     {
         $t0  = hrtime(true);
         $this->ensureColumns();
+        $this->migrate();
         $cfg = $this->configSignature();
         if ($force || $this->state('config') !== $cfg) {
             // everything is indexed again (old rows stay searchable until replaced)
@@ -228,13 +243,15 @@ final class Indexer
             $this->setState('config', $cfg);
         }
 
-        $current = $this->signatures();
-        $stored  = [];
+        $rows    = $this->signatureRows();
+        $current = array_map(fn ($row) => $row[0], $rows);
+        $stored  = $storedValues = [];
         $query   = $this->db->createQuery()
-            ->select(['id', 'sig'])
+            ->select(['id', 'sig', 'vsig'])
             ->from($this->db->quoteName('#__bettersearch_items'));
-        foreach ($this->db->setQuery($query)->loadRowList() ?: [] as [$id, $sig]) {
-            $stored[(int) $id] = (int) $sig;
+        foreach ($this->db->setQuery($query)->loadRowList() ?: [] as [$id, $sig, $vsig]) {
+            $stored[(int) $id]       = (int) $sig;
+            $storedValues[(int) $id] = (int) $vsig;
         }
 
         $removed = array_keys(array_diff_key($stored, $current));
@@ -245,10 +262,14 @@ final class Indexer
         // what is missing from the index first (e.g. pages just switched on), then pages edited since,
         // and only then the items a settings change marked for indexing again (they stay searchable
         // meanwhile): a full rebuild of thousands of products no longer delays new pages for minutes
-        $missing = $edited = $rebuild = [];
+        $missing = $edited = $rebuild = $values = [];
         foreach ($current as $id => $sig) {
             $old = $stored[$id] ?? null;
             if ($old === $sig) {
+                // the same words, other price or stock: updated below at once
+                if ($storedValues[$id] !== $rows[$id][1]) {
+                    $values[$id] = $rows[$id][1];
+                }
                 continue;
             }
             if ($old === null) {
@@ -263,18 +284,29 @@ final class Indexer
 
         // once a day (and on a forced update) the page layouts are compared by checksum, too: the
         // quick signature relies on Gridbox's save time, which an edit may leave unchanged
-        $deep = $force || time() - (int) $this->state('deep_at', '0') > self::DEEP_INTERVAL;
+        $deep   = $force || time() - (int) $this->state('deep_at', '0') > self::DEEP_INTERVAL;
+        $layout = [];
         if ($deep && $this->params->get('index_content', 1)) {
-            foreach ($this->layoutChanges(array_diff(array_keys($current), $changed)) as $id) {
-                $changed[] = $id;
-            }
+            $layout  = $this->layoutChanges(array_diff(array_keys($current), $changed));
+            $changed = array_merge($changed, $layout);
             $this->setState('deep_at', (string) time());
         }
 
         $todo = $budget > 0 ? array_slice($changed, 0, $budget) : $changed;
         foreach (array_chunk($todo, 100) as $chunk) {
-            $this->indexItems($chunk, $current);
+            $this->indexItems($chunk, $rows);
         }
+        $this->refreshValues(array_diff_key($values, array_flip($todo)));
+
+        // why the rest waits (shown in the Tools tab): the end of the queue, which is worked through
+        // in the order new, edited, after a settings change, changed layout
+        $left  = count($changed) - count($todo);
+        $kinds = [];
+        foreach (['layout' => $layout, 'settings' => $rebuild, 'edited' => $edited, 'new' => $missing] as $kind => $list) {
+            $kinds[$kind] = min(count($list), $left);
+            $left        -= $kinds[$kind];
+        }
+        $this->setState('pending_kinds', json_encode(array_reverse($kinds, true)));
 
         $this->setState('checked_at', (string) time());
         // the panel shows these figures instead of computing the signatures again on every opening
@@ -283,7 +315,7 @@ final class Indexer
         if (count($todo) === count($changed)) {
             $this->setState('complete_at', (string) time());
         }
-        if ($todo || $removed) {
+        if ($todo || $removed || $values) {
             $this->setState('version', (string) (((int) $this->state('version', '0')) + 1));
         }
 
@@ -291,6 +323,7 @@ final class Indexer
             'changed'   => count($changed),
             'indexed'   => count($todo),
             'removed'   => count($removed),
+            'values'    => count($values),
             'remaining' => count($changed) - count($todo),
             'total'     => count($current),
             'ms'        => round((hrtime(true) - $t0) / 1e6, 1),
@@ -303,6 +336,9 @@ final class Indexer
         $db = $this->db;
         if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('t_params'))->loadRow()) {
             $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('t_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_body'))->execute();
+        }
+        if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('vsig'))->loadRow()) {
+            $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('vsig') . ' bigint(20) NOT NULL DEFAULT 0 AFTER ' . $db->quoteName('sig'))->execute();
         }
     }
 
@@ -323,34 +359,189 @@ final class Indexer
      */
     public function signatures(): array
     {
+        return array_map(fn ($row) => $row[0], $this->signatureRows());
+    }
+
+    /**
+     * Two signatures per page: [0] of everything that gives words to the index (title, texts, codes,
+     * categories with their names and parents, tags with their names, fields), [1] of the values
+     * only (price, stock, the variations). A page whose values alone changed — a sale lowered the
+     * stock, a price list was imported — gets them updated at once (refreshValues()), without
+     * indexing its text again and without waiting in the queue.
+     *
+     * @return array<int, array{0: int, 1: int}>
+     */
+    public function signatureRows(): array
+    {
         $apps = $this->appIds();
         if (!$apps) {
             return [];
         }
+        $db   = $this->db;
+        $cats = $this->categories();
+        $tags = $this->tagTitles();
+        // a category: its id, name and parents (a renamed or moved category changes its pages only)
+        $catSig = [];
+        $catOf  = function (int $id) use (&$catSig, $cats): string {
+            if (!isset($catSig[$id])) {
+                $catSig[$id] = implode('/', array_map(fn ($c) => $c . ':' . ($cats[$c]->title ?? ''), $this->categoryPath($id)));
+            }
 
+            return $catSig[$id];
+        };
+
+        $out = [];
+        foreach ($db->setQuery($this->signatureSql(false))->getIterator() as $row) {
+            $ids = array_unique(array_merge([(int) $row->page_category], array_map('intval', array_filter(explode(',', (string) $row->cats)))));
+            $catText = implode(',', array_map($catOf, $ids));
+            $tagText = implode(',', array_map(fn ($t) => $tags[(int) $t] ?? '', array_filter(explode(',', (string) $row->tags))));
+            // 0 marks an item for indexing again: never a signature
+            $out[(int) $row->id] = [crc32($row->sig . '|' . $catText . '|' . $tagText) ?: 1, (int) $row->vsig ?: 1];
+        }
+
+        return $out;
+    }
+
+    /**
+     * The query of the signatures. $legacy: the one of 1.6.12 and older (one signature with the
+     * values in it, category and tag ids without their names), to take over their index once.
+     */
+    private function signatureSql(bool $legacy): string
+    {
         $db     = $this->db;
+        $apps   = $this->appIds();
         $fields = array_keys($this->fields());
+        $e      = $db->quote('');
         $inApps = ' WHERE page_id IN (SELECT id FROM ' . $db->quoteName('#__gridbox_pages') . ' WHERE app_id IN (' . implode(',', $apps) . '))';
-        $sql    = 'SELECT p.id, CRC32(CONCAT_WS(' . $db->quote('|') . ', p.title, p.saved_time, p.page_category, p.app_id, p.intro_image,'
-            . ' CRC32(IFNULL(p.intro_text, ' . $db->quote('') . ')),'
-            . ' CRC32(IFNULL(p.meta_description, ' . $db->quote('') . ')), CRC32(IFNULL(p.meta_keywords, ' . $db->quote('') . ')),'
-            . ' IFNULL(d.sku, ' . $db->quote('') . '), IFNULL(d.price, ' . $db->quote('') . '), IFNULL(d.stock, ' . $db->quote('') . '),'
-            . ' CRC32(IFNULL(d.variations, ' . $db->quote('') . ')), IFNULL(m.cats, ' . $db->quote('') . '), IFNULL(f.fsig, 0),'
-            . ' IFNULL(t.tags, ' . $db->quote('') . '))) AS sig'
+        if ($legacy) {
+            $select = 'p.id, CRC32(CONCAT_WS(' . $db->quote('|') . ', p.title, p.saved_time, p.page_category, p.app_id, p.intro_image,'
+                . ' CRC32(IFNULL(p.intro_text, ' . $e . ')),'
+                . ' CRC32(IFNULL(p.meta_description, ' . $e . ')), CRC32(IFNULL(p.meta_keywords, ' . $e . ')),'
+                . ' IFNULL(d.sku, ' . $e . '), IFNULL(d.price, ' . $e . '), IFNULL(d.stock, ' . $e . '),'
+                . ' CRC32(IFNULL(d.variations, ' . $e . ')), IFNULL(m.cats, ' . $e . '), IFNULL(f.fsig, 0),'
+                . ' IFNULL(t.tags, ' . $e . '))) AS sig';
+        } else {
+            // the codes of the variants are words; their prices and stocks are values
+            $variantSkus = 'IF(JSON_VALID(d.variations), IFNULL(JSON_EXTRACT(d.variations, ' . $db->quote('$.*.sku') . '), ' . $e . '), IFNULL(d.variations, ' . $e . '))';
+            $select = 'p.id, p.page_category, m.cats, t.tags,'
+                . ' CRC32(CONCAT_WS(' . $db->quote('|') . ', p.title, p.saved_time, p.page_category, p.app_id, p.intro_image,'
+                . ' CRC32(IFNULL(p.intro_text, ' . $e . ')),'
+                . ' CRC32(IFNULL(p.meta_description, ' . $e . ')), CRC32(IFNULL(p.meta_keywords, ' . $e . ')),'
+                . ' IFNULL(d.sku, ' . $e . '), CRC32(' . $variantSkus . '), IFNULL(f.fsig, 0))) AS sig,'
+                . ' CRC32(CONCAT_WS(' . $db->quote('|') . ', IFNULL(d.price, ' . $e . '), IFNULL(d.stock, ' . $e . '),'
+                . ' CRC32(IFNULL(d.variations, ' . $e . ')))) AS vsig';
+        }
+
+        return 'SELECT ' . $select
             . ' FROM ' . $db->quoteName('#__gridbox_pages', 'p')
             . ' LEFT JOIN ' . $db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id'
             . ' LEFT JOIN (SELECT page_id, GROUP_CONCAT(category_id ORDER BY category_id) AS cats FROM '
             . $db->quoteName('#__gridbox_category_page_map') . $inApps . ' GROUP BY page_id) AS m ON m.page_id = p.id'
-            . ' LEFT JOIN (SELECT page_id, SUM(CRC32(CONCAT(field_id, ' . $db->quote(':') . ', IFNULL(value, ' . $db->quote('') . ')))) AS fsig FROM '
+            . ' LEFT JOIN (SELECT page_id, SUM(CRC32(CONCAT(field_id, ' . $db->quote(':') . ', IFNULL(value, ' . $e . ')))) AS fsig FROM '
             . $db->quoteName('#__gridbox_page_fields') . $inApps . ($fields ? ' AND field_id IN (' . implode(',', $fields) . ')' : ' AND 1 = 0') . ' GROUP BY page_id) AS f ON f.page_id = p.id'
             . ' LEFT JOIN (SELECT page_id, GROUP_CONCAT(tag_id ORDER BY tag_id) AS tags FROM '
             . $db->quoteName('#__gridbox_tags_map') . $inApps . ' GROUP BY page_id) AS t ON t.page_id = p.id'
             . ' WHERE p.app_id IN (' . implode(',', $apps) . ')'
             . ' AND p.page_category <> ' . $db->quote('trashed');
+    }
 
+    /**
+     * Once after the update to 1.6.13: the pages that were up to date with the signatures of the
+     * older version get the new ones without being indexed again (the whole shop would wait in
+     * the queue for hours otherwise). Pages that were waiting stay waiting.
+     */
+    public function migrate(): void
+    {
+        if ($this->state('sig_format') === '2') {
+            return;
+        }
+        $db = $this->db;
+        if ($this->appIds() && $this->state('config') === $this->configSignature(true)) {
+            $legacy = [];
+            foreach ($db->setQuery($this->signatureSql(true))->getIterator() as $row) {
+                $legacy[(int) $row->id] = (int) $row->sig;
+            }
+            $current = $this->signatureRows();
+            $adopt   = [];
+            foreach ($db->setQuery('SELECT id, sig FROM ' . $db->quoteName('#__bettersearch_items'))->loadRowList() ?: [] as [$id, $sig]) {
+                $id = (int) $id;
+                if ((int) $sig !== 0 && (int) $sig === ($legacy[$id] ?? null) && isset($current[$id])) {
+                    $adopt[$id] = $current[$id];
+                }
+            }
+            foreach (array_chunk($adopt, 500, true) as $chunk) {
+                $this->updateColumns($chunk, ['sig' => fn ($r) => $r[0], 'vsig' => fn ($r) => $r[1]]);
+            }
+            $this->setState('config', $this->configSignature());
+        }
+        $this->setState('sig_format', '2');
+    }
+
+    /**
+     * One UPDATE for many items: $values maps an item id to its data, $columns a column to the
+     * function that gives its value from that data.
+     *
+     * @param array<int, mixed>                $values
+     * @param array<string, callable>          $columns
+     */
+    private function updateColumns(array $values, array $columns): void
+    {
+        if (!$values) {
+            return;
+        }
+        $db  = $this->db;
+        $set = [];
+        foreach ($columns as $column => $value) {
+            $case = [];
+            foreach ($values as $id => $data) {
+                $v      = $value($data);
+                $case[] = 'WHEN ' . (int) $id . ' THEN ' . ($v === null ? 'NULL' : (is_int($v) || is_float($v) ? (string) $v : $db->quote((string) $v)));
+            }
+            $set[] = $db->quoteName($column) . ' = CASE ' . $db->quoteName('id') . ' ' . implode(' ', $case) . ' END';
+        }
+        $db->setQuery('UPDATE ' . $db->quoteName('#__bettersearch_items') . ' SET ' . implode(', ', $set)
+            . ' WHERE ' . $db->quoteName('id') . ' IN (' . implode(',', array_map('intval', array_keys($values))) . ')')->execute();
+    }
+
+    /**
+     * Price and stock of items whose words did not change: read from Gridbox and written into the
+     * index in a few UPDATEs.
+     *
+     * @param array<int, int> $vsigs item id => value signature
+     */
+    private function refreshValues(array $vsigs): void
+    {
+        foreach (array_chunk($vsigs, 500, true) as $chunk) {
+            $query = $this->db->createQuery()
+                ->select(['product_id', 'sku', 'price', 'stock', 'variations'])
+                ->from($this->db->quoteName('#__gridbox_store_product_data'))
+                ->where('product_id IN (' . implode(',', array_map('intval', array_keys($chunk))) . ')');
+            $products = [];
+            foreach ($this->db->setQuery($query)->loadObjectList() ?: [] as $row) {
+                $products[(int) $row->product_id] = $row;
+            }
+            $values = [];
+            foreach ($chunk as $id => $vsig) {
+                $values[$id] = $this->productValues($products[$id] ?? null) + ['vsig' => $vsig];
+            }
+            $this->updateColumns($values, [
+                'price'    => fn ($v) => $v['price'],
+                'in_stock' => fn ($v) => $v['stock'] ? 1 : 0,
+                'vsig'     => fn ($v) => $v['vsig'],
+            ]);
+        }
+    }
+
+    /** @return array<int, string> tag id => name */
+    private function tagTitles(): array
+    {
         $out = [];
-        foreach ($db->setQuery($sql)->getIterator() as $row) {
-            $out[(int) $row->id] = (int) $row->sig;
+        try {
+            $query = $this->db->createQuery()->select(['id', 'title'])->from($this->db->quoteName('#__gridbox_tags'));
+            foreach ($this->db->setQuery($query)->loadRowList() ?: [] as [$id, $title]) {
+                $out[(int) $id] = (string) $title;
+            }
+        } catch (\Throwable $e) {
         }
 
         return $out;
@@ -385,8 +576,8 @@ final class Indexer
     // ---------------------------------------------------------------- indexing
 
     /**
-     * @param int[]            $ids
-     * @param array<int, int>  $sigs
+     * @param int[]                                $ids
+     * @param array<int, array{0: int, 1: int}>    $sigs item id => [signature, value signature]
      */
     private function indexItems(array $ids, array $sigs): void
     {
@@ -459,13 +650,14 @@ final class Indexer
             if (!$page) {
                 continue;
             }
-            $rows[] = $this->buildRow($page, $products[$id] ?? null, $mapped[$id] ?? [], $tags[$id] ?? [], $fieldValues[$id] ?? [], $sigs[$id] ?? 0, $now);
+            $rows[] = $this->buildRow($page, $products[$id] ?? null, $mapped[$id] ?? [], $tags[$id] ?? [], $fieldValues[$id] ?? [], $sigs[$id] ?? [0, 0], $now);
         }
 
         $this->store($rows);
     }
 
-    private function buildRow(object $page, ?object $product, array $mapped, array $tags, array $fields, int $sig, string $now): array
+    /** @param array{0: int, 1: int} $sig */
+    private function buildRow(object $page, ?object $product, array $mapped, array $tags, array $fields, array $sig, string $now): array
     {
         $n = $this->norm;
 
@@ -489,40 +681,7 @@ final class Indexer
         $catText = implode(' ', array_merge($catTitles, $tags));
 
         // product codes: the product SKU and the codes of its variants
-        $skus  = [];
-        $price = null;
-        $stock = true;
-        if ($product) {
-            if (trim((string) $product->sku) !== '') {
-                $skus[] = (string) $product->sku;
-            }
-            $prices = [(string) $product->price];
-            $stocks = [(string) $product->stock];
-            $variations = json_decode((string) $product->variations);
-            if (is_object($variations)) {
-                foreach ($variations as $variation) {
-                    if (!is_object($variation)) {
-                        continue;
-                    }
-                    if ($this->params->get('index_variation_sku', 1) && trim((string) ($variation->sku ?? '')) !== '') {
-                        $skus[] = (string) $variation->sku;
-                    }
-                    $prices[] = (string) ($variation->price ?? '');
-                    $stocks[] = (string) ($variation->stock ?? '');
-                }
-            }
-            foreach ($prices as $p) {
-                if (is_numeric($p) && (float) $p > 0 && ($price === null || (float) $p < $price)) {
-                    $price = (float) $p;
-                }
-            }
-            // empty stock = not tracked = available; with variations their stocks decide (Gridbox sells the chosen variation)
-            if (count($stocks) > 1) {
-                array_shift($stocks);
-            }
-            $stock = (bool) array_filter($stocks, fn ($s) => trim($s) === '' || (float) $s > 0);
-        }
-        $skus = array_values(array_unique($skus));
+        ['skus' => $skus, 'price' => $price, 'stock' => $stock] = $this->productValues($product);
 
         $fieldText = implode(' ', $fields);
 
@@ -574,9 +733,55 @@ final class Indexer
             'price'       => $price,
             'in_stock'    => $stock ? 1 : 0,
             'pcrc'        => (int) ($page->pcrc ?? 0),
-            'sig'         => $sig,
+            'sig'         => $sig[0],
+            'vsig'        => $sig[1],
             'indexed_at'  => $now,
         ];
+    }
+
+    /**
+     * Product codes (the product and its variants), the lowest price above zero and whether
+     * anything of the product is in stock (empty stock = not tracked = available).
+     *
+     * @return array{skus: string[], price: ?float, stock: bool}
+     */
+    private function productValues(?object $product): array
+    {
+        $skus  = [];
+        $price = null;
+        $stock = true;
+        if ($product) {
+            if (trim((string) $product->sku) !== '') {
+                $skus[] = (string) $product->sku;
+            }
+            $prices = [(string) $product->price];
+            $stocks = [(string) $product->stock];
+            $variations = json_decode((string) $product->variations);
+            if (is_object($variations)) {
+                foreach ($variations as $variation) {
+                    if (!is_object($variation)) {
+                        continue;
+                    }
+                    if ($this->params->get('index_variation_sku', 1) && trim((string) ($variation->sku ?? '')) !== '') {
+                        $skus[] = (string) $variation->sku;
+                    }
+                    $prices[] = (string) ($variation->price ?? '');
+                    $stocks[] = (string) ($variation->stock ?? '');
+                }
+            }
+            foreach ($prices as $p) {
+                if (is_numeric($p) && (float) $p > 0 && ($price === null || (float) $p < $price)) {
+                    $price = (float) $p;
+                }
+            }
+            // empty stock = not tracked = available; with variations their stocks decide (Gridbox sells the chosen variation)
+            if (count($stocks) > 1) {
+                array_shift($stocks);
+            }
+            $stock = (bool) array_filter($stocks, fn ($s) => trim($s) === '' || (float) $s > 0);
+        }
+
+        return ['skus' => array_values(array_unique($skus)), 'price' => $price, 'stock' => $stock];
     }
 
     /** @param array<int, array<string, mixed>> $rows */
