@@ -157,6 +157,9 @@
         document.body.appendChild(panel);
         head = panel.querySelector('.bs-full-head');
         headInput = head.querySelector('input');
+        if (voiceOn) {
+            head.insertBefore(micButton(), head.querySelector('.bs-close'));
+        }
         headInput.placeholder = (current && current.placeholder) || cfg.texts.placeholder || '';
         body = panel.querySelector('.bs-live-wrap');
         body.style.display = 'contents';
@@ -246,6 +249,9 @@
     function close() {
         if (!panel || !panel.classList.contains('is-open')) {
             return;
+        }
+        if (recField === headInput) {
+            stopListening();
         }
         panel.classList.remove('is-open', 'is-shown', 'is-full');
         panel.removeAttribute('data-bs-view');
@@ -477,6 +483,268 @@
         }
     }
 
+    // ------------------------------------------------------------------ voice search
+
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var MIC = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
+    var rec = null, recField = null, recHolder = '', micObserver = null;
+
+    /** A phone or a tablet — the device itself, not the width of the window (a narrow desktop window is not one). */
+    function mobileDevice() {
+        var ua = navigator.userAgent || '';
+        if (navigator.userAgentData && navigator.userAgentData.mobile) {
+            return true;
+        }
+        if (/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|Opera Mini|IEMobile/i.test(ua)) {
+            return true;
+        }
+        // iPadOS presents itself as a Mac
+        if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) {
+            return true;
+        }
+        return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+    }
+
+    // the browser must recognise speech (not Firefox) on an HTTPS page; "mobile devices only" leaves computers out
+    var voiceOn = !!(cfg.voice && Recognition && window.isSecureContext !== false && (!cfg.voice.mobileOnly || mobileDevice()));
+
+    function micButton() {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'bs-voice';
+        b.title = cfg.texts.voice;
+        b.setAttribute('aria-label', cfg.texts.voice);
+        b.setAttribute('aria-pressed', 'false');
+        b.innerHTML = MIC;
+        return b;
+    }
+
+    /**
+     * The microphone sits at the end of the field, before the icons over it (the Gridbox magnifier
+     * on the right side); the field gets the room for it.
+     */
+    function placeMic(input) {
+        var btn = input.bsVoice;
+        var host = input.parentNode;
+        if (!btn || !host) {
+            return;
+        }
+        var r = input.getBoundingClientRect();
+        btn.hidden = !r.width;
+        if (!r.width) {
+            return;
+        }
+        var h = host.getBoundingClientRect();
+        var rtl = getComputedStyle(input).direction === 'rtl';
+        var mid = r.left + r.width / 2;
+        var edge = rtl ? r.left : r.right;
+        Array.prototype.forEach.call(host.children, function (el) {
+            if (el === input || el === btn) {
+                return;
+            }
+            var c = el.getBoundingClientRect();
+            if (!c.width || c.bottom < r.top || c.top > r.bottom) {
+                return;
+            }
+            if (!rtl && c.left > mid && c.left < edge) {
+                edge = c.left;
+            } else if (rtl && c.right < mid && c.right > edge) {
+                edge = c.right;
+            }
+        });
+        btn.style.setProperty('--bs-voice-end', Math.max(0, (rtl ? edge - h.left : h.right - edge) + 4) + 'px');
+        var need = (rtl ? edge - r.left : r.right - edge) + 40;
+        var style = getComputedStyle(input);
+        if ((parseFloat(rtl ? style.paddingLeft : style.paddingRight) || 0) < need) {
+            input.style.setProperty(rtl ? 'padding-left' : 'padding-right', need + 'px', 'important');
+        }
+    }
+
+    function addMic(input) {
+        if (input.bsVoice || input === headInput || input.type === 'hidden' || !input.parentNode) {
+            return;
+        }
+        var btn = micButton();
+        btn.bsField = input;
+        input.bsVoice = btn;
+        input.parentNode.classList.add('bs-voice-host');
+        input.parentNode.insertBefore(btn, input.nextSibling);
+        placeMic(input);
+        // a field shown later (a menu, a popup) or resized: placed again
+        if (window.ResizeObserver) {
+            micObserver = micObserver || new ResizeObserver(function (entries) {
+                entries.forEach(function (en) {
+                    placeMic(en.target);
+                });
+            });
+            micObserver.observe(input);
+        }
+    }
+
+    function scanMics() {
+        try {
+            document.querySelectorAll(cfg.selector).forEach(function (el) {
+                if (el.tagName === 'INPUT') {
+                    addMic(el);
+                }
+            });
+        } catch (e) {
+        }
+    }
+
+    function clean(text) {
+        // the browser may end the sentence with a full stop or a question mark
+        return String(text || '').replace(/\s+/g, ' ').replace(/[\s.,;:!?…。！？]+$/, '').trim();
+    }
+
+    function micState(on) {
+        document.querySelectorAll('.bs-voice').forEach(function (b) {
+            var mine = on && (b.bsField === current || (full && panel && panel.contains(b)));
+            b.classList.toggle('is-listening', !!mine);
+            b.setAttribute('aria-pressed', mine ? 'true' : 'false');
+        });
+    }
+
+    /** A short message in place of the placeholder of the field (the field is empty while it shows). */
+    function voiceNote(field, text) {
+        field.placeholder = text;
+        setTimeout(function () {
+            if (field.placeholder === text) {
+                field.placeholder = recHolder;
+            }
+        }, 2800);
+    }
+
+    function listen(btn) {
+        if (rec) {
+            // a second tap: stop and search what was heard
+            rec.stop();
+            return;
+        }
+        var inHead = panel && panel.contains(btn);
+        if (!inHead) {
+            current = btn.bsField;
+            if (cfg.live) {
+                prepare(current);
+            }
+        }
+        if (!current) {
+            return;
+        }
+        // phones: the full-screen search opens, without the keyboard
+        if (!inHead && cfg.live && isMobile()) {
+            startFull(true);
+        }
+        var field = full ? headInput : current;
+        var heard = '', r;
+        try {
+            r = rec = new Recognition();
+        } catch (e) {
+            rec = null;
+            return;
+        }
+        rec.lang = cfg.voice.lang || document.documentElement.lang || '';
+        rec.interimResults = true;
+        rec.continuous = false;
+        rec.maxAlternatives = 1;
+        recField = field;
+        recHolder = field.placeholder;
+        field.placeholder = cfg.texts.voiceListening;
+        rec.onresult = function (e) {
+            var text = '';
+            for (var i = 0; i < e.results.length; i++) {
+                text += e.results[i][0].transcript;
+            }
+            heard = text;
+            field.value = text;
+            if (full && current) {
+                current.value = text;
+            }
+        };
+        rec.onerror = function (e) {
+            var err = e && e.error;
+            if (err === 'aborted') {
+                return;
+            }
+            voiceNote(field, err === 'not-allowed' || err === 'service-not-allowed' ? cfg.texts.voiceDenied : cfg.texts.voiceError);
+        };
+        rec.onend = function () {
+            rec = null;
+            recField = null;
+            micState(false);
+            if (field.placeholder === cfg.texts.voiceListening) {
+                field.placeholder = recHolder;
+            }
+            var q = clean(heard);
+            // closed while listening: nothing is searched
+            if (!q || r.bsAborted) {
+                return;
+            }
+            field.value = q;
+            if (full && current) {
+                current.value = q;
+            }
+            if (!cfg.live || cfg.voice.submit) {
+                submit(current || field, q);
+                return;
+            }
+            // a computer: the field keeps the focus, so the arrows and Enter work at once
+            if (!full && !mobileDevice()) {
+                field.focus();
+            }
+            fetchResults(q);
+        };
+        try {
+            rec.start();
+        } catch (e) {
+            rec = null;
+            field.placeholder = recHolder;
+            return;
+        }
+        micState(true);
+    }
+
+    function stopListening() {
+        if (rec) {
+            rec.bsAborted = true;
+            rec.abort();
+        }
+    }
+
+    if (voiceOn) {
+        // the microphone is inside the Gridbox field: its own handlers of the field must not see the tap
+        window.addEventListener('mousedown', function (e) {
+            if (e.target.closest && e.target.closest('.bs-voice')) {
+                e.preventDefault();
+            }
+        }, true);
+        window.addEventListener('click', function (e) {
+            var btn = e.target.closest && e.target.closest('.bs-voice');
+            if (!btn) {
+                return;
+            }
+            e.preventDefault();
+            own(e);
+            listen(btn);
+        }, true);
+
+        scanMics();
+        // fields added later (menus, popups, the module loaded by a page builder)
+        if (window.MutationObserver) {
+            var scanTimer = 0;
+            new MutationObserver(function (list) {
+                // the live results themselves change all the time
+                if (panel && list.every(function (m) {
+                    return panel.contains(m.target);
+                })) {
+                    return;
+                }
+                clearTimeout(scanTimer);
+                scanTimer = setTimeout(scanMics, 300);
+            }).observe(document.body, { childList: true, subtree: true });
+        }
+    }
+
     if (cfg.live) {
         window.addEventListener('input', function (e) {
             if (!matches(e.target)) {
@@ -597,9 +865,9 @@
     /**
      * Phones: the search opens over the page with its own field. Mobile browsers show the keyboard
      * only for a field focused inside the handler of the tap itself, so the focus moves here at once
-     * (never in a timer).
+     * (never in a timer). Voice search opens it without the keyboard (noFocus).
      */
-    function startFull() {
+    function startFull(noFocus) {
         build();
         headInput.value = current.value;
         headInput.placeholder = current.placeholder || cfg.texts.placeholder || '';
@@ -608,8 +876,16 @@
             lastQuery = null;
         }
         open();
-        if (!headInput.value.trim()) {
+        if (!headInput.value.trim() && !noFocus) {
             showRecent();
+        }
+        if (noFocus) {
+            // the keyboard of the field tapped before goes away
+            if (document.activeElement === current) {
+                current.blur();
+            }
+            schedule(headInput.value);
+            return;
         }
         headInput.focus({ preventScroll: true });
         var n = headInput.value.length;

@@ -44,6 +44,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Technical values (new in 1.5.0):** values with a unit are compared as numbers, not as words — `1000 V` = `1 kV` = `1000V`, `200 GΩ`, `50 Hz`, `CAT IV` = `kat. IV`, `IP67`; a range in the query (`-20…50 °C`) finds the products whose range covers it (`-20…+60 °C`). `5 kV` no longer finds `2,5 kV`.
 * **Featured products (new in 1.5.0):** a rule with the action *Feature* puts chosen products at the top of chosen phrases (e.g. your own meter first for “miernik uniwersalny”) and marks them with a badge, a frame and a tint.
 * **Pages too (new in 1.5.0):** single Gridbox pages (services, contact, about us; Pages and single-page apps) are found as their own group “Pages”; single pages can be excluded.
+* **Voice search (new in 1.6.12, off by default):** a microphone at the end of every search field — the visitor says what they are looking for and the spoken words are searched (live results, or the results page at once). On all devices or **on mobile devices only** (phones and tablets, recognised by the device, not by the width of the window). Uses the speech recognition of the browser (Chrome, Edge, Safari, Samsung Internet); where the browser cannot do it (Firefox, a site without HTTPS), no microphone is shown.
 * **Recent searches (new in 1.5.0):** a click into an empty search field lists the visitor's last searches — kept only in the visitor's browser, removable one by one or all at once.
 * **Availability and delivery time (new in 1.5.0, off by default):** in stock / last items / out of stock from the Gridbox stock, optionally the quantity, and the delivery time from a product field or a text for products in and out of stock.
 * **“Add to cart” and “Ask for a quote” (new in 1.5.0, off by default):** one click puts a product into the Gridbox cart from the results (products with variants get “Choose options”); “Ask for a quote” opens your contact page or an e-mail with the product named — for products without a price, out of stock, or all.
@@ -313,6 +314,9 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Categories shown | `4` |  |
 | Section titles | Yes |  |
 | “Show all results” button | Yes |  |
+| Voice search | Off | A microphone button at the end of the search fields: the visitor says what they are looking for and the spoken words are searched. Off / On all devices / Mobile devices only (phones and tablets, recognised by the device and not by the width of the window). Uses the speech recognition of the browser (Chrome, Edge, Safari, Samsung Internet; not Firefox) on sites served over HTTPS; where it does not work, no button is shown. Chrome sends the speech to Google to recognise it. Works also without the live results. |
+| After speaking | Show the live results | Show the live results: the words go into the field and the live results appear (on phones in the full-screen search, without the keyboard), so the visitor can correct them. Open the results page: the results page opens at once. Without the live results the results page always opens. |
+| Language of speech | *(empty)* | A language tag (`pl-PL`, `en-GB`, `de-DE`…) the browser listens for. Empty: the language of the page. |
 | Panel appears with | Slide up | How the live results panel appears under the field. Visitors who asked their system for less motion see no effect. Options: No effect / Fade in / Slide up / Slide down / Zoom in / Flip down / Unroll from the top. |
 | Panel effect duration (ms) | `200` |  |
 | Results appear with | No effect | How the results inside the panel appear, one after another — also each time new results come while typing. Options: No effect / Fade in / Fade in from below / Slide in from the left / Zoom in / Sharpen from blur. |
@@ -560,6 +564,7 @@ The plugin always uses its settings as saved in the database, even when the site
 * **Access-aware:** results respect Joomla view levels, publishing state, publish-up / publish-down dates and language, like Gridbox's own listings; the test console shows what a guest sees.
 * **Administrator actions protected:** index tools, the test console, product search and statistics need an administrator session with the right to manage plugins and a security token.
 * **Escaped output:** queries, titles, URLs and image paths are HTML-escaped; database values are quoted; colours and sizes are validated before they reach the CSS.
+* **Voice search (1.6.12):** the speech is recognised by the browser, not by the site: the site receives only the recognised words, as a typed search. The microphone is used only after a tap on its button and the browser's permission; in Chrome the speech is sent to Google for recognition.
 * **Privacy:** statistics store only the query text, counts and the time of the last search (and, from 1.5.0, counts per day for the e-mail report) — no IP addresses, no user data; bots are not counted. Recent searches (1.5.0) stay in the visitor's browser (`localStorage`) and are never sent to the site.
 * **Cart and quote buttons (1.5.0):** “Add to cart” sends the same request as the Gridbox button of a product page (one piece, no variant) and only for products without variants or extra options, in stock and with a price; “Ask for a quote” addresses are limited to paths of the site, http(s), `mailto:` and `tel:`, and the product values are URL-encoded.
 * **Fast:** cached results per query; index updates run after the response has been sent; one small script without dependencies, loaded only on pages with a search field; lazy-loaded WebP thumbnails.
@@ -586,6 +591,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.6.12** — Voice search: a microphone in the search fields, on all devices or on mobile devices only; the spoken words show the live results or open the results page.
 * **1.6.11** — Orders placed on the site in the e-mail report: number, cart value, average cart and the orders that came from the search, against the period before; the list of the orders and the phrases that led to orders.
 * **1.6.7** — Word endings and ignored words for English, German, French, Czech and Dutch added to the Polish ones, by the site language.
 * **1.6.6** — Languages: English, German, Polish, French, Czech and Dutch (Ukrainian removed); German and Polish texts reviewed; the report's recipients and its “To” date have their own labels.

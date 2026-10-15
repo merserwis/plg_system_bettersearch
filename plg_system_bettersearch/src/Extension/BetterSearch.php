@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.6.11';
+    public const VERSION = '1.6.12';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -516,8 +516,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($wanted) {
             $this->params = $this->savedParams() ?? $this->params;
         }
-        if ($wanted && $this->params->get('live_enabled', 1) && ($pos = stripos($body, '</head>')) !== false) {
-            $body    = substr($body, 0, $pos) . $this->assets() . substr($body, $pos);
+        $liveOn = (bool) $this->params->get('live_enabled', 1);
+        if ($wanted && ($liveOn || $this->voiceMode() !== '') && ($pos = stripos($body, '</head>')) !== false) {
+            // voice search works without the live results too: the spoken words open the results page
+            $body    = substr($body, 0, $pos) . $this->assets($liveOn) . substr($body, $pos);
             $changed = true;
         } elseif ($this->query !== null && ($pos = stripos($body, '</body>')) !== false) {
             // results page without live search: the script still runs "load more"
@@ -1318,6 +1320,14 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return Uri::root(true) . '/index.php?option=com_gridbox&view=system&id=7';
     }
 
+    /** Voice search: '' (off), 'all' or 'mobile' (phones and tablets only). */
+    private function voiceMode(): string
+    {
+        $mode = (string) $this->params->get('voice_search', 'off');
+
+        return \in_array($mode, ['all', 'mobile'], true) ? $mode : '';
+    }
+
     /** Stylesheet, configuration and script of the live search. */
     private function assets(bool $live = true): string
     {
@@ -1326,6 +1336,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         // the file time too: browsers fetch the script again after an update of the plugin
         $ver  = self::VERSION . '-' . substr($this->configHash(), 0, 6) . '-' . (int) @filemtime(JPATH_ROOT . '/media/plg_system_bettersearch/js/bettersearch.js');
         $p    = $this->params;
+        $voice = $this->voiceMode();
         $cfg  = [
             'ajax'       => Uri::root(true) . '/index.php?option=com_ajax&plugin=bettersearch&group=system&format=json',
             'live'       => $live,
@@ -1347,6 +1358,13 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'recentLimit' => max(1, min(20, (int) $p->get('live_recent_limit', 5))),
             'cart'       => Uri::root(true) . '/index.php?option=com_gridbox&view=editor&task=store.addProductToCart',
             'cartAfter'  => (string) $p->get('cart_after', 'cart') === 'message' ? 'message' : 'cart',
+            // speech recognition of the browser; the script shows the microphone only where it works
+            'voice'      => $voice === '' ? false : [
+                'mobileOnly' => $voice === 'mobile',
+                'lang'       => preg_match('/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i', $lang = trim((string) $p->get('voice_lang', '')))
+                    ? $lang : $this->getApplication()->getLanguage()->getTag(),
+                'submit'     => !$live || (string) $p->get('voice_action', 'live') === 'submit',
+            ],
             'texts'      => [
                 'close'   => Text::_('PLG_SYSTEM_BETTERSEARCH_T_CLOSE'),
                 'loading' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_LOADING'),
@@ -1356,9 +1374,13 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 'removeRecent' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_RECENT_REMOVE'),
                 'added'   => trim((string) $p->get('text_added', '')) ?: Text::_('PLG_SYSTEM_BETTERSEARCH_T_ADDED'),
                 'cartError' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_CART_ERROR'),
+                'voice'   => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE'),
+                'voiceListening' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_LISTENING'),
+                'voiceDenied' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_DENIED'),
+                'voiceError' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_VOICE_ERROR'),
             ],
         ];
-        $css = $live ? $this->renderer()->liveCss() : '';
+        $css = ($live ? $this->renderer()->liveCss() : '') . ($voice !== '' ? Renderer::voiceCss() : '');
 
         return ($css !== '' ? Themes::fontLinks($this->params) . '<style id="bettersearch-css">' . $css . '</style>' : '')
             . '<script type="application/json" id="bettersearch-config">' . json_encode($cfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) . '</script>'

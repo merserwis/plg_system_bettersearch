@@ -393,6 +393,23 @@ final class Renderer
         return $items !== '' ? '<span class="' . $wrapClass . '">' . $items . '</span>' : '';
     }
 
+    /** CSS of the microphone of voice search: at the end of the search fields and in the full-screen field. */
+    public static function voiceCss(): string
+    {
+        return <<<CSS
+.bs-voice-host{position:relative}
+button.bs-voice{position:absolute;top:50%;inset-inline-end:var(--bs-voice-end,4px);transform:translateY(-50%);z-index:2;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;color:inherit;opacity:.7;cursor:pointer;line-height:1;-webkit-tap-highlight-color:transparent}
+button.bs-voice[hidden]{display:none}
+button.bs-voice:hover,button.bs-voice:focus-visible{opacity:1;background:rgba(127,127,127,.14)}
+button.bs-voice:focus-visible{outline:2px solid var(--bs-accent,currentColor);outline-offset:1px}
+button.bs-voice svg{width:20px;height:20px;display:block;pointer-events:none}
+button.bs-voice.is-listening,.bs-live .bs-full-head button.bs-voice.is-listening{opacity:1;color:#fff;background:#dc2626;animation:bs-voice-pulse 1.2s ease-out infinite}
+.bs-live .bs-full-head button.bs-voice{position:static;transform:none;flex:0 0 auto;width:40px;height:40px;padding:0;font-size:0;color:var(--bs-text)}
+@keyframes bs-voice-pulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}100%{box-shadow:0 0 0 10px rgba(220,38,38,0)}}
+@media (prefers-reduced-motion:reduce){button.bs-voice.is-listening{animation:none}}
+CSS;
+    }
+
     /** CSS of the live panel (scoped to .bs-live). */
     public function liveCss(): string
     {

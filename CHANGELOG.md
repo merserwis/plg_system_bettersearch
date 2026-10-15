@@ -2,6 +2,17 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.6.12 — 2026-10-15
+
+### ✨ New
+
+- **Voice search.** A microphone button at the end of the search fields (Gridbox search elements and the Better Search module): the visitor taps it, says what they are looking for and the spoken words are searched. While it listens the button turns red and the field says *Listening… say what you are looking for*; a second tap stops it.
+- **On all devices or on mobile devices only** — new setting *Voice search* (tab *Live results*): *Off* (default) / *On all devices* / *Mobile devices only (phones and tablets)*. Phones and tablets are recognised by the device (also an iPad that presents itself as a Mac), not by the width of the window, so a narrow window on a computer shows no microphone.
+- **After speaking:** *Show the live results* (default) — the words go into the field and the live results appear, so the visitor can correct them; on phones the full-screen search opens without the on-screen keyboard — or *Open the results page* at once. Without the live results the results page always opens, so voice search works with the live results switched off too.
+- **Language of speech** (advanced): the language tag the browser listens for; empty — the language of the page. A full stop or question mark the browser adds at the end is left out.
+- The speech recognition of the browser is used (Chrome, Edge, Safari, Samsung Internet). Where the browser cannot recognise speech (Firefox, a site without HTTPS) no microphone is shown. A blocked microphone or speech that was not recognised is said in the field for a moment. Chrome sends the speech to Google for recognition; the site receives only the recognised words, like a typed search.
+- The microphone sits before the Gridbox magnifier when it is on the same side and the field gets room for it; fields shown later (menus, popups) get it too. Right-to-left layouts are supported.
+
 ## 1.6.11 — 2026-10-14
 
 ### ✨ New
