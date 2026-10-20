@@ -48,7 +48,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.7.0';
+    public const VERSION = '1.7.1';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -1249,7 +1249,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         return $data;
     }
 
-    /** The live results: the best items of each app (products first, in the order of the indexed apps). */
+    /** The live results: the best items of each app, in the order of the result sections (the store gets the most). */
     private function liveSlice(array $result): array
     {
         $limit  = max(1, min(50, (int) $this->params->get('live_limit', 8)));
@@ -1262,12 +1262,17 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $items = [];
         if ($this->params->get('live_group_apps', 1)) {
             $other = max(0, (int) $this->params->get('live_limit_other', 3));
-            $first = true;
-            foreach ($this->orderedAppIds() as $appId) {
-                if (isset($byApp[$appId])) {
-                    $items = array_merge($items, array_slice($byApp[$appId], 0, $first ? $limit : $other));
-                    $first = false;
+            $order = array_values(array_filter($this->orderedAppIds(), fn ($appId) => isset($byApp[$appId])));
+            // "Number of products shown" goes to the first store app, even when pages or a blog come before it
+            $main  = $order[0] ?? null;
+            foreach ($order as $appId) {
+                if ($appId !== 0 && $this->store()->appType($appId) === 'products') {
+                    $main = $appId;
+                    break;
                 }
+            }
+            foreach ($order as $appId) {
+                $items = array_merge($items, array_slice($byApp[$appId], 0, $appId === $main ? $limit : $other));
             }
         } else {
             $items = array_slice($result['items'], 0, $limit);

@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.7.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.7.1-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -308,7 +308,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Recent searches | Yes | A click into an empty search field shows the visitor's last searches. They are kept only in the visitor's own browser (nothing is sent to the site); the visitor can remove them one by one or all at once. |
 | Number of recent searches | `5` |  |
 | Suggest after … searches | `2` | A phrase is suggested only when it was searched at least this many times (a one-off typo is not suggested to others). |
-| Order of the result sections | *(empty)* | Drag the sections (or use the arrows) into the order in which they appear in the live results: matching categories, each app (store, blog…) and the pages. The first app shows the most results (“Products shown”), the others “Items of other apps”. The results page lists its app filters in this order too. |
+| Order of the result sections | *(empty)* | Drag the sections (or use the arrows) into the order in which they appear in the live results: matching categories, each app (store, blog…) and the pages. The store shows the most results (“Products shown”), even when the pages or a blog come first; the other apps show “Items of other apps”. The results page lists its app filters in this order too. |
 | Group by app | Yes | With several searched apps (store, blog…): one section each. |
 | Items of other apps | `3` |  |
 | Matching categories | Yes | Categories whose name matches the query, above the products. |
@@ -598,6 +598,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.7.1** — Live results: “Products shown” goes to the store also when the pages or a blog come before it in the order of the sections.
 * **1.7.0** — Voice search: a microphone in the search fields, on all devices or on mobile devices only (own tab *Voice search*). The index no longer marks the whole shop after a new tag or category, only the pages that have it; new prices and stocks go into the index at once; the top bar button shows the number of pages waiting, the Tools tab why they wait.
 * **1.6.11** — Orders placed on the site in the e-mail report: number, cart value, average cart and the orders that came from the search, against the period before; the list of the orders and the phrases that led to orders.
 * **1.6.7** — Word endings and ignored words for English, German, French, Czech and Dutch added to the Polish ones, by the site language.

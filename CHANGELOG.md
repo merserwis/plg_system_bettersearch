@@ -2,6 +2,12 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.7.1 — 2026-10-20
+
+### 🐞 Fixes
+
+- **Live results showed only 3 products although “Products shown” was 8.** When *Order of the result sections* put the pages or a blog above the store, the limit *Products shown* went to the first section with results (e.g. *Pages* with one hit), and the store got the limit of *Items of other apps* (3). Now *Products shown* always goes to the store, wherever it is in the order; the other apps show *Items of other apps*. Without store results for a phrase, the first section gets the larger limit, as before. The order of the sections does not change.
+
 ## 1.7.0 — 2026-10-15
 
 ### ✨ New
