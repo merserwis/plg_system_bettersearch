@@ -121,6 +121,8 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             $this->fulltextIndex($db);
             Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_ADMINISTRATOR)
                 || Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_PLUGINS . '/system/bettersearch');
+            // the texts of this very version, from the package being installed (on an update the copy already installed has none of the new ones)
+            Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', $parent->getParent()->getPath('source'), null, true);
 
             $gridbox = (int) $db->setQuery(
                 $db->createQuery()
@@ -152,9 +154,14 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             // 1.8.0: the search changes the pages Gridbox sends and every site is built differently: after an install or an
             // update it is to be checked on the site itself; a fresh install is shown the way to the quick setup
             if ($type === 'install' || $type === 'update' || $type === 'discover_install') {
-                Factory::getApplication()->enqueueMessage(Text::_('PLG_SYSTEM_BETTERSEARCH_INSTALL_CHECK'), 'warning');
+                // a text that did not load stays its key: then the English one is shown
+                $check = Text::_('PLG_SYSTEM_BETTERSEARCH_INSTALL_CHECK');
+                Factory::getApplication()->enqueueMessage($check !== 'PLG_SYSTEM_BETTERSEARCH_INSTALL_CHECK' ? $check
+                    : 'Better Search for Gridbox: check on your site that the search works as it should, as a guest in a private window: type in a search field, open the live results and the results page.', 'warning');
                 if ($type !== 'update') {
-                    Factory::getApplication()->enqueueMessage(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_INSTALL_START', 'index.php?option=com_bettersearch&amp;view=setup'), 'info');
+                    $start = Text::sprintf('PLG_SYSTEM_BETTERSEARCH_INSTALL_START', 'index.php?option=com_bettersearch&amp;view=setup');
+                    Factory::getApplication()->enqueueMessage(strpos($start, 'PLG_SYSTEM_BETTERSEARCH_INSTALL_START') === false ? $start
+                        : 'Better Search for Gridbox: <a href="index.php?option=com_bettersearch&amp;view=setup">start with the quick setup</a>.', 'info');
                 }
             }
         } catch (\Throwable $e) {

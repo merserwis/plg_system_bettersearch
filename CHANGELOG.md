@@ -2,6 +2,20 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.8.1 — 2026-10-28
+
+### 🌍 The administrator in Czech, German, French and Dutch
+
+The control panel, the pages of the tools and the quick setup of 1.8.0 spoke only English and Polish; the other languages of the plugin fell back to English. They now have their own texts (`cs-CZ`, `de-DE`, `fr-FR`, `nl-NL`), with the same words as the plugin's settings.
+
+### 🐞 Fixes
+
+- **The message after installing or updating showed a raw key** (`PLG_SYSTEM_BETTERSEARCH_INSTALL_CHECK`) instead of the text. The installer read the texts of the copy already installed, which had none of the new ones; it now reads them from the package being installed, and shows an English text if a language file is missing.
+
+### 🔒 Security
+
+- **Click counts accept only requests from the site itself.** The call that counts a click on a result (`task=track`) refuses a request that the browser says comes from another site (`Sec-Fetch-Site`, or `Origin` with the scheme, host and port compared). A form token would not do here: the address sits in pages that a page cache or a CDN serves to everyone. Clients that send neither header are counted as before.
+
 ## 1.8.0 — 2026-10-28
 
 ### 🧭 An administrator of its own, like Admin Tools

@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.8.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.8.1-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -618,6 +618,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.8.1** — The administrator in Czech, German, French and Dutch; the message after installing or updating no longer shows a raw key; the click count accepts only requests from the site itself.
 * **1.8.0** — An administrator of its own, like Admin Tools: a control panel with the tools as tiles in sections, a sidebar menu with a page for each tool (overview first, settings next), a Configuration page for what is set once, a quick setup of 15 switches, a reminder to check the site after every change, and the fixes of a full code review by Codex (security, bugs, speed).
 * **1.7.1** — Live results: “Products shown” goes to the store also when the pages or a blog come before it in the order of the sections.
 * **1.7.0** — Voice search: a microphone in the search fields, on all devices or on mobile devices only (own tab *Voice search*). The index no longer marks the whole shop after a new tag or category, only the pages that have it; new prices and stocks go into the index at once; the top bar button shows the number of pages waiting, the Tools tab why they wait.

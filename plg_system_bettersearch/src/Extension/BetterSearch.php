@@ -50,7 +50,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.8.0';
+    public const VERSION = '1.8.1';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -392,7 +392,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $input = $this->getApplication()->getInput();
         $q     = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $input->post->get('q', '', 'raw')) ?? ''), 'UTF-8'), 0, 120);
         $id    = $input->post->getInt('id', 0);
-        if (!$this->params->get('track_conversions', 1) || $input->getMethod() !== 'POST' || $id <= 0 || $q === '' || $this->noStats()) {
+        if (!$this->params->get('track_conversions', 1) || $input->getMethod() !== 'POST' || $id <= 0 || $q === '' || !$this->sameOriginRequest() || $this->noStats()) {
             return ['ok' => false];
         }
         $db     = $this->db();
@@ -403,6 +403,48 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $this->recordEvent($q, $id, 1);
 
         return ['ok' => true];
+    }
+
+    /**
+     * Whether a browser sent the request from a page of this very site. A form token cannot guard the
+     * click count: the address sits in a page that a page cache or a CDN serves to everyone, and a
+     * guest's token would not match. So the browser's own headers decide: a request from another
+     * site (a page that posts here for a visitor) is refused. Clients that send neither header
+     * (old browsers, privacy tools) are let through, as before.
+     */
+    private function sameOriginRequest(): bool
+    {
+        $fetch = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? ''));
+        if ($fetch !== '') {
+            return $fetch === 'same-origin' || $fetch === 'none';
+        }
+        $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+        if ($origin === '') {
+            return true;
+        }
+        $parts  = parse_url($origin);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host   = strtolower((string) ($parts['host'] ?? ''));
+        if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+            return false;
+        }
+        $own = Uri::getInstance();
+        if ($host !== strtolower($own->getHost())) {
+            return false;
+        }
+        // a page on plain http posting to the https site is another origin; the reverse is a site behind
+        // a proxy that ends TLS (Joomla sees http there), so it is let through
+        if ($scheme === 'http' && strtolower($own->getScheme()) === 'https') {
+            return false;
+        }
+        $port    = isset($parts['port']) ? (int) $parts['port'] : ($scheme === 'https' ? 443 : 80);
+        $ownPort = (int) $own->getPort();
+        // the site's address without a port: only the default port of the scheme of the Origin fits
+        if (!$ownPort) {
+            return $port === ($scheme === 'https' ? 443 : 80);
+        }
+
+        return $port === $ownPort;
     }
 
     /** The product put into the Gridbox cart came from a search result (cookie of the page script). */
