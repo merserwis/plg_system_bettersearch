@@ -91,6 +91,8 @@
           const p = doc.getElementById('bs-live');
           height = Math.max(360, p ? p.getBoundingClientRect().bottom + 24 : 0, doc.documentElement.scrollHeight);
         } else {
+          // the document is never shorter than the frame: shrink the frame first, or it would only grow
+          frame.style.height = '0px';
           height = Math.max(320, doc.documentElement.scrollHeight + 4);
         }
       } catch (e) { /* not loaded yet */ }
@@ -108,6 +110,7 @@
       new FormData(form()).forEach((value, key) => {
         if (key.indexOf('jform[params]') === 0) data.append(key, value);
       });
+      if (window.bsEmptyKeys) data.append('bs_empty', window.bsEmptyKeys(form()));
       return data;
     }
 

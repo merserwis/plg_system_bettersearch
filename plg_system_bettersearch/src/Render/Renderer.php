@@ -266,8 +266,12 @@ final class Renderer
         if (!$items && !$categories) {
             $html .= '<div class="bs-empty">' . $this->fmt($esc($this->text('text_no_results', 'PLG_SYSTEM_BETTERSEARCH_T_NO_RESULTS')), ['%s' => '<b>' . $esc($q) . '</b>']) . '</div>';
             if (!empty($result['suggest'])) {
-                $links = array_map(fn ($phrase) => '<a href="#" class="bs-opt bs-sugg-inline" role="option" id="bs-opt-' . $opt . '" data-bs-q="' . $esc($phrase) . '">'
-                    . $esc($phrase) . '</a>', $result['suggest']);
+                // each suggestion is its own option: aria-activedescendant has to tell them apart
+                $links = [];
+                foreach (array_values($result['suggest']) as $i => $phrase) {
+                    $links[] = '<a href="#" class="bs-opt bs-sugg-inline" role="option" id="bs-opt-' . ($opt + $i) . '" data-bs-q="' . $esc($phrase) . '">'
+                        . $esc($phrase) . '</a>';
+                }
                 $opt  += count($links);
                 $html .= '<div class="bs-note bs-didyoumean">' . $esc($this->text('text_did_you_mean', 'PLG_SYSTEM_BETTERSEARCH_T_DID_YOU_MEAN')) . ' ' . implode(', ', $links) . '</div>';
             }

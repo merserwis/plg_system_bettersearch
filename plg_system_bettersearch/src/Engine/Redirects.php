@@ -32,6 +32,9 @@ final class Redirects
     /** @var array<string, array>|null per request: signature => entries */
     private static ?array $memo = null;
 
+    /** The signature of this request (the searches look at the entries several times). */
+    private static ?string $signatureMemo = null;
+
     /**
      * Checksum of the published redirects; '' when there are none or the table is missing (the
      * Redirects component is not installed).
@@ -55,12 +58,13 @@ final class Redirects
      */
     public static function entries(DatabaseInterface $db, Normalizer $norm): array
     {
-        $sig = self::signature($db);
+        $sig = self::$signatureMemo ??= self::signature($db);
         if ($sig === '') {
             return [];
         }
         $state = self::state($db, 'version') ?? '0';
-        $key   = $sig . '|' . $state;
+        // the list leaves out the redirects to other sites: it depends on the host asked
+        $key   = $sig . '|' . $state . '|' . self::ownHost();
         if (isset(self::$memo[$key])) {
             return self::$memo[$key];
         }
@@ -111,7 +115,7 @@ final class Redirects
                 $target   = $next[$k];
             }
             $old = self::page((string) $row->old_url);
-            $new = self::page($target);
+            $new = self::foreign($target) ? null : self::page($target);
             if ($old === null || $new === null) {
                 continue;
             }
@@ -209,6 +213,25 @@ final class Redirects
         $path = preg_replace('#^index$#', '', $path) ?? $path;
 
         return $path . (isset($parts['query']) ? '?' . $parts['query'] : '');
+    }
+
+    /** An address on another site: its alias says nothing about the pages of this one. */
+    private static function foreign(string $url): bool
+    {
+        $host = strtolower((string) (parse_url(trim($url), PHP_URL_HOST) ?: ''));
+        $own  = self::ownHost();
+
+        return $host !== '' && $own !== '' && preg_replace('/^www\./', '', $host) !== $own;
+    }
+
+    /** The host of this request, without "www." ('' when unknown, e.g. on the command line). */
+    private static function ownHost(): string
+    {
+        try {
+            return preg_replace('/^www\./', '', strtolower(\Joomla\CMS\Uri\Uri::getInstance()->getHost())) ?? '';
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     /**

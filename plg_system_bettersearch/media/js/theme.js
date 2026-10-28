@@ -55,6 +55,7 @@
     new FormData(form).forEach((value, key) => {
       if (key.indexOf('jform[params]') === 0) body.append(key, value);
     });
+    if (window.bsEmptyKeys) body.append('bs_empty', window.bsEmptyKeys(form));
     return fetch(opts.ajax + '&task=admin_' + task, { method: 'POST', body, credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then((r) => r.json())
       .then((json) => {

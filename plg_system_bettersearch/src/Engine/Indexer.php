@@ -212,7 +212,11 @@ final class Indexer
         if ($vis === '' || time() - (int) ($state['vis_at'] ?? 0) > self::STAMP_INTERVAL) {
             $apps = $this->appIds();
             $db   = $this->db;
-            $row  = $apps ? $db->setQuery('SELECT COUNT(*), IFNULL(SUM(CRC32(CONCAT_WS(' . $db->quote('|') . ', id, published, page_access, language, created, end_publishing))), 0)'
+            // the last column counts the pages live now: a page whose publishing period began or ended
+            // since the last look changes the stamp, though none of its saved values did
+            $now  = $db->quote((new \DateTime('now', Searcher::siteZone()))->format('Y-m-d H:i:s'));
+            $row  = $apps ? $db->setQuery('SELECT COUNT(*), IFNULL(SUM(CRC32(CONCAT_WS(' . $db->quote('|') . ', id, published, page_access, language, created, end_publishing))), 0),'
+                . ' IFNULL(SUM(created <= ' . $now . ' AND (end_publishing = ' . $db->quote($db->getNullDate()) . ' OR end_publishing >= ' . $now . ')), 0)'
                 . ' FROM ' . $db->quoteName('#__gridbox_pages') . ' WHERE app_id IN (' . implode(',', $apps) . ')')->loadRow() : [0, 0];
             // redirects give products old names (Redirects): their change also renews the cached results
             $vis  = substr(md5(implode('|', (array) $row) . '|' . Redirects::signature($db)), 0, 12);
@@ -295,6 +299,12 @@ final class Indexer
         $todo = $budget > 0 ? array_slice($changed, 0, $budget) : $changed;
         foreach (array_chunk($todo, 100) as $chunk) {
             $this->indexItems($chunk, $rows);
+        }
+        // the layout check runs once a day: the changed layouts the budget left over are marked for
+        // indexing again, or the next check would find them only tomorrow
+        $deferred = array_diff($layout, $todo);
+        foreach (array_chunk($deferred, 500) as $chunk) {
+            $this->db->setQuery('UPDATE ' . $this->db->quoteName('#__bettersearch_items') . ' SET sig = 0 WHERE id IN (' . implode(',', array_map('intval', $chunk)) . ')')->execute();
         }
         $this->refreshValues(array_diff_key($values, array_flip($todo)));
 
@@ -389,6 +399,12 @@ final class Indexer
 
             return $catSig[$id];
         };
+
+        // the lists of categories and tags are concatenated in SQL: 1024 bytes (the usual default) would cut a long list short
+        try {
+            $db->setQuery('SET SESSION group_concat_max_len = 1048576')->execute();
+        } catch (\Throwable $e) {
+        }
 
         $out = [];
         foreach ($db->setQuery($this->signatureSql(false))->getIterator() as $row) {
@@ -921,7 +937,8 @@ final class Indexer
 
     private function plain(string $text): string
     {
-        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // not strip_tags(): it would cut the text at a "<" in "Przewód <50 V"
+        $text = html_entity_decode(Normalizer::stripTags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         return trim(preg_replace('/\s+/u', ' ', $text) ?? '');
     }

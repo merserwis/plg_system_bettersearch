@@ -144,6 +144,10 @@ final class Thumbs
             return null;
         }
         $path = rawurldecode((string) parse_url($url, PHP_URL_PATH));
+        // an encoded NUL (%00) would make realpath() throw
+        if (preg_match('/[\x00-\x1F]/', $path)) {
+            return null;
+        }
         $root = Uri::root(true);
         if ($root !== '' && str_starts_with($path, $root . '/')) {
             $path = substr($path, strlen($root));
@@ -169,9 +173,11 @@ final class Thumbs
         if (!$widths || $this->spent >= $this->budget) {
             return [];
         }
-        // decoded image + copies must fit in the memory left to PHP
+        // photos taken sideways: browsers honour the EXIF orientation, GD does not
+        $orientation = $info[2] === IMAGETYPE_JPEG ? $this->jpegOrientation($file) : 1;
+        // decoded image + copies must fit in the memory left to PHP; a quarter turn (5-8) holds the image and its turned copy at once
         $limit = $this->memoryLimit();
-        if ($limit > 0 && memory_get_usage() + $info[0] * $info[1] * 5 + 16 * 1048576 > $limit) {
+        if ($limit > 0 && memory_get_usage() + $info[0] * $info[1] * ($orientation >= 5 ? 9 : 5) + 16 * 1048576 > $limit) {
             return [];
         }
         $dir = JPATH_ROOT . '/' . self::DIR;
@@ -192,9 +198,20 @@ final class Thumbs
             if (!$src) {
                 return [];
             }
-            // photos taken sideways: browsers honour the EXIF orientation, GD does not
-            if ($info[2] === IMAGETYPE_JPEG) {
-                $angle = [3 => 180, 6 => -90, 8 => 90][$this->jpegOrientation($file)] ?? 0;
+            if ($orientation > 1) {
+                // EXIF orientation => [mirror, counter-clockwise angle]; mirroring (in place) comes first
+                [$flip, $angle] = [
+                    2 => [IMG_FLIP_HORIZONTAL, 0],
+                    3 => [IMG_FLIP_BOTH, 0],
+                    4 => [IMG_FLIP_VERTICAL, 0],
+                    5 => [IMG_FLIP_HORIZONTAL, 90],
+                    6 => [0, -90],
+                    7 => [IMG_FLIP_HORIZONTAL, -90],
+                    8 => [0, 90],
+                ][$orientation];
+                if ($flip) {
+                    imageflip($src, $flip);
+                }
                 if ($angle !== 0 && ($rotated = imagerotate($src, $angle, 0))) {
                     $src = $rotated;
                 }

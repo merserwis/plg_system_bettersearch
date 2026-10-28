@@ -93,6 +93,9 @@ final class Store
     /** @var array<int, string> */
     private array $uploads = [];
 
+    /** @var array<int, array<string, string>> option titles of the fields, by field id */
+    private array $fieldOptionsMemo = [];
+
     /** @var array<int, array{0: string, 1: string}> routed product and category links, by page id */
     private array $links = [];
 
@@ -175,15 +178,6 @@ final class Store
         }
         // uploaded field images are stored by number: one lookup for the whole page of results
         $this->loadUploads(array_filter(array_map(fn ($r) => trim((string) $r->intro_image), $rows), 'is_numeric'));
-
-        $mapped = [];
-        $query  = $db->createQuery()
-            ->select(['page_id', 'category_id'])
-            ->from($db->quoteName('#__gridbox_category_page_map'))
-            ->where('page_id IN (' . $list . ')');
-        foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
-            $mapped[(int) $row->page_id][] = (int) $row->category_id;
-        }
 
         $cats     = $this->categories();
         $delivery = $this->deliveryField > 0 ? $this->fieldValues(array_keys($rows), $this->deliveryField) : [];
@@ -404,6 +398,9 @@ final class Store
     /** Option titles of a select / radio / checkbox field (key => title); empty for other fields. */
     public function fieldOptions(int $fieldId): array
     {
+        if (isset($this->fieldOptionsMemo[$fieldId])) {
+            return $this->fieldOptionsMemo[$fieldId];
+        }
         $options = [];
         try {
             $query   = $this->db->createQuery()->select('options')->from($this->db->quoteName('#__gridbox_fields'))->where('id = ' . $fieldId);
@@ -416,7 +413,7 @@ final class Store
         } catch (\Throwable $e) {
         }
 
-        return $options;
+        return $this->fieldOptionsMemo[$fieldId] = $options;
     }
 
     /** Exchange rate of the visitor's currency (prices are stored in the default currency). */
@@ -888,9 +885,14 @@ final class Store
             return $image;
         }
         $image = preg_replace('/#.*$/', '', $image) ?? $image;
+        // already under the installation folder (/shop/images/a.jpg): it is added below, not twice
+        $base = Uri::root(true);
+        if ($base !== '' && str_starts_with($image, $base . '/')) {
+            $image = substr($image, strlen($base));
+        }
         $parts = array_map(fn ($s) => rawurldecode($s), explode('/', ltrim($image, '/')));
-        // a path that climbs out of its folder is not an image address
-        if (in_array('..', $parts, true) || preg_match('/[\x00-\x1F]/', $image)) {
+        // a path that climbs out of its folder is not an image address; nor is one with control characters (also encoded: %00)
+        if (in_array('..', $parts, true) || preg_match('/[\x00-\x1F]/', implode('/', $parts))) {
             return '';
         }
         $path = implode('/', array_map('rawurlencode', $parts));

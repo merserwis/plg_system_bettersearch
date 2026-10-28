@@ -27,6 +27,10 @@ final class Searcher
     /** Misspelt words corrected per query (each costs a pass over the vocabulary). */
     private const MAX_CORRECTIONS = 3;
 
+    /** Words the default InnoDB full-text index leaves out (they are never found through it: LIKE searches them). */
+    private const FT_STOPWORDS = ['a', 'about', 'an', 'are', 'as', 'at', 'be', 'by', 'com', 'de', 'en', 'for', 'from', 'how', 'i', 'in',
+        'is', 'it', 'la', 'of', 'on', 'or', 'that', 'the', 'this', 'to', 'was', 'what', 'when', 'where', 'who', 'will', 'with', 'und', 'www'];
+
     /** The last run() hit the candidate limit: products beyond it were not scored. */
     public bool $truncated = false;
 
@@ -393,7 +397,7 @@ final class Searcher
                 }
                 if ($body && strlen($a) > 1) {
                     // descriptions: words starting with the alternative (full-text index when there is one)
-                    if ($ft && strlen($a) >= $this->ftMin) {
+                    if ($ft && strlen($a) >= $this->ftMin && !in_array($a, self::FT_STOPWORDS, true)) {
                         $words[] = $a . '*';
                     } else {
                         $bodyOr[] = 'i.t_body LIKE ' . $word;
@@ -574,9 +578,14 @@ final class Searcher
         if ($cats) {
             // cat_ids holds the categories of the product with their parents: excluding a category
             // also excludes its subcategories unless only the category itself is excluded
-            $column = $this->params->get('exclude_children', 1) ? 'i.cat_ids' : 'CONCAT(' . $db->quote(',') . ', i.category_id, ' . $db->quote(',') . ')';
+            $children = (bool) $this->params->get('exclude_children', 1);
+            $column   = $children ? 'i.cat_ids' : 'CONCAT(' . $db->quote(',') . ', i.category_id, ' . $db->quote(',') . ')';
             foreach ($cats as $catId) {
                 $query->where($column . ' NOT LIKE ' . $db->quote('%,' . $catId . ',%'));
+                if (!$children) {
+                    // the product's additional categories count, too (not only the main one)
+                    $query->where('NOT EXISTS (SELECT 1 FROM ' . $db->quoteName('#__gridbox_category_page_map') . ' m WHERE m.page_id = i.id AND m.category_id = ' . $catId . ')');
+                }
             }
         }
 
@@ -974,7 +983,7 @@ final class Searcher
     }
 
     /** Gridbox compares publishing dates with the time of the site's time zone (DateHelper::make()). */
-    private static function siteZone(): \DateTimeZone
+    public static function siteZone(): \DateTimeZone
     {
         try {
             return new \DateTimeZone((string) \Joomla\CMS\Factory::getApplication()->get('offset', 'UTC') ?: 'UTC');

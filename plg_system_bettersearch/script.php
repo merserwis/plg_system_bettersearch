@@ -139,6 +139,7 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
                         ->where($db->quoteName('folder') . ' = ' . $db->quote('system'))
                         ->where($db->quoteName('element') . ' = ' . $db->quote('bettersearch'))
                 )->execute();
+                $this->markFresh($db);
                 if ($gridbox) {
                     Factory::getApplication()->enqueueMessage(Text::_('PLG_SYSTEM_BETTERSEARCH_INSTALL_BUILD_INDEX'), 'info');
                 }
@@ -146,6 +147,31 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
 
             if (!$gridbox) {
                 Factory::getApplication()->enqueueMessage(Text::_('PLG_SYSTEM_BETTERSEARCH_INSTALL_NO_GRIDBOX'), 'warning');
+            }
+
+            // 1.8.0: the search changes the pages Gridbox sends and every site is built differently: after an install or an
+            // update it is to be checked on the site itself; a fresh install is shown the way to the quick setup
+            if ($type === 'install' || $type === 'update' || $type === 'discover_install') {
+                Factory::getApplication()->enqueueMessage(Text::_('PLG_SYSTEM_BETTERSEARCH_INSTALL_CHECK'), 'warning');
+                if ($type !== 'update') {
+                    Factory::getApplication()->enqueueMessage(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_INSTALL_START', 'index.php?option=com_bettersearch&amp;view=setup'), 'info');
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /** A fresh install: the control panel of the administrator offers the quick setup first (Joomla saves the defaults, so the settings alone do not tell). */
+    private function markFresh(DatabaseInterface $db): void
+    {
+        try {
+            $where  = ' WHERE ' . $db->quoteName('type') . ' = ' . $db->quote('plugin') . ' AND ' . $db->quoteName('folder') . ' = ' . $db->quote('system')
+                . ' AND ' . $db->quoteName('element') . ' = ' . $db->quote('bettersearch');
+            $params = json_decode((string) $db->setQuery('SELECT ' . $db->quoteName('params') . ' FROM ' . $db->quoteName('#__extensions') . $where)->loadResult(), true);
+            $params = \is_array($params) ? $params : [];
+            if (!isset($params['setup_done'])) {
+                $params['setup_pending'] = 1;
+                $db->setQuery('UPDATE ' . $db->quoteName('#__extensions') . ' SET ' . $db->quoteName('params') . ' = ' . $db->quote(json_encode($params, JSON_UNESCAPED_UNICODE)) . $where)->execute();
             }
         } catch (\Throwable $e) {
         }

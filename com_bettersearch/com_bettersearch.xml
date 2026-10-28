@@ -3,17 +3,47 @@
     <name>com_bettersearch</name>
     <author>Merserwis</author>
     <authorUrl>https://github.com/merserwis/</authorUrl>
-    <creationDate>2026-10-15</creationDate>
+    <creationDate>2026-10-28</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.7.1</version>
-    <description>Better Search for Gridbox — administrator menu entry that opens the plugin settings.</description>
+    <version>1.8.0</version>
+    <description>COM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Component\BetterSearch</namespace>
+    <media destination="com_bettersearch" folder="media">
+        <filename>joomla.asset.json</filename>
+        <folder>css</folder>
+        <folder>js</folder>
+    </media>
     <administration>
-        <menu img="class:search">Better Search for Gridbox</menu>
+        <menu img="class:search">COM_BETTERSEARCH</menu>
+        <!-- the tools used day to day; the cog opens their settings (Helper/Catalog.php: the tab named in 'settings') -->
+        <submenu>
+            <menu link="option=com_bettersearch&amp;view=cpanel" alias="bettersearch-cpanel">COM_BETTERSEARCH_MENU_CPANEL</menu>
+            <menu link="option=com_bettersearch&amp;view=setup" alias="bettersearch-setup">COM_BETTERSEARCH_MENU_SETUP</menu>
+            <menu link="option=com_bettersearch&amp;view=page&amp;page=index" alias="bettersearch-index">COM_BETTERSEARCH_MENU_INDEX<params>
+                    <menu-quicktask>index.php?option=com_bettersearch&amp;view=page&amp;page=index&amp;tab=indexing</menu-quicktask>
+                    <menu-quicktask-title>COM_BETTERSEARCH_MENU_SETTINGS</menu-quicktask-title>
+                    <menu-quicktask-icon>cog</menu-quicktask-icon>
+                </params></menu>
+            <menu link="option=com_bettersearch&amp;view=page&amp;page=engine" alias="bettersearch-engine">COM_BETTERSEARCH_MENU_ENGINE<params>
+                    <menu-quicktask>index.php?option=com_bettersearch&amp;view=page&amp;page=engine&amp;tab=engine</menu-quicktask>
+                    <menu-quicktask-title>COM_BETTERSEARCH_MENU_SETTINGS</menu-quicktask-title>
+                    <menu-quicktask-icon>cog</menu-quicktask-icon>
+                </params></menu>
+            <menu link="option=com_bettersearch&amp;view=page&amp;page=live" alias="bettersearch-live">COM_BETTERSEARCH_MENU_LIVE</menu>
+            <menu link="option=com_bettersearch&amp;view=page&amp;page=results" alias="bettersearch-results">COM_BETTERSEARCH_MENU_RESULTS</menu>
+            <menu link="option=com_bettersearch&amp;view=page&amp;page=stats" alias="bettersearch-stats">COM_BETTERSEARCH_MENU_STATS<params>
+                    <menu-quicktask>index.php?option=com_bettersearch&amp;view=page&amp;page=stats&amp;tab=stats_settings</menu-quicktask>
+                    <menu-quicktask-title>COM_BETTERSEARCH_MENU_SETTINGS</menu-quicktask-title>
+                    <menu-quicktask-icon>cog</menu-quicktask-icon>
+                </params></menu>
+            <menu link="option=com_bettersearch&amp;view=page&amp;page=config" alias="bettersearch-config">COM_BETTERSEARCH_MENU_CONFIG</menu>
+        </submenu>
         <files folder="admin">
+            <folder>language</folder>
             <folder>services</folder>
             <folder>src</folder>
+            <folder>tmpl</folder>
         </files>
     </administration>
 </extension>

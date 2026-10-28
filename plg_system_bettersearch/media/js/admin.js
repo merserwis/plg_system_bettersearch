@@ -52,6 +52,7 @@
                     init.body.append(key, value);
                 }
             });
+            init.body.append('bs_empty', emptyKeys(form));
         }
         return fetch(url, init).then(function (r) {
             return r.json();
@@ -67,9 +68,86 @@
         });
     }
 
+    // The lists, ticked lists and subforms of the form that hold nothing send nothing at all: their names go with the
+    // request, so the server does not take the saved value for them (a rule removed, all the sortings unticked).
+    function emptyKeys(form) {
+        var keys = [];
+        var top = /^jform\[params\]\[([A-Za-z0-9_]+)\](\[\])?$/;
+        var add = function (name) {
+            var m = top.exec(name || '');
+            if (m && keys.indexOf(m[1]) < 0) {
+                keys.push(m[1]);
+            }
+        };
+        form.querySelectorAll('select[multiple]').forEach(function (select) {
+            if (/\[\]$/.test(select.name) && !select.selectedOptions.length) {
+                add(select.name);
+            }
+        });
+        var groups = {};
+        form.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
+            if (/^jform\[params\]\[[A-Za-z0-9_]+\]\[\]$/.test(box.name)) {
+                groups[box.name] = groups[box.name] || box.checked;
+            }
+        });
+        Object.keys(groups).forEach(function (name) {
+            if (!groups[name]) {
+                add(name);
+            }
+        });
+        form.querySelectorAll('joomla-field-subform, .subform-repeatable-wrapper').forEach(function (wrapper) {
+            if (!wrapper.querySelector('.subform-repeatable-group')) {
+                add(wrapper.getAttribute('data-base-name'));
+            }
+        });
+        return keys.join(',');
+    }
+    window.bsEmptyKeys = emptyKeys;
+
     // ================================================================ product picker
 
     var titles = {};
+
+    // the titles of the saved products of all pickers: asked for together (one request per 500), once per id
+    var titleQueue = [], titleTimer = 0, titleAsked = {};
+
+    function wantTitles(ids) {
+        var promises = ids.map(function (id) {
+            if (!titleAsked[id]) {
+                titleAsked[id] = new Promise(function (resolve) {
+                    titleQueue.push({ id: id, done: resolve });
+                });
+            }
+            return titleAsked[id];
+        });
+        if (!titleTimer && titleQueue.length) {
+            titleTimer = setTimeout(flushTitles, 20);
+        }
+        return Promise.all(promises);
+    }
+
+    function flushTitles() {
+        var queue = titleQueue;
+        titleQueue = [];
+        titleTimer = 0;
+        for (var i = 0; i < queue.length; i += 500) {
+            (function (chunk) {
+                call('titles', { ids: chunk.map(function (c) {
+                    return c.id;
+                }).join(',') }).then(function (data) {
+                    (data.items || []).forEach(function (t) {
+                        titles[t.id] = t;
+                    });
+                }).catch(function () {
+                }).then(function () {
+                    chunk.forEach(function (c) {
+                        delete titleAsked[c.id];
+                        c.done();
+                    });
+                });
+            })(queue.slice(i, i + 500));
+        }
+    }
 
     function initPicker(root) {
         if (root.dataset.ready) {
@@ -123,12 +201,7 @@
                 draw();
                 return;
             }
-            call('titles', { ids: missing.join(',') }).then(function (data) {
-                (data.items || []).forEach(function (t) {
-                    titles[t.id] = t;
-                });
-                draw();
-            }).catch(draw);
+            wantTitles(missing).then(draw);
         }
 
         list.addEventListener('click', function (e) {
@@ -204,8 +277,27 @@
                 found.style.maxHeight = Math.min(320, below) + 'px';
             }
         }
-        window.addEventListener('scroll', place, true);
-        window.addEventListener('resize', place);
+        // a row removed from the subform takes its listeners away at the next event
+        function onViewport() {
+            if (!root.isConnected) {
+                window.removeEventListener('scroll', onViewport, true);
+                window.removeEventListener('resize', onViewport);
+                document.removeEventListener('click', onOutside);
+                return;
+            }
+            place();
+        }
+        function onOutside(e) {
+            if (!root.isConnected) {
+                onViewport();
+                return;
+            }
+            if (!root.contains(e.target)) {
+                found.hidden = true;
+            }
+        }
+        window.addEventListener('scroll', onViewport, true);
+        window.addEventListener('resize', onViewport);
 
         function show(items) {
             found.innerHTML = items.length ? items.map(function (t) {
@@ -226,9 +318,15 @@
             }
             // every product is loaded once per page and filtered here: no request per keystroke
             allProducts(scope).then(function (list) {
-                if (input.value.trim() === q) {
-                    show(filterProducts(list, q));
+                if (input.value.trim() !== q) {
+                    return;
                 }
+                if (list.truncated) {
+                    // the list is cut at the server's limit: the product asked for may be beyond it
+                    serverSearch(q);
+                    return;
+                }
+                show(filterProducts(list, q));
             }).catch(function () {
                 serverSearch(q);
             });
@@ -236,6 +334,9 @@
 
         function serverSearch(q) {
             call('products', { q: q, scope: scope }).then(function (data) {
+                if (input.value.trim() !== q) {
+                    return;
+                }
                 var items = data.items || [];
                 found.innerHTML = items.length ? items.map(function (t) {
                     titles[t.id] = t;
@@ -264,7 +365,7 @@
             if (e.key === 'Enter') {
                 // never submit the plugin form from the picker
                 e.preventDefault();
-                var first = found.querySelector('[data-add]');
+                var first = found.hidden ? null : found.querySelector('[data-add]');
                 if (first) {
                     first.click();
                 }
@@ -287,11 +388,7 @@
             found.hidden = true;
             input.focus();
         });
-        document.addEventListener('click', function (e) {
-            if (!root.contains(e.target)) {
-                found.hidden = true;
-            }
-        });
+        document.addEventListener('click', onOutside);
 
         loadTitles();
     }
@@ -305,12 +402,15 @@
         var productList = productLists[scope];
         if (!productList) {
             productList = productLists[scope] = call('products_all', { scope: scope }).then(function (r) {
-                return (r.items || []).map(function (p) {
+                var items = (r.items || []).map(function (p) {
                     var t = { id: p[0], title: p[1], sku: p[2], app: (r.apps || {})[p[3]] || '', published: p[4] };
                     t.key = fold(t.title + ' ' + t.sku + ' ' + t.id);
                     t.compact = t.key.replace(/ /g, '');
                     return t;
                 });
+                // the server cuts the catalogue at 30000 products (and may say so: r.truncated)
+                items.truncated = !!r.truncated || items.length >= 30000;
+                return items;
             });
             productList.catch(function () {
                 delete productLists[scope];
@@ -368,9 +468,17 @@
         if (!answer || !answer.trim()) {
             return;
         }
-        document.dispatchEvent(new CustomEvent('bs-dict-add', { detail: syn
+        var detail = syn
             ? { mode: 'synonyms', left: q + ', ' + answer.trim() }
-            : { mode: 'redirects', left: q, url: answer.trim() } }));
+            : { mode: 'redirects', left: q, url: answer.trim() };
+        // the dictionaries are on another page of the administrator than the statistics: the line is carried
+        // there in the address and added to the editor, to be saved with the page
+        var urls = (opts && opts.urls) || {};
+        if (!document.querySelector('[data-bs-dict]') && urls.dict) {
+            window.location.href = urls.dict + '&bs_add=' + encodeURIComponent(JSON.stringify(detail));
+            return;
+        }
+        document.dispatchEvent(new CustomEvent('bs-dict-add', { detail: detail }));
         (syn || red).closest('tr').classList.add('table-success');
         Joomla.renderMessages({ message: [T.TOOLS_DICT_ADDED] });
     });
@@ -537,6 +645,7 @@
         // the order of the table: sorted by the database (all queries), "found" sorted here (the rows shown)
         var view = { sort: 'impressions', dir: 'desc', limit: 200, filter: '', checked: false };
         var last = null;
+        var seq = 0;             // the newest request of the table: an older answer must not replace it
         var COLS = [['query', T.TOOLS_GSC_QUERY, 'asc'], ['clicks', T.TOOLS_CONV_CLICKS, 'desc'], ['impressions', T.TOOLS_GSC_IMPR, 'desc'],
             ['ctr', T.TOOLS_GSC_CTR, 'desc'], ['position', T.TOOLS_GSC_POS, 'asc']];
 
@@ -594,14 +703,22 @@
 
         function run(task, extra, withForm) {
             out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+            var mine = ++seq;
+            // downloading and importing always show their result
+            var always = !!(withForm || WRITES[task]);
             return call(task, params(extra), withForm ? form : null).then(function (r) {
                 if (r.message && r.ok === false) {
                     Joomla.renderMessages({ error: [r.message] });
                 } else if (r.message) {
                     Joomla.renderMessages({ message: [r.message] });
                 }
-                draw(r);
+                if (always || mine === seq) {
+                    draw(r);
+                }
             }).catch(function (e) {
+                if (!always && mine !== seq) {
+                    return;
+                }
                 out.innerHTML = '<p class="text-danger">' + esc(e.message) + '</p>';
             });
         }
@@ -650,7 +767,11 @@
             var value = e.target.value;
             filterTimer = setTimeout(function () {
                 view.filter = value.trim();
+                var mine = ++seq;
                 call('gsc', params(view.checked ? { check: 1 } : {})).then(function (r) {
+                    if (mine !== seq) {
+                        return;
+                    }
                     draw(r);
                     var input = out.querySelector('.bs-gsc-filter');
                     if (input) {
@@ -875,15 +996,18 @@
         }
 
         // the exact count (compares every page with the index: a few seconds on a large shop)
-        status.addEventListener('click', function (e) {
-            var link = e.target.closest('.bs-count-now');
-            if (!link) return;
-            e.preventDefault();
-            link.textContent = T.TOOLS_COUNTING;
-            call('status', { fresh: 1 }).then(showStatus).catch(function (err) {
-                status.textContent = err.message;
+        // (each page of the administrator shows only some of the cards: a root without the index card has no status)
+        if (status) {
+            status.addEventListener('click', function (e) {
+                var link = e.target.closest('.bs-count-now');
+                if (!link) return;
+                e.preventDefault();
+                link.textContent = T.TOOLS_COUNTING;
+                call('status', { fresh: 1 }).then(showStatus).catch(function (err) {
+                    status.textContent = err.message;
+                });
             });
-        });
+        }
 
         function run(force) {
             var buttons = root.querySelectorAll('[data-bs-tool]');
@@ -1034,9 +1158,28 @@
             var tryQ = e.target.closest('[data-bs-try]');
             if (tryQ) {
                 e.preventDefault();
-                root.querySelector('.bs-test-q').value = tryQ.dataset.bsTry;
+                var console_ = root.querySelector('.bs-test-q') || (root.closest('form') || document).querySelector('.bs-test-q');
+                if (console_ && !root.contains(console_)) {
+                    // the plugin's own form holds the test console in another card
+                    console_.value = tryQ.dataset.bsTry;
+                    var other = console_.closest('.bs-tools').querySelector('[data-bs-tool="test"]');
+                    if (other) {
+                        other.click();
+                    }
+                    console_.scrollIntoView({ block: 'center' });
+                    return;
+                }
+                if (!console_) {
+                    // the test console is on the page of the search engine
+                    var testUrl = ((opts && opts.urls) || {}).test;
+                    if (testUrl) {
+                        window.location.href = testUrl + '&q=' + encodeURIComponent(tryQ.dataset.bsTry);
+                    }
+                    return;
+                }
+                console_.value = tryQ.dataset.bsTry;
                 test();
-                root.querySelector('.bs-test-q').scrollIntoView({ block: 'center' });
+                console_.scrollIntoView({ block: 'center' });
                 return;
             }
             var b = e.target.closest('[data-bs-tool]');
@@ -1070,14 +1213,19 @@
                 });
             }
         });
-        root.querySelector('.bs-test-q').addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                test();
-            }
-        });
+        var testQuery = root.querySelector('.bs-test-q');
+        if (testQuery) {
+            testQuery.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    test();
+                }
+            });
+        }
 
-        refresh();
+        if (status) {
+            refresh();
+        }
     }
 
     // ================================================================ help tooltips ("?" beside the option names)
@@ -1221,6 +1369,32 @@
         });
     });
 
+    // what the statistics carry to this page in the address: a line for the dictionaries, a query for the test console
+    function carried() {
+        var params = new URLSearchParams(window.location.search);
+        var add = params.get('bs_add');
+        if (add) {
+            try {
+                var detail = JSON.parse(add);
+                if (detail && (detail.mode === 'synonyms' || detail.mode === 'redirects')) {
+                    document.dispatchEvent(new CustomEvent('bs-dict-add', { detail: detail }));
+                    Joomla.renderMessages({ message: [T.TOOLS_DICT_ADDED] });
+                }
+            } catch (err) {
+                // not ours
+            }
+        }
+        var q = params.get('q');
+        var box = document.querySelector('.bs-test-q');
+        if (q && box) {
+            box.value = q.slice(0, 200);
+            var run = box.closest('.bs-tools') && box.closest('.bs-tools').querySelector('[data-bs-tool="test"]');
+            if (run) {
+                run.click();
+            }
+        }
+    }
+
     function start() {
         initHelp();
         initPickers(document);
@@ -1235,6 +1409,7 @@
         });
         document.querySelectorAll('[data-bs-dict]').forEach(initDict);
         document.querySelectorAll('.bs-voicecheck').forEach(initVoiceCheck);
+        carried();
         // rows added to a subform (rules, boosts) bring new pickers
         document.addEventListener('subform-row-add', function (e) {
             var row = (e.detail && e.detail.row) || e.target;

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.joomla.org/schemas/json-schema/web_assets.json",
+  "name": "com_bettersearch",
+  "version": "1.8.0",
+  "description": "Better Search for Gridbox: the control panel, the pages of the tools and the quick setup",
+  "license": "GPL-3.0-or-later",
+  "assets": [
+    {
+      "name": "com_bettersearch.admin",
+      "type": "style",
+      "uri": "com_bettersearch/bettersearch-admin.css"
+    },
+    {
+      "name": "com_bettersearch.setup",
+      "type": "script",
+      "uri": "com_bettersearch/bettersearch-setup.js",
+      "dependencies": [
+        "core"
+      ],
+      "attributes": {
+        "defer": true
+      }
+    },
+    {
+      "name": "com_bettersearch.cpanel",
+      "type": "script",
+      "uri": "com_bettersearch/bettersearch-cpanel.js",
+      "dependencies": [
+        "core"
+      ],
+      "attributes": {
+        "defer": true
+      }
+    }
+  ]
+}

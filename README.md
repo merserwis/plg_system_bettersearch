@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.7.1-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.8.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -53,7 +53,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Themes (new in 1.6.0):** five modern looks — Minimal, Soft, Glass, Dark and Bold — beside the unchanged **Basic** look, chosen from a gallery with miniatures; a **visual theme editor** (colours, corners, shadows, hover effects, font, buttons, glass blur) and a **CSS editor** for each theme, both with the live preview.
 * **Order of the result sections (new in 1.6.1):** drag categories, each app (store, blog…) and pages into the order you want in the live results; optionally group the results page the same way.
 * **Basic and advanced settings (new in 1.6.0):** a switch above the tabs shows only the settings most sites need, or all of them.
-* **Administrator menu entry:** *Better Search for Gridbox* appears in the Joomla 6 administrator menu and opens the plugin settings directly.
+* **Administrator menu entry:** *Better Search for Gridbox* appears in the Joomla 6 administrator menu: a control panel, a quick setup and a page for each tool (see *The Administrator*).
 
 ---
 
@@ -82,6 +82,26 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 
 ---
 
+## 🧭 The Administrator
+
+Everything is under **Components → Better Search for Gridbox** (the plugin's own form opens only when the component is off):
+
+| Page | What is there |
+|---|---|
+| **Control Panel** | The tools as tiles in sections, each with a dot that says whether it is on; the state of the search (version, pages in the index and waiting) and shortcuts: quick setup, configuration, update the index, test a search, clear the cache, open Gridbox. |
+| **Quick Setup** | 15 switches, each *recommended* or *optional*; *Turn on the recommended* leaves the optional ones as they are; only the switches you change are saved. |
+| **Index** | Index status and the buttons (update, rebuild, clear the caches, remove small images) · Indexing (apps, pages, automatic check, cache) · What is indexed. |
+| **Search Engine** | Test console · Matching (typos, word endings, partial matches, ignored words) · Ranking weights · Synonyms and redirects. |
+| **Rules** | Pinned and hidden products, boosts, exclusions. |
+| **Live Results** · **Results Page** · **Appearance** | What they show, how they look and move, with the live preview of unsaved changes; themes and the editors. |
+| **Statistics** | Search statistics and conversions · Collecting · E-mail report · Google Search Console. |
+| **Products** (with a store) | Badges, availability and delivery time, add-to-cart and quote buttons. |
+| **Configuration** | *Voice search*, *SEO*, *Texts & images*, *Settings file*, *General* — one page, a vertical tab each. |
+
+The settings are the plugin's own (`#__extensions`), saved through Joomla's plugin model: a page saves only its own settings and keeps all the others. After installing, updating and saving a message asks to **check on the site itself** that what was changed works as it should.
+
+---
+
 ## 🚀 Installation & Package Structure
 
 1. Download `pkg_bettersearch-1.6.5.zip` from [Releases](https://github.com/merserwis/plg_system_bettersearch/releases).
@@ -89,12 +109,12 @@ Gridbox files and tables are never modified. The plugin writes only its own tabl
 3. On a fresh install the plugin is **enabled automatically**; an update keeps whatever you chose before. If Balbooa Gridbox is not installed, the installer says so in a notice.
 4. Open **Better Search for Gridbox** in the administrator menu (or *System → Plugins → System - Better Search for Gridbox*).
 5. On the **Search engine** tab choose the **product fields to search** (manufacturer, model, parameters). Leave out fields shared by many products, such as contact persons — every product would match their names.
-6. On the **Index & tools** tab click **Update index**. The index is also built automatically on the first visits (in batches of 300 products, the next batch half a minute later) and kept up to date afterwards.
+6. On the **Index** page click **Update index** (or the *Update index* button in the top bar). The index is also built automatically on the first visits (in batches of 300 products, the next batch half a minute later) and kept up to date afterwards.
 
 | Extension | Type | Purpose |
 |---|---|---|
 | `plg_system_bettersearch` | System plugin | Index, live results, results page, administrator tools. |
-| `com_bettersearch` | Administrator component | Menu entry *Better Search for Gridbox* that opens the plugin settings. |
+| `com_bettersearch` | Administrator component | The administrator: control panel, quick setup and the pages of the settings (Components → Better Search for Gridbox). |
 | `mod_bettersearch` | Site module | A search field with the live results, e.g. in a Gridbox *Joomla Module* element. |
 | `pkg_bettersearch` | Package | Installs and updates all three in one step. |
 
@@ -170,7 +190,7 @@ The *Appearance*, *Live results*, *Results page* and *Texts & images* tabs have 
 
 ## 🧰 Index & Tools
 
-The **Index & tools** tab of the plugin:
+The pages **Index** (status and buttons), **Search Engine** (test console) and **Statistics** (statistics, conversions) and the **Settings file** tab of the *Configuration*:
 
 * **Search index** — indexed products / pages, products waiting for indexing, searched apps, time of the last check and of the last complete update. **Update index** (new and changed products) and **Rebuild everything** (every product again; the search keeps working meanwhile) with a progress bar; **Clear cache**; **Delete small images**. **(1.6.10)** The same *Update index* is also a button in the administrator's top bar (next to the Joomla version), so the index can be brought up to date from any screen. **(1.7.0)** The button shows how many pages wait for indexing, and the tab says why they wait (new, changed, after a change of the index settings, changed layout, removed from Gridbox).
 * **What reindexes what (1.7.0):** a changed page is indexed again by itself; renaming, adding or moving a category or a tag reindexes only the pages that have it; a new price or stock (an order, an imported price list) is written into the index at once without indexing the text again. Only a change of the index settings (tab *Search engine*) or of an indexed field's options marks every page.
@@ -232,7 +252,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Products per check | `300` | At most this many products are indexed in one automatic check; the rest follows in the next ones. |
 | Update the index right after a change | Yes | When a Gridbox page or product is saved, published, unpublished or trashed (in the Gridbox editor or the lists), the changed items are indexed again right after that request, so the search shows the change at once instead of after the next check. |
 | Cache results (minutes) | `15` | Results of the same query are kept for this time. Every index update and every change of settings starts afresh. 0 = no cache. |
-| Search statistics | Yes | Counts the queries of the results page (no personal data): most searched, without results. See tab “Index & tools”. |
+| Search statistics | Yes | Counts the queries of the results page (no personal data): most searched, without results. See Statistics. |
 | Conversion statistics | Yes | Count clicks on search results and products put into the cart after such a click, per query (Tools → Conversions). A first-party cookie (bs_src: product id → query, for 30 days) links the cart to the search; no personal data is stored. |
 | Leave out of the statistics (IP addresses) | *(empty)* | Searches, clicks and carts from these addresses are not counted (search statistics, conversions, e-mail report) – e.g. the company office, so the statistics show customers only. One per line or separated by commas: an address (`83.1.2.3`, `2001:db8::1`), a network (`91.200.10.0/24`, `2001:db8::/48`) or an IPv4 address with * (`10.48.*`). Text after # is a comment. The search itself works the same for everybody. |
 | Leave out logged-in users of the groups | *(empty)* | Searches of logged-in members of these user groups (e.g. staff) are not counted, from any address. |
@@ -598,6 +618,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.8.0** — An administrator of its own, like Admin Tools: a control panel with the tools as tiles in sections, a sidebar menu with a page for each tool (overview first, settings next), a Configuration page for what is set once, a quick setup of 15 switches, a reminder to check the site after every change, and the fixes of a full code review by Codex (security, bugs, speed).
 * **1.7.1** — Live results: “Products shown” goes to the store also when the pages or a blog come before it in the order of the sections.
 * **1.7.0** — Voice search: a microphone in the search fields, on all devices or on mobile devices only (own tab *Voice search*). The index no longer marks the whole shop after a new tag or category, only the pages that have it; new prices and stocks go into the index at once; the top bar button shows the number of pages waiting, the Tools tab why they wait.
 * **1.6.11** — Orders placed on the site in the e-mail report: number, cart value, average cart and the orders that came from the search, against the period before; the list of the orders and the phrases that led to orders.

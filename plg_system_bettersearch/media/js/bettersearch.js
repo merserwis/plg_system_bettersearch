@@ -22,7 +22,11 @@
     var panel = null, body = null, head = null, headInput = null, backdrop = null;
     var current = null;          // the input the panel belongs to
     var timer = 0, controller = null, lastQuery = null, active = -1, full = false;
+    var shown = null;            // the phrase whose results the panel shows now
+    var gen = 0;                 // changes with every field change and every request: an older answer is dropped
     var cache = Object.create(null);
+    // a browser keeps the answers for a minute only (the shop changes prices and stock); cfg.cacheTtl (seconds, 0 = off) may say otherwise
+    var CACHE_TTL = (typeof cfg.cacheTtl === 'number' && cfg.cacheTtl >= 0 ? cfg.cacheTtl : 60) * 1000;
 
     // an invalid selector typed in the settings must not break every event on the page
     try {
@@ -126,6 +130,7 @@
         }
         build();
         lastQuery = null;
+        shown = null;
         panel.setAttribute('data-bs-view', 'recent');
         body.innerHTML = '<div class="bs-live-body"><div class="bs-section bs-section-recent"><div class="bs-section-title bs-recent-head"><span>' + esc(cfg.texts.recent)
             + '</span><button type="button" class="bs-recent-clear">' + esc(cfg.texts.clearRecent) + '</button></div><ul class="bs-pop" role="presentation">'
@@ -250,7 +255,14 @@
         if (!panel || !panel.classList.contains('is-open')) {
             return;
         }
-        if (recField === headInput) {
+        // closed: no search waits for the panel, no answer opens it again, nobody listens
+        clearTimeout(timer);
+        gen++;
+        if (controller) {
+            controller.abort();
+        }
+        stopLoading();
+        if (rec) {
             stopListening();
         }
         panel.classList.remove('is-open', 'is-shown', 'is-full');
@@ -308,14 +320,32 @@
 
     // ------------------------------------------------------------------ fetching
 
+    function stopLoading() {
+        document.querySelectorAll('.bs-loading').forEach(function (el) {
+            el.classList.remove('bs-loading');
+        });
+        if (panel) {
+            panel.classList.remove('is-loading');
+        }
+    }
+
+    /** The answers are kept per phrase and currency of the shop. */
+    function cacheKey(q) {
+        var m = document.cookie.match(/(?:^|;\s*)gridbox-currency=([^;]*)/);
+        return q + '\n' + (m ? m[1] : '');
+    }
+
     function schedule(value) {
         clearTimeout(timer);
+        gen++;
         var q = (value || '').trim();
         if (q.replace(/[^0-9a-zÀ-ɏ]/gi, '').length < cfg.minChars) {
             lastQuery = null;
+            shown = null;
             if (controller) {
                 controller.abort();
             }
+            stopLoading();
             // an empty field: the visitor's last searches, if any
             if (!q && document.activeElement === (full ? headInput : current) && showRecent()) {
                 return;
@@ -333,12 +363,18 @@
     }
 
     function fetchResults(q) {
-        if (q === lastQuery && panel && panel.classList.contains('is-open')) {
+        // a search of the phrase typed before is dropped: this one is the newest
+        clearTimeout(timer);
+        var my = ++gen;
+        if (q === shown && panel && panel.classList.contains('is-open')) {
+            stopLoading();
             return;
         }
         lastQuery = q;
-        if (cache[q]) {
-            render(cache[q], q);
+        var key = cacheKey(q);
+        if (cache[key] && Date.now() - cache[key].t < CACHE_TTL) {
+            stopLoading();
+            render(cache[key].data, q);
             return;
         }
         if (controller) {
@@ -363,12 +399,20 @@
             if (!data || typeof data.html !== 'string') {
                 return;
             }
-            cache[q] = data;
-            if (q === lastQuery) {
+            cache[key] = { t: Date.now(), data: data };
+            if (my === gen) {
                 render(data, q);
             }
         }).catch(function () {
         }).then(function () {
+            if (my !== gen) {
+                // a newer search or the closing took over (and cleared the loading state itself)
+                return;
+            }
+            if (lastQuery === q && shown !== q) {
+                // nothing came: the phrase may be asked again
+                lastQuery = shown;
+            }
             if (wrap) {
                 wrap.classList.remove('bs-loading');
             }
@@ -383,6 +427,7 @@
         // the panel was open with the last searches: the results arrive with the appearing effect again
         var replay = panel.classList.contains('is-shown') && panel.getAttribute('data-bs-view') !== 'results';
         panel.setAttribute('data-bs-view', 'results');
+        shown = q;
         body.innerHTML = data.html;
         if (replay) {
             panel.classList.remove('is-shown');
@@ -452,8 +497,10 @@
         } else if (e.key === 'Escape') {
             if (openNow) {
                 e.preventDefault();
+                // the full-screen search stays closed: focusing the original field would open it again
+                var wasFull = full;
                 close();
-                if (current && !full) {
+                if (current && !wasFull) {
                     current.focus();
                 }
             }
@@ -965,6 +1012,7 @@
         if (!panel.classList.contains('is-open')) {
             body.innerHTML = '';
             lastQuery = null;
+            shown = null;
         }
         open();
         if (!headInput.value.trim() && !noFocus) {
@@ -1041,7 +1089,19 @@
             while (keys.length > 20) {
                 delete map[keys.shift()];
             }
-            document.cookie = 'bs_src=' + encodeURIComponent(JSON.stringify(map)) + ';path=/;max-age=' + (30 * 86400) + ';SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : '');
+            // a cookie over about 4 KB is refused by the browser: the oldest entries go first
+            var packed = encodeURIComponent(JSON.stringify(map));
+            while (packed.length > 3500 && keys.length > 1) {
+                // numeric ids come in ascending order, not by age: the entry just made stays
+                var drop = keys.shift();
+                if (drop === id) {
+                    keys.push(drop);
+                    continue;
+                }
+                delete map[drop];
+                packed = encodeURIComponent(JSON.stringify(map));
+            }
+            document.cookie = 'bs_src=' + packed + ';path=/;max-age=' + (30 * 86400) + ';SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : '');
         } catch (e) {
         }
     }

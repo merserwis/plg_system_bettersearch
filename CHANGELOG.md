@@ -2,6 +2,50 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.8.0 — 2026-10-28
+
+### 🧭 An administrator of its own, like Admin Tools
+
+The settings were one plugin form with 13 tabs and about 290 options, all at once. They are now an administrator of their own under **Components → Better Search for Gridbox**, laid out like Akeeba Admin Tools:
+
+- **Control Panel**: the tools as tiles in sections (*Search*, *Results*, *Insights*, *Shop* — only with a Gridbox store —, *Configuration*), each with a dot that says whether it is on; on the side the state of the search (version, the pages in the index and those waiting), shortcuts (quick setup, configuration, update the index, test a search, clear the cache, open Gridbox) and a reminder to check the site.
+- **The sidebar menu** lists *Index*, *Search Engine*, *Live Results*, *Results Page*, *Statistics* and *Configuration*; the tools that have settings beside their overview (*Index*, *Search Engine*, *Statistics*) have a cog that opens them.
+- **Pages of the tools**: *Index* (index status and buttons · indexing · what is indexed), *Search Engine* (test console · matching · ranking weights · synonyms and redirects), *Rules*, *Live Results*, *Results Page*, *Appearance*, *Statistics* (search statistics and conversions · collecting · e-mail report · Google Search Console) and, with a store, *Products*.
+- **Configuration**: what is set once and forgotten, on one page with a vertical tab each — *Voice search*, *SEO*, *Texts & images*, *Settings file* and *General*.
+- **Quick Setup**: 15 switches, each marked *recommended* or *optional*, with a sentence on what it does. *Turn on the recommended* switches on the recommended ones and leaves the optional ones as they are; only the switches you change are saved. A fresh install offers it first.
+- **The basic / advanced switch is on every page**, the live preview, the theme editor, the pickers and the tools work as before, and the settings are still the plugin's, so nothing changes on the site. Saving a page keeps the settings of all the other pages. Opening the plugin in Joomla's plugin manager leads to the control panel (the plugin's own form opens only when the component is off, or for an administrator who may edit plugins but not open the component).
+- The statistics send *Add synonym*, *Redirect* and a click on a query to the Search Engine page, where the dictionaries and the test console are.
+
+### ⚠️ Check your site after every change
+
+After installing, after updating and after every save, a message asks to check on the site itself that what was turned on or changed works as it should: type in a search field, open the live results and the results page. The control panel and the quick setup say the same.
+
+### 🔍 Code audit (Codex) — security, bugs and speed
+
+The whole plugin and the new administrator were reviewed by Codex, file by file; every finding was checked against the code before it was fixed.
+
+**Security and privacy**
+- **An ordinary logged-in member can no longer start an index check with POST requests to Gridbox.** The update of the index right after a change is for people who may change Gridbox content, and a row of saves is one check (at most every 5 seconds); what is skipped is found by the next check.
+- Live results kept for a few minutes no longer show a product past its end of publishing: the moment a page is published or expires changes the cache of the results.
+- The daily search counts are bounded like the search log (150 000 rows), so a robot typing endless phrases cannot grow the table.
+- The e-mail report goes to the Super Users that may still administer the site and receive system e-mails; before, it also went to those who had switched system e-mails off when nobody else was left.
+
+**Bugs**
+- Conversions: the searches are counted for the same days as the clicks and carts (the click rate was diluted by the older searches of the phrase), and a click or a cart belongs to the same day, in the time zone of the site, as the search.
+- A settings file with a switch turned off (`false`) is imported.
+- Google Search Console: the import replaces the old queries only when the new ones are in (all or nothing; figures too big for the columns are cut instead of failing the import), the same query typed in two ways is added up, and *Days* fetches that many days (it was one more).
+- The search field module works with a results page address without SEF (`index.php?option=…`): the form keeps the address's parameters.
+- *Update the index in the layout check*: when more pages changed their layout than one check indexes, the rest is no longer left for the next day.
+- A search for a standard with a value (`EN 61557 1000 V`) keeps the standard in the words searched, so products without it are no longer listed.
+- Words that InnoDB's full-text index ignores (`about`, …) are found in descriptions; a category left out *without its subcategories* leaves out the products that have it as an additional category too; a text with a literal “<” (`<50 V`) is indexed whole; the list of tags and categories of a product no longer gets cut by the server's `group_concat_max_len`; a redirect to another site no longer makes a local product with the same alias a “replacement”.
+- Thumbnails: the memory needed to turn a picture is checked before it is made, a path with a NUL character is refused instead of breaking the search, pictures of a site in a subfolder get a right address, and mirrored phone photos (EXIF 2, 4, 5, 7) are made upright — the lighter copies already made stay until the original changes or *Remove small images* is used.
+- Live results (script): a slow answer can no longer replace the results of a newer phrase or open a panel that was closed; the microphone stops when the panel is closed, Escape on a phone does not open the search again, a phrase can be tried again after a failed request, picking a suggestion is not overwritten by the search of the text typed before it, and the browser keeps answers for a minute only (and apart for each currency); the cookie that links a cart to the search stays under the size limit.
+- Settings pickers: products beyond the first 30 000 are found, the titles of the saved ones are asked for in batches, an Enter on a closed list picks nothing, and the preview of the results page can shrink again.
+- “Did you mean” suggestions have their own ids (screen readers).
+
+**Speed**
+- The results of a page no longer run an unused query; the options of a product field are read once per request; the redirects are scanned once per request.
+
 ## 1.7.1 — 2026-10-20
 
 ### 🐞 Fixes

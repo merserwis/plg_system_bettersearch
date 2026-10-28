@@ -30,6 +30,8 @@ use Joomla\CMS\Log\Log;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\Mail\MailHelper;
 use Joomla\CMS\Plugin\CMSPlugin;
+use Joomla\CMS\Plugin\PluginHelper;
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Database\DatabaseInterface;
@@ -48,7 +50,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.7.1';
+    public const VERSION = '1.8.0';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -66,6 +68,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     /** Days of searches per day kept (the e-mail report compares two periods of up to a month). */
     private const DAILY_DAYS = 400;
+
+    /** the most rows of the daily search counts (the rarest, oldest ones go first) */
+    private const DAILY_ROWS = 150000;
 
     /** Hour (site time) from which a due e-mail report is sent. */
     private const REPORT_HOUR = 7;
@@ -179,6 +184,30 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         });
     }
 
+    /**
+     * The settings are on the pages of Better Search (Components → Better Search for Gridbox): opening the
+     * plugin in Joomla's plugin manager goes to its control panel. Not inside a modal window, and not when
+     * the component is missing or off, or the administrator may edit plugins but not open the component:
+     * then the plugin's own form, which holds every setting, opens as before.
+     */
+    private function settingsPage(): void
+    {
+        $input = $this->getApplication()->getInput();
+        if ($input->getCmd('option') !== 'com_plugins' || $input->getMethod() !== 'GET' || $input->getCmd('tmpl') === 'component'
+            || !($input->getCmd('task') === 'plugin.edit' || ($input->getCmd('view') === 'plugin' && $input->getCmd('layout') === 'edit'))) {
+            return;
+        }
+        $own  = PluginHelper::getPlugin('system', 'bettersearch');
+        $user = $this->getApplication()->getIdentity();
+        if (!\is_object($own) || (int) ($own->id ?? 0) !== $input->getInt('extension_id') || !ComponentHelper::isEnabled('com_bettersearch')) {
+            return;
+        }
+        if (!$user || !$user->authorise('core.manage', 'com_bettersearch') || !$user->authorise('core.manage', 'com_plugins')) {
+            return;
+        }
+        $this->getApplication()->redirect(Route::_('index.php?option=com_bettersearch', false));
+    }
+
     // ================================================================ site: results page
 
     public function onAfterRoute(): void
@@ -191,11 +220,17 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($input->getCmd('option') === 'com_gridbox' && $input->getMethod() === 'POST') {
             $user = $app->getIdentity();
             $task = strtolower($input->getCmd('task', ''));
-            if ($user && !$user->guest && !str_starts_with($task, 'store.') && !str_starts_with($task, 'account.')) {
+            // only people who may change Gridbox content: any other member's POST must not start a scan of the whole index
+            if ($user && !$user->guest && !str_starts_with($task, 'store.') && !str_starts_with($task, 'account.')
+                && ($user->authorise('core.edit', 'com_gridbox') || $user->authorise('core.create', 'com_gridbox') || $user->authorise('core.edit.own', 'com_gridbox')
+                    || $user->authorise('core.edit.state', 'com_gridbox') || $user->authorise('core.delete', 'com_gridbox'))) {
                 $this->reindexDue = true;
             }
         }
 
+        if ($app->isClient('administrator')) {
+            $this->settingsPage();
+        }
         if (!$app->isClient('site')) {
             return;
         }
@@ -417,7 +452,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                         . ' WHERE cart_id = ' . (int) $cart . ' AND product_id = ' . $id)->loadResult();
                     if ($has) {
                         $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_carts') . ' (cart_id, item_id, query, day) VALUES (' . (int) $cart . ', ' . $id . ', '
-                            . $db->quote($q) . ', ' . $db->quote(gmdate('Y-m-d')) . ') ON DUPLICATE KEY UPDATE query = VALUES(query), day = VALUES(day)')->execute();
+                            . $db->quote($q) . ', ' . $db->quote(self::siteDay()) . ') ON DUPLICATE KEY UPDATE query = VALUES(query), day = VALUES(day)')->execute();
 
                         return;
                     }
@@ -431,13 +466,19 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         });
     }
 
+    /** Today in the time zone of the site: the day of a search, a click and a cart are the same one (as in the report). */
+    private static function siteDay(): string
+    {
+        return (new \DateTime('now', self::siteZone()))->format('Y-m-d');
+    }
+
     /** kind: 1 = click, 2 = cart. One row per day, query, product and kind (counted up). */
     private function recordEvent(string $q, int $id, int $kind): void
     {
         try {
             $db = $this->db();
             $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_events') . ' (day, query, item_id, kind, hits) VALUES ('
-                . $db->quote(gmdate('Y-m-d')) . ', ' . $db->quote($q) . ', ' . $id . ', ' . $kind . ', 1) ON DUPLICATE KEY UPDATE hits = hits + 1')->execute();
+                . $db->quote(self::siteDay()) . ', ' . $db->quote($q) . ', ' . $id . ', ' . $kind . ', 1) ON DUPLICATE KEY UPDATE hits = hits + 1')->execute();
             // now and then: a year of history, at most EVENT_ROWS rows
             if (random_int(1, 100) === 1) {
                 $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_events') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - 366 * 86400)))->execute();
@@ -1323,7 +1364,19 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             . 'font-size:' . max(10, min(30, (int) $params->get('font_size', 15))) . 'px;color:' . $color('color', '#1f2328') . '}'
             . '#' . $id . ' button{border:0;background:transparent;height:100%;padding:0 14px;cursor:pointer;color:' . $color('button_color', $color('color', '#1f2328')) . ';display:flex;align-items:center}';
 
-        $html = '<style>' . $css . '</style><div class="bettersearch-box" id="' . $id . '"><form class="bettersearch-form" role="search" method="get" action="' . $esc($this->resultsUrl()) . '">'
+        // a GET form replaces the query string of its action: the parameters of an address without SEF (index.php?option=…) go in hidden fields
+        $action = $this->resultsUrl();
+        $hidden = '';
+        if (($pos = strpos($action, '?')) !== false) {
+            parse_str((string) substr($action, $pos + 1), $routing);
+            $action = substr($action, 0, $pos);
+            foreach ($routing as $name => $value) {
+                if (is_string($value) && $name !== 'query') {
+                    $hidden .= '<input type="hidden" name="' . $esc($name) . '" value="' . $esc($value) . '">';
+                }
+            }
+        }
+        $html = '<style>' . $css . '</style><div class="bettersearch-box" id="' . $id . '"><form class="bettersearch-form" role="search" method="get" action="' . $esc($action) . '">' . $hidden
             . '<input class="bettersearch-input" type="search" name="query" autocomplete="off" placeholder="' . $esc($ph) . '" aria-label="' . $esc($ph) . '">'
             . ($button ? '<button type="submit" aria-label="' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_SEARCH')) . '"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">'
                 . '<path fill="currentColor" d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.4-1.42 1.4-5.39-5.38A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg></button>' : '')
@@ -1397,6 +1450,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'resultsUrl' => trim((string) $p->get('results_url', '')),
             'fallbackUrl' => $this->resultsUrl(),
             'minChars'   => max(1, (int) $p->get('live_min_chars', 2)),
+            // the browser keeps answers as long as the server does, but for a minute at most (0: the setting "cache time" is off)
+            'cacheTtl'   => max(0, min(1440, (int) $p->get('cache_time', 15))) > 0 ? min(60, max(0, min(1440, (int) $p->get('cache_time', 15))) * 60) : 0,
             'debounce'   => max(0, min(2000, (int) $p->get('live_debounce', 220))),
             'widthMode'  => (string) $p->get('live_width_mode', 'wide'),
             'width'      => max(200, (int) $p->get('live_width', 640)),
@@ -1567,6 +1622,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
 
         return [
+            // the list stops at 30000: the picker then asks the server for what it does not hold
+            'truncated' => \count($rows) >= 30000,
             'items' => array_map(fn ($r) => [(int) $r[0], (string) $r[1], (string) $r[4], (int) $r[3], (int) $r[2]], $rows),
             'apps'  => array_map(fn ($id) => $this->store()->appTitle($id), array_combine(array_keys($apps), array_keys($apps))),
         ];
@@ -1609,7 +1666,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             return ['error' => Text::_('PLG_SYSTEM_BETTERSEARCH_SETTINGS_ERR_FILE')];
         }
         $names = $this->settingNames();
-        $clean = function ($value, int $depth) use (&$clean) {
+        // "refused" is a marker of its own: false is a good value of a setting (a switch turned off)
+        $refused = new \stdClass();
+        $clean   = function ($value, int $depth) use (&$clean, $refused) {
             if (is_scalar($value) || $value === null) {
                 return is_string($value) ? mb_substr($value, 0, 200000) : $value;
             }
@@ -1618,7 +1677,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 foreach ($value as $k => $v) {
                     if (is_int($k) || preg_match('/^[A-Za-z0-9_\-]{1,64}$/', (string) $k)) {
                         $c = $clean($v, $depth + 1);
-                        if ($c !== false) {
+                        if ($c !== $refused) {
                             $out[$k] = $c;
                         }
                     }
@@ -1627,11 +1686,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 return $out;
             }
 
-            return false;
+            return $refused;
         };
         $imported = [];
         foreach ($file['params'] as $key => $value) {
-            if (isset($names[$key]) && ($v = $clean($value, 0)) !== false) {
+            if (isset($names[$key]) && ($v = $clean($value, 0)) !== $refused) {
                 $imported[$key] = $v;
             }
         }
@@ -1752,15 +1811,18 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         try {
             $db   = $this->db();
             $rows = $db->setQuery($db->createQuery()
-                ->select(['u.email', 'u.sendEmail'])
+                ->select(['u.id', 'u.email', 'u.sendEmail'])
                 ->from($db->quoteName('#__users', 'u'))
                 ->innerJoin($db->quoteName('#__user_usergroup_map', 'm') . ' ON m.user_id = u.id')
                 ->where('m.group_id = 8')
-                ->where('u.block = 0'))->loadObjectList() ?: [];
-            $all  = array_values(array_unique(array_filter(array_map(fn ($r) => (string) $r->email, $rows), [MailHelper::class, 'isEmailAddress'])));
-            $want = array_values(array_unique(array_filter(array_map(fn ($r) => (int) $r->sendEmail === 1 ? (string) $r->email : '', $rows), [MailHelper::class, 'isEmailAddress'])));
+                ->where('u.block = 0')
+                ->where('u.sendEmail = 1'))->loadObjectList() ?: [];
+            // the group of the Super Users by number, but only those who still may administer the site (the rights can be moved to another group)
+            $users = Factory::getContainer()->get(\Joomla\CMS\User\UserFactoryInterface::class);
+            $rows  = array_filter($rows, fn ($r) => $users->loadUserById((int) $r->id)->authorise('core.admin'));
 
-            return $want ?: $all;
+            // only those who receive system e-mails: whoever switched them off does not get the report either
+            return array_values(array_unique(array_filter(array_map(fn ($r) => (string) $r->email, $rows), [MailHelper::class, 'isEmailAddress'])));
         } catch (\Throwable $e) {
             return [];
         }
@@ -2245,7 +2307,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
             $days     = max(7, min(480, (int) $this->params->get('gsc_days', 28)));
             $response = $http->post('https://www.googleapis.com/webmasters/v3/sites/' . rawurlencode($property) . '/searchAnalytics/query',
-                json_encode(['startDate' => gmdate('Y-m-d', $now - ($days + 2) * 86400), 'endDate' => gmdate('Y-m-d', $now - 2 * 86400),
+                json_encode(['startDate' => gmdate('Y-m-d', $now - ($days + 1) * 86400), 'endDate' => gmdate('Y-m-d', $now - 2 * 86400),
                     'dimensions' => ['query'], 'rowLimit' => 5000]),
                 ['Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json'], 30);
             if ($response->code !== 200) {
@@ -2296,24 +2358,33 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     /** @param array<int, array{0: string, 1: int, 2: int, 3: float}> $rows query, clicks, impressions, position */
     private function gscStore(array $rows, string $source): array
     {
-        $db = $this->db();
-        $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_gsc'))->execute();
+        $db     = $this->db();
         $now    = $db->quote(gmdate('Y-m-d H:i:s'));
         $values = [];
-        $seen   = [];
         foreach (array_slice($rows, 0, 5000) as [$q, $clicks, $impressions, $position]) {
             $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $q) ?? ''), 'UTF-8'), 0, 190);
-            if ($q === '' || isset($seen[$q]) || preg_match('/[\x00-\x1F]/', $q)) {
+            if ($q === '' || preg_match('/[\x00-\x1F]/', $q)) {
                 continue;
             }
-            $seen[$q] = true;
-            $values[] = '(' . $db->quote($q) . ', ' . max(0, $clicks) . ', ' . max(0, $impressions) . ', ' . round(max(0, $position), 2) . ', ' . $now . ')';
+            // within the columns (int, decimal(8,2)): a figure too big for them must not fail the insert after the old rows are gone
+            $values[] = '(' . $db->quote($q) . ', ' . min(2147483647, max(0, $clicks)) . ', ' . min(2147483647, max(0, $impressions)) . ', '
+                . round(min(999999.99, max(0, $position)), 2) . ', ' . $now . ')';
         }
-        foreach (array_chunk($values, 500) as $chunk) {
-            // the table compares text without accents ("pętli" = "petli"): such queries are added up
-            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_gsc') . ' (query, clicks, impressions, position, updated_at) VALUES ' . implode(', ', $chunk)
-                . ' ON DUPLICATE KEY UPDATE position = IF(impressions + VALUES(impressions) > 0, (position * impressions + VALUES(position) * VALUES(impressions)) / (impressions + VALUES(impressions)), position),'
-                . ' clicks = clicks + VALUES(clicks), impressions = impressions + VALUES(impressions)')->execute();
+        // all or nothing: the old rows are replaced only when the new ones are in; the same query twice (after the lower-casing) is added up
+        $db->transactionStart();
+        try {
+            $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_gsc'))->execute();
+            foreach (array_chunk($values, 500) as $chunk) {
+                // the table compares text without accents ("pętli" = "petli"): such queries are added up
+                $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_gsc') . ' (query, clicks, impressions, position, updated_at) VALUES ' . implode(', ', $chunk)
+                    . ' ON DUPLICATE KEY UPDATE position = IF(impressions + VALUES(impressions) > 0, (position * impressions + VALUES(position) * VALUES(impressions)) / (impressions + VALUES(impressions)), position),'
+                    . ' clicks = clicks + VALUES(clicks), impressions = impressions + VALUES(impressions)')->execute();
+            }
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            throw $e;
         }
 
         $saved = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_gsc'))->loadResult();
@@ -2386,8 +2457,14 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             }
             @ignore_user_abort(true);
             $indexer = $this->indexer();
-            $before  = $indexer->state('version', '0');
-            $result  = $indexer->sync(max(10, (int) $this->params->get('sync_budget', 300)));
+            // at most every few seconds (a row of saves is one scan); what was skipped is found by the next check
+            if (!$indexer->claim('instant_at', 5)) {
+                $indexer->setState('checked_at', '0');
+
+                return;
+            }
+            $before = $indexer->state('version', '0');
+            $result = $indexer->sync(max(10, (int) $this->params->get('sync_budget', 300)));
             if ($result['remaining'] > 0) {
                 // the rest with the next check
                 $indexer->setState('checked_at', '0');
@@ -2497,6 +2574,24 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $event->setArgument('modules', $modules);
     }
 
+    /**
+     * The saved settings with the values of the form laid over them: a page of the administrator holds
+     * only some of the settings, so the rest (the theme for the preview, the keys for the report) are
+     * the saved ones.
+     */
+    private function withForm(array $posted): Registry
+    {
+        $params = array_replace($this->params->toArray(), $posted);
+        // lists and subforms the form shows empty send nothing: they are empty, not as saved (the script names them)
+        foreach (preg_split('/,/', (string) $this->getApplication()->getInput()->post->getString('bs_empty', ''), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $key) {
+            if (preg_match('/^[a-z0-9_]{1,64}$/', $key)) {
+                unset($params[$key]);
+            }
+        }
+
+        return new Registry($params);
+    }
+
     private function adminTask(string $task): array
     {
         $app  = $this->getApplication();
@@ -2512,12 +2607,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
         if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview', 'report_info', 'theme_css'], true)) {
-            $this->params = new Registry($form['params']);
+            $this->params = $this->withForm($form['params']);
         }
 
         switch ($task) {
             case 'status':
-                return $this->status($input->getInt('fresh', 0) === 1);
+                return $this->status($input->getInt('fresh', 0) === 1, null, $input->getInt('light', 0) === 1);
 
             case 'sync':
                 $force  = $input->getInt('force', 0) === 1;
@@ -2622,7 +2717,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                     return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
                 }
                 if (is_array($form) && isset($form['params']) && is_array($form['params'])) {
-                    $this->params = new Registry($form['params']);
+                    $this->params = $this->withForm($form['params']);
                 }
                 $this->ensureTables();
                 $period = $this->customPeriod(trim($input->getString('from', '')), trim($input->getString('to', '')));
@@ -2638,7 +2733,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 }
                 // the key and address in the form (also unsaved) are used
                 if (is_array($form) && isset($form['params']) && is_array($form['params'])) {
-                    $this->params = new Registry($form['params']);
+                    $this->params = $this->withForm($form['params']);
                 }
                 $this->ensureTables();
 
@@ -2748,7 +2843,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
      * check (every sync keeps them) and computes them anew only when asked ($fresh: the "Count now"
      * link), or when there are none yet. A sync passes its own result ($sync) instead.
      */
-    private function status(bool $fresh = false, ?array $sync = null): array
+    private function status(bool $fresh = false, ?array $sync = null, bool $light = false): array
     {
         $db      = $this->db();
         $indexer = $this->indexer();
@@ -2806,9 +2901,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'configOk'   => $config,
             'checked'    => $last ? gmdate('Y-m-d H:i:s', $last) . ' UTC' : '—',
             'complete'   => $done ? gmdate('Y-m-d H:i:s', $done) . ' UTC' : '—',
-            'apps'       => array_map(fn ($id) => ['id' => $id, 'title' => $this->store()->appTitle($id)], $indexer->appIds()),
-            'groups'     => $this->groupStatus($indexer->appIds()),
-            'errors'     => $this->logTail(8),
+            // the control panel asks for the figures only (light): no queries per app, no log
+            'apps'       => $light ? [] : array_map(fn ($id) => ['id' => $id, 'title' => $this->store()->appTitle($id)], $indexer->appIds()),
+            'groups'     => $light ? [] : $this->groupStatus($indexer->appIds()),
+            'errors'     => $light ? [] : $this->logTail(8),
             'version'    => self::VERSION,
         ];
     }
@@ -2896,10 +2992,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private function conversions(int $days): array
     {
         $db    = $this->db();
-        $since = $db->quote(gmdate('Y-m-d', time() - $days * 86400));
+        $since = $db->quote((new \DateTime('now', self::siteZone()))->modify('-' . $days . ' days')->format('Y-m-d'));
+        // the searches of the same days as the clicks and carts (the daily counts), so a rate is not diluted by older searches
         $rows  = $db->setQuery('SELECT e.query, SUM(CASE WHEN e.kind = 1 THEN e.hits ELSE 0 END) AS clicks, SUM(CASE WHEN e.kind = 2 THEN e.hits ELSE 0 END) AS carts,'
-            . ' MAX(l.searches) AS searches FROM ' . $db->quoteName('#__bettersearch_events', 'e')
-            . ' LEFT JOIN ' . $db->quoteName('#__bettersearch_log', 'l') . ' ON l.query = e.query'
+            . ' (SELECT IFNULL(SUM(d.searches), 0) FROM ' . $db->quoteName('#__bettersearch_daily', 'd') . ' WHERE d.query = e.query AND d.day >= ' . $since . ') AS searches'
+            . ' FROM ' . $db->quoteName('#__bettersearch_events', 'e')
             . ' WHERE e.day >= ' . $since . ' GROUP BY e.query ORDER BY carts DESC, clicks DESC LIMIT 100')->loadAssocList() ?: [];
         $items = $db->setQuery('SELECT item_id, SUM(CASE WHEN kind = 1 THEN hits ELSE 0 END) AS clicks, SUM(CASE WHEN kind = 2 THEN hits ELSE 0 END) AS carts FROM '
             . $db->quoteName('#__bettersearch_events') . ' WHERE day >= ' . $since . ' GROUP BY item_id ORDER BY carts DESC, clicks DESC LIMIT 30')->loadAssocList() ?: [];
@@ -2912,7 +3009,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             . $db->quoteName('#__bettersearch_events') . ' WHERE day >= ' . $since)->loadAssoc() ?: [];
 
         return ['days' => $days, 'queries' => $rows, 'items' => $items, 'clicks' => (int) ($totals['clicks'] ?? 0), 'carts' => (int) ($totals['carts'] ?? 0),
-            'searches' => (int) $db->setQuery('SELECT IFNULL(SUM(searches), 0) FROM ' . $db->quoteName('#__bettersearch_log') . ' WHERE last_at >= ' . $since)->loadResult()];
+            'searches' => (int) $db->setQuery('SELECT IFNULL(SUM(searches), 0) FROM ' . $db->quoteName('#__bettersearch_daily') . ' WHERE day >= ' . $since)->loadResult()];
     }
 
     private function logSearch(string $query, int $results): void
@@ -2953,6 +3050,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 . $db->quote($q) . ', 1, ' . $results . ') ON DUPLICATE KEY UPDATE searches = searches + 1, results = VALUES(results)')->execute();
             if (random_int(1, 200) === 1) {
                 $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_daily') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - self::DAILY_DAYS * 86400)))->execute();
+                $over = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_daily'))->loadResult() - self::DAILY_ROWS;
+                if ($over > 0) {
+                    $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_daily') . ' ORDER BY searches ASC, day ASC LIMIT ' . $over)->execute();
+                }
             }
         } catch (\Throwable $e) {
             // the table of an older installation: created for the next search

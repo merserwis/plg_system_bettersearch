@@ -180,8 +180,10 @@ final class Params
         $unit = self::unitPattern($isQuery);
 
         // numbers of standards are no values: "PN-EN 62446 do 1000 V" is a test up to 1000 V, not 62446…1000 V
+        $standards = [];
         if (preg_match_all(self::STANDARD, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($all as $m) {
+                $standards[] = $m[0];
                 $blank($m);
             }
         }
@@ -243,6 +245,15 @@ final class Params
                     $params[] = self::param($u['dim'], $alts[0][0], $alts[0][1], $m[0][0], $alts);
                 }
                 $blank($m);
+            }
+        }
+
+        // a standard in a query is still a word to search for ("EN 61557 1000 V"): only the values were read around it
+        if ($isQuery) {
+            foreach ($standards as [$designation, $offset]) {
+                if (trim(substr($rest, $offset, strlen($designation))) === '') {
+                    $rest = substr_replace($rest, $designation, $offset, strlen($designation));
+                }
             }
         }
 
