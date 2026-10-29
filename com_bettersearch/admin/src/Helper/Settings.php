@@ -225,21 +225,20 @@ final class Settings
         }
     }
 
-    /** the names of the settings of a form (not those inside a subform, not the hidden context of the other pages) */
+    /**
+     * The names of the settings of a form: the fields of its fieldsets, not those inside a list of rows, not the hidden
+     * context of the other pages. Form::getGroup() also returns the fields of a subform (the rows of the search rules
+     * have "enabled", "match", "boost"…): a field of a later page named like one of those would be set back to its
+     * default by every save of the rules page.
+     */
     public static function fieldNames(Form $form): array
     {
-        $context = [];
-        foreach ($form->getFieldset('_context') as $field) {
-            $context[(string) $field->fieldname] = true;
-        }
         $out = [];
-        foreach ($form->getGroup('params') as $field) {
-            if (!isset($context[(string) $field->fieldname])) {
-                $out[] = (string) $field->fieldname;
-            }
+        foreach ($form->getXml()->xpath('//fields[@name="params"]/fieldset[not(@name="_context")]/field[@name]') ?: [] as $field) {
+            $out[] = (string) $field['name'];
         }
 
-        return $out;
+        return array_values(array_unique($out));
     }
 
     /**

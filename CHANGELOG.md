@@ -2,6 +2,12 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.8.2 — 2026-10-29
+
+### 🐞 Fixes
+
+- **Saving the search rules page counts only its own settings.** Joomla lists the fields inside the lists of rows (*enabled*, *match*, *boost*…) together with the settings of the page, and the save set every listed setting that was not sent back to its default. No setting has such a name today, so nothing was lost; a setting of another page named like a field of the rows would have been reset by every save of the rules.
+
 ## 1.8.1 — 2026-10-28
 
 ### 🌍 The administrator in Czech, German, French and Dutch
