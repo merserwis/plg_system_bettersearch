@@ -52,6 +52,22 @@ class BstoolsField extends FormField
                 . '<div class="bs-suite-out" aria-live="polite"></div></section></div>';
         }
 
+        if ((string) $this->element['mode'] === 'improve') {
+            $days = fn (array $list, int $chosen, string $cls) => '<select class="form-select form-select-sm ' . $cls . '" style="max-width:8rem;display:inline-block">'
+                . implode('', array_map(fn ($d) => '<option value="' . $d . '"' . ($d === $chosen ? ' selected' : '') . '>' . $d . '</option>', $list)) . '</select>';
+
+            return '<div class="bs-tools bs-improve">'
+                . '<section class="bs-tools-card"><h3>' . $t('NOCLICK') . '</h3><p class="small text-muted">' . $t('NOCLICK_DESC') . '</p>'
+                . '<p class="bs-tools-buttons"><label class="small">' . $t('DAYS') . ' ' . $days([7, 30, 90, 365], 30, 'bs-noclick-days') . '</label> '
+                . '<label class="small">' . $t('MIN_SEARCHES') . ' ' . $days([3, 5, 10, 20], 5, 'bs-noclick-min') . '</label> '
+                . '<button type="button" class="btn btn-secondary btn-sm" data-bs-improve="noclicks">' . $t('STATS_LOAD') . '</button></p>'
+                . '<div class="bs-noclick-out"></div></section>'
+                . '<section class="bs-tools-card"><h3>' . $t('PAIRS') . '</h3><p class="small text-muted">' . $t('PAIRS_DESC') . '</p>'
+                . '<p class="bs-tools-buttons"><label class="small">' . $t('DAYS') . ' ' . $days([30, 90, 365], 90, 'bs-pairs-days') . '</label> '
+                . '<button type="button" class="btn btn-secondary btn-sm" data-bs-improve="pairs">' . $t('STATS_LOAD') . '</button></p>'
+                . '<div class="bs-pairs-out"></div></section></div>';
+        }
+
         if ((string) $this->element['mode'] === 'gsc') {
             return '<div class="bs-tools"><section class="bs-tools-card"><h3>' . $t('GSC') . '</h3><p class="small text-muted">' . $t('GSC_DESC') . '</p>'
                 . '<div class="bs-gsc-status small"></div>'

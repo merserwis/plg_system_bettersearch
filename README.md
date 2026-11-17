@@ -37,6 +37,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Synonym and redirect editors (new in 1.4.0):** a table editor for the synonym dictionary (two-way groups or one-way “also finds”) and for **redirects** — a phrase (written in any way) that opens a chosen page, e.g. a brand page, instead of the results; the live results show it as the first option. Both can still be edited as text.
 * **Suggestions (new in 1.4.0):** popular searches that start like the typed text above the live results, and **“Did you mean…”** when nothing is found — from what other shoppers searched successfully.
 * **Filters beside the results (new in 1.4.0):** brand (any Gridbox list field), price from–to in the visitor's currency (current price after sales), *sale only*, *in stock only* — with counts, as a sidebar (folded on phones) or above the results; plain links and a GET form, works without JavaScript.
+* **To improve (new in 1.9.0):** phrases with results but no clicks — shoppers saw products and opened none — with a button to pin the right product, and **synonym suggestions** from shoppers who reworded a search without results and then found what they looked for (kept only in the shopper's browser tab, nothing personal).
 * **Conversions (new in 1.4.0):** clicks on results and products put into the cart after such a click, per query and per product, with click and cart rates (a first-party cookie links the cart to the query; no personal data).
 * **Google Search Console (new in 1.4.0):** the queries people use on Google, fetched daily with a service account or imported from a CSV export, next to what this search finds for them — queries with no results here first, with the same synonym and redirect buttons.
 * **Instant reindex (new in 1.4.0):** saving, publishing or trashing a page or product in Gridbox updates the index right after that request.
@@ -95,7 +96,7 @@ Everything is under **Components → Better Search for Gridbox** (the plugin's o
 | **Search Engine** | Test console · Relevance tests · Matching (typos, word endings, partial matches, ignored words) · Ranking weights · Synonyms and redirects. |
 | **Rules** | Pinned and hidden products, boosts, exclusions. |
 | **Live Results** · **Results Page** · **Appearance** | What they show, how they look and move, with the live preview of unsaved changes; themes and the editors. |
-| **Statistics** | Search statistics and conversions · Collecting · E-mail report · Google Search Console. |
+| **Statistics** | Search statistics and conversions · To improve (results but no clicks, synonym suggestions) · Collecting · E-mail report · Google Search Console. |
 | **Products** (with a store) | Badges, availability and delivery time, add-to-cart and quote buttons. |
 | **Configuration** | *Voice search*, *SEO*, *Texts & images*, *Settings file*, *General* — one page, a vertical tab each. |
 
@@ -528,6 +529,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Phrases in the report | `20` |  |
 | Phrases without results | Yes |  |
 | Clicks and cart additions | Yes |  |
+| Phrases with results but no clicks | Yes | Phrases searched at least 3 times in the period that found products, but whose results were opened in fewer than 1 search in 10. Needs the conversion statistics. |
 | Orders placed on the site | Yes | The number and cart value of the store orders placed on the site in the period, the list of these orders and which of them hold products put into the cart from the search results. Orders are put down to the search from the update to 1.6.11 on. |
 
 ### Google Search Console

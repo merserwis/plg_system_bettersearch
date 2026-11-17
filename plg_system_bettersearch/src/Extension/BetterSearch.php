@@ -77,6 +77,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     /** Default words left out of queries (Polish and English connectors). */
     /** The default list of ignored words up to 1.6.6; a site that still has it gets the built-in list of its language. */
+    /** Rows of the phrase pairs (searched without results → searched and clicked) kept at most. */
+    private const PAIR_ROWS = 50000;
+
+    /** A phrase with results is "without clicks" below this share of clicks per search. */
+    private const NOCLICK_RATE = 0.1;
+
     /** Relevance tests searched per request (each up to twice: with the settings of the form and the saved ones). */
     private const SUITE_BATCH = 10;
 
@@ -396,7 +402,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private function trackClick(): array
     {
         $input = $this->getApplication()->getInput();
-        $q     = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $input->post->get('q', '', 'raw')) ?? ''), 'UTF-8'), 0, 120);
+        $q     = self::statQuery((string) $input->post->get('q', '', 'raw'));
         $id    = $input->post->getInt('id', 0);
         if (!$this->params->get('track_conversions', 1) || $input->getMethod() !== 'POST' || $id <= 0 || $q === '' || !$this->sameOriginRequest() || $this->noStats()) {
             return ['ok' => false];
@@ -408,7 +414,48 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
         $this->recordEvent($q, $id, 1);
 
+        // the phrase searched just before without results (kept only in the visitor's browser tab): the
+        // shopper wrote it differently and found it — a synonym the shop may want
+        $prev = self::statQuery((string) $input->post->get('prev', '', 'raw'));
+        if ($prev !== '' && $prev !== $q) {
+            $this->recordPair($prev, $q);
+        }
+
         return ['ok' => true];
+    }
+
+    /** A phrase as the statistics keep it: lower case, single spaces, at most 120 characters. */
+    private static function statQuery(string $query): string
+    {
+        return mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8'), 0, 120);
+    }
+
+    /**
+     * "Searched $from, found nothing, then searched $to and opened a result": counted per day. Only a
+     * phrase the statistics know as one without results is taken, so a request cannot fill the table
+     * with any text it likes.
+     */
+    private function recordPair(string $from, string $to): void
+    {
+        try {
+            $db   = $this->db();
+            $zero = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_log') . ' WHERE query = ' . $db->quote($from) . ' AND results = 0')->loadResult();
+            if (!$zero) {
+                return;
+            }
+            $this->ensureTables();
+            $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_pairs') . ' (day, from_q, to_q, hits) VALUES (' . $db->quote(self::siteDay()) . ', '
+                . $db->quote($from) . ', ' . $db->quote($to) . ', 1) ON DUPLICATE KEY UPDATE hits = hits + 1')->execute();
+            // now and then: a year of history, at most PAIR_ROWS rows
+            if (random_int(1, 100) === 1) {
+                $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_pairs') . ' WHERE day < ' . $db->quote(gmdate('Y-m-d', time() - 366 * 86400)))->execute();
+                $over = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__bettersearch_pairs'))->loadResult() - self::PAIR_ROWS;
+                if ($over > 0) {
+                    $db->setQuery('DELETE FROM ' . $db->quoteName('#__bettersearch_pairs') . ' ORDER BY day ASC LIMIT ' . $over)->execute();
+                }
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     /**
@@ -2013,6 +2060,15 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $zero = $this->params->get('report_zero', 1) ? ($db->setQuery('SELECT query, SUM(searches) AS searches FROM ' . $daily . $range($from, $to)
             . ' AND results = 0 GROUP BY query ORDER BY searches DESC, query ASC LIMIT ' . min(25, $limit))->loadAssocList() ?: []) : [];
 
+        // phrases with results that nobody clicked (only with clicks counted at all)
+        $noClick = [];
+        if ($this->params->get('report_noclick', 1) && $this->params->get('track_conversions', 1)) {
+            try {
+                $noClick = $this->noClickRows($from, $to, 3, min(15, $limit));
+            } catch (\Throwable $e) {
+            }
+        }
+
         $conv = ['clicks' => 0, 'carts' => 0];
         $convTop = [];
         if ($this->params->get('report_conversions', 1)) {
@@ -2088,6 +2144,18 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                     . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_SEARCHES')) . '</th></tr>';
                 foreach ($zero as $row) {
                     $html .= '<tr><td ' . $td . '>' . $esc($row['query']) . '</td><td ' . $tdr . '>' . $n($row['searches']) . '</td></tr>';
+                }
+                $html .= '</table>';
+            }
+
+            if ($noClick) {
+                $html .= '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_NOCLICK_TOP')) . '</h2><p style="margin:0 0 8px;color:#6b7280;font-size:13px">'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_NOCLICK_HINT')) . '</p><table style="width:100%;border-collapse:collapse"><tr><th ' . $th . '>'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_SEARCHES')) . '</th><th ' . $th . '>'
+                    . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_RESULTS')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_CLICKS')) . '</th></tr>';
+                foreach ($noClick as $row) {
+                    $html .= '<tr><td ' . $td . '>' . $esc($row['query']) . '</td><td ' . $tdr . '>' . $n($row['searches']) . '</td><td ' . $tdr . '>' . $n($row['results'])
+                        . '</td><td ' . $tdr . '>' . $n($row['clicks']) . '</td></tr>';
                 }
                 $html .= '</table>';
             }
@@ -2734,6 +2802,23 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
                 return $this->conversions(max(1, min(366, $input->getInt('days', 30))));
 
+            case 'noclicks':
+                $this->ensureTables();
+
+                return $this->noClicks(max(1, min(366, $input->getInt('days', 30))), max(1, min(1000, $input->getInt('min', 5))));
+
+            case 'pairs':
+                $this->ensureTables();
+
+                return $this->pairs(max(1, min(366, $input->getInt('days', 90))));
+
+            case 'pairs_reject':
+                if ($input->getMethod() !== 'POST') {
+                    return ['error' => 'POST'];
+                }
+
+                return $this->rejectPair((string) $input->post->get('from', '', 'raw'), (string) $input->post->get('to', '', 'raw'));
+
             case 'products_all':
                 return $this->allProducts($input->getCmd('scope', 'products'));
 
@@ -3182,13 +3267,145 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'searches' => (int) $db->setQuery('SELECT IFNULL(SUM(searches), 0) FROM ' . $db->quoteName('#__bettersearch_daily') . ' WHERE day >= ' . $since)->loadResult()];
     }
 
+    /**
+     * Phrases searched on the results page that found products, but whose products were (almost) never
+     * opened: the shoppers saw results and none was what they looked for. Clicks in the live results
+     * count too. Sorted by the searches left without a click.
+     *
+     * @param string $to the day after the period
+     *
+     * @return list<array{query: string, searches: int, results: int, clicks: int}>
+     */
+    private function noClickRows(string $from, string $to, int $min, int $limit): array
+    {
+        $db    = $this->db();
+        $range = ' AND day >= ' . $db->quote($from) . ' AND day < ' . $db->quote($to);
+        // the result count of the latest day a phrase was searched
+        $rows  = $db->setQuery('SELECT query, SUM(searches) AS searches, CAST(SUBSTRING_INDEX(GROUP_CONCAT(results ORDER BY day DESC), \',\', 1) AS SIGNED) AS results FROM '
+            . $db->quoteName('#__bettersearch_daily') . ' WHERE results > 0' . $range . ' GROUP BY query HAVING searches >= ' . max(1, $min)
+            . ' ORDER BY searches DESC, query ASC LIMIT 500')->loadAssocList() ?: [];
+        if (!$rows) {
+            return [];
+        }
+        $clicks = [];
+        $list   = implode(',', array_map(fn ($r) => $db->quote((string) $r['query']), $rows));
+        foreach ($db->setQuery('SELECT query, SUM(hits) FROM ' . $db->quoteName('#__bettersearch_events') . ' WHERE kind = 1' . $range
+            . ' AND query IN (' . $list . ') GROUP BY query')->loadRowList() ?: [] as [$q, $c]) {
+            $clicks[mb_strtolower((string) $q)] = (int) $c;
+        }
+        $out = [];
+        foreach ($rows as $row) {
+            $searches = (int) $row['searches'];
+            $clicked  = $clicks[mb_strtolower((string) $row['query'])] ?? 0;
+            if ($clicked < $searches * self::NOCLICK_RATE) {
+                $out[] = ['query' => (string) $row['query'], 'searches' => $searches, 'results' => (int) $row['results'], 'clicks' => $clicked];
+            }
+        }
+        usort($out, fn ($a, $b) => ($b['searches'] - $b['clicks']) <=> ($a['searches'] - $a['clicks']) ?: strcmp($a['query'], $b['query']));
+
+        return array_slice($out, 0, $limit);
+    }
+
+    /** The phrases without clicks of the last days (Statistics → To improve). */
+    private function noClicks(int $days, int $min): array
+    {
+        $today = new \DateTimeImmutable('now', self::siteZone());
+        $rows  = $this->noClickRows($today->modify('-' . ($days - 1) . ' days')->format('Y-m-d'), $today->modify('+1 day')->format('Y-m-d'), $min, 100);
+
+        return ['rows' => $rows, 'tracking' => (bool) $this->params->get('track_conversions', 1), 'days' => $days, 'min' => $min];
+    }
+
+    /**
+     * Synonym suggestions: a phrase searched without results, then another one whose result was opened
+     * (in the same browser tab, within minutes). Shown when it happened on two days or three times, the
+     * first phrase still finds nothing (as last searched), the dictionaries do not name it yet and it was
+     * not rejected.
+     */
+    private function pairs(int $days): array
+    {
+        $db    = $this->db();
+        $since = $db->quote((new \DateTimeImmutable('now', self::siteZone()))->modify('-' . ($days - 1) . ' days')->format('Y-m-d'));
+        $rows  = $db->setQuery('SELECT from_q, to_q, SUM(hits) AS hits, COUNT(DISTINCT day) AS days, MAX(day) AS last FROM ' . $db->quoteName('#__bettersearch_pairs')
+            . ' WHERE day >= ' . $since . ' GROUP BY from_q, to_q HAVING days >= 2 OR hits >= 3 ORDER BY hits DESC, last DESC LIMIT 300')->loadAssocList() ?: [];
+
+        $out = [];
+        if ($rows) {
+            $rejected = array_flip(json_decode((string) $this->indexer()->state('pairs_rejected', '[]'), true) ?: []);
+            $named    = $this->dictionaryPhrases();
+            $list     = implode(',', array_map(fn ($q) => $db->quote($q), array_unique(array_column($rows, 'from_q'))));
+            $log      = [];
+            foreach ($db->setQuery('SELECT query, searches, results FROM ' . $db->quoteName('#__bettersearch_log') . ' WHERE query IN (' . $list . ')')->loadAssocList() ?: [] as $l) {
+                $log[mb_strtolower((string) $l['query'])] = $l;
+            }
+            $norm = $this->normalizer();
+            foreach ($rows as $row) {
+                $from = (string) $row['from_q'];
+                $seen = $log[mb_strtolower($from)] ?? null;
+                if (isset($rejected[$from . "\t" . $row['to_q']]) || isset($named[$norm->compact($from)]) || ($seen && (int) $seen['results'] !== 0)) {
+                    continue;
+                }
+                $out[] = ['from' => $from, 'to' => (string) $row['to_q'], 'hits' => (int) $row['hits'], 'days' => (int) $row['days'],
+                    'last' => (string) $row['last'], 'searches' => $seen ? (int) $seen['searches'] : 0];
+                if (count($out) >= 100) {
+                    break;
+                }
+            }
+        }
+
+        return ['rows' => $out, 'tracking' => (bool) $this->params->get('track_conversions', 1), 'days' => $days];
+    }
+
+    /** Phrases the synonyms and redirects already name (compact form). */
+    private function dictionaryPhrases(): array
+    {
+        $norm  = $this->normalizer();
+        $named = [];
+        foreach (preg_split('/\R/u', (string) $this->params->get('synonyms', '')) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#') {
+                continue;
+            }
+            // "a, b" names both; "a => b" names a (b is what it finds)
+            $left = str_contains($line, '=>') ? strstr($line, '=>', true) : $line;
+            foreach (explode(',', (string) $left) as $phrase) {
+                $named[$norm->compact(trim($phrase))] = true;
+            }
+        }
+        foreach (preg_split('/\R/u', (string) $this->params->get('redirects', '')) ?: [] as $line) {
+            $line = trim($line);
+            if ($line !== '' && $line[0] !== '#' && str_contains($line, '=>')) {
+                foreach (explode(',', (string) strstr($line, '=>', true)) as $phrase) {
+                    $named[$norm->compact(trim($phrase))] = true;
+                }
+            }
+        }
+        unset($named['']);
+
+        return $named;
+    }
+
+    /** A suggestion the administrator does not want: not shown again (the last 1000 are kept). */
+    private function rejectPair(string $from, string $to): array
+    {
+        $from = self::statQuery($from);
+        $to   = self::statQuery($to);
+        if ($from === '' || $to === '') {
+            return ['error' => 'empty'];
+        }
+        $list   = json_decode((string) $this->indexer()->state('pairs_rejected', '[]'), true) ?: [];
+        $list[] = $from . "\t" . $to;
+        $this->indexer()->setState('pairs_rejected', (string) json_encode(array_slice(array_values(array_unique($list)), -1000), JSON_UNESCAPED_UNICODE));
+
+        return ['ok' => true];
+    }
+
     private function logSearch(string $query, int $results): void
     {
         if ($this->noStats()) {
             return;
         }
         $results = max(-1, $results);
-        $q = mb_substr(mb_strtolower(trim(preg_replace('/\s+/u', ' ', $query) ?? ''), 'UTF-8'), 0, 120);
+        $q = self::statQuery($query);
         // statistics are for what shoppers type: not for noise, very long strings or unfilled URL templates
         if ($q === '' || Searcher::isPlaceholder($q) || preg_match('/[\x00-\x1F]/', $q) || mb_strlen($this->normalizer()->compact($q)) < 2 || substr_count($q, ' ') > 9) {
             return;

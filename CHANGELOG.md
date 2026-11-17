@@ -7,10 +7,13 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 ### ✨ New
 
 - **Relevance tests** (Search engine → *Relevance tests*): the searches that must keep working, each with the products it must find among the first N results — or must not find; without products, a query that must find something or must find nothing. *Run the tests* searches each query as a guest with the settings of the page, also before they are saved, and — when they differ from the saved ones — also with the saved settings: every test shows its result, the positions of its products (before → now) and the first results, and the summary counts the tests that got worse or better. A test is added in the table or with **+ Test** beside a result of the test console (the query, the product and its present position). Up to 200 tests, run 10 per request. The tests change no search: saving them keeps the caches.
+- **Results, but no clicks** (Statistics → *To improve*): the phrases searched on the results page that found products, but whose results were opened in fewer than 1 search in 10 (clicks in the live results count too), the most searches without a click first — with **Pin a product** (a new rule for the phrase on the page *Rules*, the product picker ready), *Synonym*, *Redirect* and the test console. The same list in the e-mail report (*Phrases with results but no clicks*, on by default, needs the conversion statistics).
+- **Synonym suggestions** (Statistics → *To improve*): a shopper searched a phrase that found nothing and, within 3 minutes, opened a result of another phrase — on two days or three times, while the first phrase still finds nothing and is in no synonym or redirect. **Synonym** adds the one-way synonym (`first => second`) to the dictionary of the search engine, *Reject* hides the suggestion for good. The phrase without results is kept only in the shopper's browser tab (`sessionStorage`, no cookie, nothing personal); the pairs are counted per day in a new table, a year at most, without staff and bots.
 - **Candidate limit shown:** the test console and the relevance tests say when a query reached *Maximum candidates per query*, so products beyond it were not scored.
 
 ### 🐞 Fixes
 
+- **Messages of the tools on pages opened from a link** (a line for the dictionaries, a new rule): Joomla's message script is now always loaded, and a message waits for it while the page is still loading.
 - **Emptied lists of rows in the previews and the test console:** a list of rows (rules, boosts) emptied in the form but not saved yet was taken as saved by the live preview and the test console — Joomla 6 names the list in the attribute `name`, not `data-base-name`.
 
 ## 1.8.2 — 2026-10-29

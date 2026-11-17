@@ -80,3 +80,12 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_carts` (
   PRIMARY KEY (`cart_id`, `item_id`),
   KEY `idx_day` (`day`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `#__bettersearch_pairs` (
+  `day` date NOT NULL,
+  `from_q` varchar(120) NOT NULL,
+  `to_q` varchar(120) NOT NULL,
+  `hits` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`day`, `from_q`, `to_q`),
+  KEY `idx_from` (`from_q`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;

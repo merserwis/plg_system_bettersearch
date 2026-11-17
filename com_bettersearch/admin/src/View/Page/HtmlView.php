@@ -77,6 +77,7 @@ class HtmlView extends BaseHtmlView
             $this->getDocument()->addScriptOptions('plg_system_bettersearch', ['urls' => [
                 'test' => Route::_('index.php?option=com_bettersearch&view=page&page=engine&tab=engine_test', false),
                 'dict' => Route::_('index.php?option=com_bettersearch&view=page&page=engine&tab=synonyms', false),
+                'rules' => Route::_('index.php?option=com_bettersearch&view=page&page=rules', false),
             ]]);
         }
 

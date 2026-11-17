@@ -618,7 +618,7 @@ CSS;
         $this->query = (string) $q;
         $total = $result['total'];
         $center = $this->str('page_align', 'left', ['left', 'center']) === 'center' ? ' bsr-center' : '';
-        $html  = '<div class="bettersearch-results' . $center . '" id="' . $id . '" data-query="' . $esc($q) . '">';
+        $html  = '<div class="bettersearch-results' . $center . '" id="' . $id . '" data-query="' . $esc($q) . '" data-total="' . (int) $total . '">';
 
         $heading = $this->str('page_heading', 'gridbox', ['gridbox', 'custom', 'none']);
         if ($heading === 'custom' && $q !== '') {

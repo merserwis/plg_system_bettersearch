@@ -665,6 +665,9 @@
             <fieldset name="stats_overview" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_STATS_OVERVIEW" page="stats">
                 <field name="stats_tools" type="bstools" mode="stats" label="" parentclass="stack bs-tools-wrap" />
             </fieldset>
+            <fieldset name="stats_improve" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_STATS_IMPROVE" page="stats">
+                <field name="improve_tools" type="bstools" mode="improve" label="" parentclass="stack bs-tools-wrap" />
+            </fieldset>
             <fieldset name="stats_settings" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_STATS_SETTINGS" page="stats">
                 <field name="log_searches" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_LOG_LABEL" description="PLG_SYSTEM_BETTERSEARCH_LOG_DESC">
                     <option value="0">JNO</option>
@@ -700,6 +703,10 @@
                     <option value="1">JYES</option>
                 </field>
                 <field name="report_conversions" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_CONVERSIONS_LABEL">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="report_noclick" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" showon="track_conversions:1" label="PLG_SYSTEM_BETTERSEARCH_REPORT_NOCLICK_LABEL" description="PLG_SYSTEM_BETTERSEARCH_REPORT_NOCLICK_DESC">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>

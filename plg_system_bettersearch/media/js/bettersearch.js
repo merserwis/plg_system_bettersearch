@@ -1059,6 +1059,19 @@
      * remembered in a first-party cookie (product id => query, nothing personal) so that putting
      * it into the cart later is counted for the same query.
      */
+    var MISS_KEY = 'bettersearch-miss';
+
+    /** The phrase searched last without results in this tab, if it was minutes ago (read once). */
+    function takeMiss() {
+        try {
+            var miss = JSON.parse(window.sessionStorage.getItem(MISS_KEY) || 'null');
+            window.sessionStorage.removeItem(MISS_KEY);
+            return miss && miss.q && Date.now() - miss.t < 180000 ? String(miss.q).slice(0, 120) : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     function clicked(link, q) {
         var id = link && (link.getAttribute('data-bs-id') || (link.closest && link.closest('[data-bs-id]') && link.closest('[data-bs-id]').getAttribute('data-bs-id')));
         q = String(q || '').trim();
@@ -1069,6 +1082,10 @@
             var body = new FormData();
             body.append('q', q);
             body.append('id', id);
+            var miss = takeMiss();
+            if (miss && miss.toLowerCase() !== q.toLowerCase()) {
+                body.append('prev', miss);
+            }
             if (navigator.sendBeacon) {
                 navigator.sendBeacon(cfg.ajax + '&task=track', body);
             } else {
@@ -1194,6 +1211,15 @@
         var page = document.querySelector('.bettersearch-results[data-query]');
         if (page) {
             remember(page.getAttribute('data-query'));
+            // a search that found nothing: kept in this browser tab for a few minutes, so a result opened
+            // after another wording names both (synonym suggestions in the administrator)
+            if (cfg.track && page.getAttribute('data-total') === '0' && page.getAttribute('data-query')) {
+                try {
+                    window.sessionStorage.setItem(MISS_KEY, JSON.stringify({ q: page.getAttribute('data-query'), t: Date.now() }));
+                } catch (e) {
+                    // storage refused: no suggestion, nothing else changes
+                }
+            }
         }
     })();
 

@@ -20,6 +20,22 @@
     // tasks that change something are sent as POST; the others as GET
     var WRITES = { sync: 1, clearlog: 1, clearthumbs: 1, clearcache: 1, gsc_import: 1, report_send: 1 };
 
+    // a Joomla message; called while the page is still loading (from the address), it waits for Joomla's message script
+    function say(kind, text) {
+        var m = {};
+        m[kind] = [text];
+        var go = function () {
+            if (window.Joomla && typeof Joomla.renderMessages === 'function') {
+                Joomla.renderMessages(m);
+                return true;
+            }
+            return false;
+        };
+        if (!go() && document.readyState !== 'complete') {
+            window.addEventListener('load', go, { once: true });
+        }
+    }
+
     function fmt(text, values) {
         var i = 0;
         return String(text || '').replace(/%[sd]/g, function () {
@@ -474,20 +490,26 @@
         if (!answer || !answer.trim()) {
             return;
         }
-        var detail = syn
+        addDictLine(syn
             ? { mode: 'synonyms', left: q + ', ' + answer.trim() }
-            : { mode: 'redirects', left: q, url: answer.trim() };
-        // the dictionaries are on another page of the administrator than the statistics: the line is carried
-        // there in the address and added to the editor, to be saved with the page
+            : { mode: 'redirects', left: q, url: answer.trim() }, (syn || red).closest('tr'));
+    });
+
+    // a line for the synonyms or redirects ({mode, left, right (one-way synonym) | url}); the dictionaries are on
+    // another page of the administrator than the statistics: the line is then carried there in the address and
+    // added to the editor, to be saved with the page
+    function addDictLine(detail, row) {
         var urls = (opts && opts.urls) || {};
         if (!document.querySelector('[data-bs-dict]') && urls.dict) {
             window.location.href = urls.dict + '&bs_add=' + encodeURIComponent(JSON.stringify(detail));
             return;
         }
         document.dispatchEvent(new CustomEvent('bs-dict-add', { detail: detail }));
-        (syn || red).closest('tr').classList.add('table-success');
+        if (row) {
+            row.classList.add('table-success');
+        }
         Joomla.renderMessages({ message: [T.TOOLS_DICT_ADDED] });
-    });
+    }
 
     function initDict(root) {
         var mode = root.getAttribute('data-bs-dict');
@@ -633,7 +655,7 @@
                 return;
             }
             parse();
-            rows.unshift(mode === 'redirects' ? { left: d.left, url: d.url, label: '' } : { left: d.left, oneway: false, right: '' });
+            rows.unshift(mode === 'redirects' ? { left: d.left, url: d.url, label: '' } : { left: d.left, oneway: !!d.right, right: d.right || '' });
             write();
             if (!asText) {
                 draw();
@@ -1383,6 +1405,156 @@
         });
     });
 
+    // ================================================================ to improve (Statistics)
+
+    // a query tried in the test console: on this page (another tab) or on the page of the search engine
+    function tryInConsole(q) {
+        var box = document.querySelector('.bs-test-q');
+        var go = box && box.closest('.bs-tools').querySelector('[data-bs-tool="test"]');
+        if (go) {
+            showTab(box);
+            box.value = q;
+            go.click();
+            box.scrollIntoView({ block: 'center' });
+            return;
+        }
+        var testUrl = ((opts && opts.urls) || {}).test;
+        if (testUrl) {
+            window.location.href = testUrl + '&q=' + encodeURIComponent(q);
+        }
+    }
+
+    // a new pinning rule for a phrase, products to be chosen: on this page or on the page of the rules
+    function addRule(q) {
+        var sub = document.querySelector('joomla-field-subform[name$="[rules]"]');
+        if (!sub) {
+            var urls = (opts && opts.urls) || {};
+            if (urls.rules) {
+                window.location.href = urls.rules + '&bs_rule=' + encodeURIComponent(q);
+            }
+            return;
+        }
+        if (!sub.addRow && window.customElements) {
+            // from the address the page is not ready yet: Joomla defines the subform element after this script
+            window.customElements.whenDefined('joomla-field-subform').then(function () {
+                addRule(q);
+            });
+            return;
+        }
+        var row = sub.addRow ? sub.addRow() : null;
+        if (!row) {
+            return;
+        }
+        // a row added from the address comes before the pickers listen for new rows
+        initPickers(row);
+        var input = row.querySelector('[name$="[queries]"]');
+        if (input) {
+            input.value = q;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        showTab(row);
+        row.scrollIntoView({ block: 'center' });
+        var pick = row.querySelector('.bs-picker-input');
+        if (pick) {
+            pick.focus();
+        }
+        say('message', fmt(T.TOOLS_RULE_ADDED, [q]));
+    }
+
+    function initImprove(root) {
+        var noclickOut = root.querySelector('.bs-noclick-out');
+        var pairsOut = root.querySelector('.bs-pairs-out');
+        var pct = function (a, b) {
+            return b > 0 ? (Math.round(a / b * 1000) / 10) + ' %' : '–';
+        };
+        var tryLink = function (q) {
+            return '<a href="#" data-bs-improve-try="' + esc(q) + '">' + esc(q) + '</a>';
+        };
+
+        function noclicks() {
+            noclickOut.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+            call('noclicks', { days: root.querySelector('.bs-noclick-days').value, min: root.querySelector('.bs-noclick-min').value }).then(function (r) {
+                if (!r.tracking) {
+                    noclickOut.innerHTML = '<p class="text-warning-emphasis">' + esc(T.TOOLS_NO_TRACKING) + '</p>';
+                    return;
+                }
+                if (!r.rows.length) {
+                    noclickOut.innerHTML = '<p class="text-muted">' + esc(T.TOOLS_NOCLICK_EMPTY) + '</p>';
+                    return;
+                }
+                noclickOut.innerHTML = '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_CONV_QUERY)
+                    + '</th><th class="bs-num">' + esc(T.TOOLS_SEARCHES) + '</th><th class="bs-num">' + esc(T.TOOLS_RESULTS_COL) + '</th><th class="bs-num">' + esc(T.TOOLS_CONV_CLICKS)
+                    + '</th><th class="bs-num">' + esc(T.TOOLS_CONV_CTR) + '</th><th></th></tr></thead><tbody>'
+                    + r.rows.map(function (row) {
+                        return '<tr><td>' + tryLink(row.query) + '</td><td class="bs-num">' + row.searches + '</td><td class="bs-num">' + row.results + '</td><td class="bs-num">'
+                            + row.clicks + '</td><td class="bs-num">' + pct(row.clicks, row.searches) + '</td><td class="bs-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-bs-pin="'
+                            + esc(row.query) + '" title="' + esc(T.TOOLS_PIN_HINT) + '">' + esc(T.TOOLS_PIN) + '</button> ' + actionButtons(row.query) + '</td></tr>';
+                    }).join('') + '</tbody></table></div>';
+            }).catch(function (e) {
+                noclickOut.innerHTML = '<p class="text-danger">' + esc(e.message) + '</p>';
+            });
+        }
+
+        function pairs() {
+            pairsOut.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+            call('pairs', { days: root.querySelector('.bs-pairs-days').value }).then(function (r) {
+                if (!r.tracking) {
+                    pairsOut.innerHTML = '<p class="text-warning-emphasis">' + esc(T.TOOLS_NO_TRACKING) + '</p>';
+                    return;
+                }
+                if (!r.rows.length) {
+                    pairsOut.innerHTML = '<p class="text-muted">' + esc(T.TOOLS_PAIRS_EMPTY) + '</p>';
+                    return;
+                }
+                pairsOut.innerHTML = '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_PAIR_FROM)
+                    + '</th><th>' + esc(T.TOOLS_PAIR_TO) + '</th><th class="bs-num">' + esc(T.TOOLS_PAIR_TIMES) + '</th><th class="bs-num">' + esc(T.TOOLS_LAST) + '</th><th></th></tr></thead><tbody>'
+                    + r.rows.map(function (row) {
+                        return '<tr><td>' + tryLink(row.from) + (row.searches ? ' <small class="text-muted">(' + esc(fmt(T.TOOLS_PAIR_SEARCHED, [row.searches])) + ')</small>' : '')
+                            + '</td><td>' + tryLink(row.to) + '</td><td class="bs-num">' + row.hits + ' <small class="text-muted">(' + esc(fmt(T.TOOLS_PAIR_DAYS, [row.days])) + ')</small></td><td class="bs-num"><small>'
+                            + esc(row.last) + '</small></td><td class="bs-actions">'
+                            + '<button type="button" class="btn btn-sm btn-outline-primary" data-bs-pairsyn="' + esc(row.from) + '" data-to="' + esc(row.to) + '" title="'
+                            + esc(fmt(T.TOOLS_PAIR_SYNONYM_HINT, [row.from, row.to])) + '">' + esc(T.TOOLS_PAIR_SYNONYM) + '</button> '
+                            + '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-addred="' + esc(row.from) + '">' + esc(T.TOOLS_ADD_REDIRECT) + '</button> '
+                            + '<button type="button" class="btn btn-sm btn-outline-danger" data-bs-pairno="' + esc(row.from) + '" data-to="' + esc(row.to) + '">'
+                            + esc(T.TOOLS_PAIR_REJECT) + '</button></td></tr>';
+                    }).join('') + '</tbody></table></div>';
+            }).catch(function (e) {
+                pairsOut.innerHTML = '<p class="text-danger">' + esc(e.message) + '</p>';
+            });
+        }
+
+        root.addEventListener('click', function (e) {
+            var t = e.target.closest('[data-bs-improve], [data-bs-improve-try], [data-bs-pin], [data-bs-pairsyn], [data-bs-pairno]');
+            if (!t) {
+                return;
+            }
+            e.preventDefault();
+            if (t.hasAttribute('data-bs-improve')) {
+                (t.getAttribute('data-bs-improve') === 'pairs' ? pairs : noclicks)();
+            } else if (t.hasAttribute('data-bs-improve-try')) {
+                tryInConsole(t.getAttribute('data-bs-improve-try'));
+            } else if (t.hasAttribute('data-bs-pin')) {
+                addRule(t.getAttribute('data-bs-pin'));
+            } else if (t.hasAttribute('data-bs-pairsyn')) {
+                // one way: the phrase without results also finds what the shopper found with the other one
+                addDictLine({ mode: 'synonyms', left: t.getAttribute('data-bs-pairsyn'), right: t.dataset.to }, t.closest('tr'));
+            } else {
+                var tr = t.closest('tr');
+                t.disabled = true;
+                call('pairs_reject', { _post: { from: t.getAttribute('data-bs-pairno'), to: t.dataset.to } }).then(function () {
+                    tr.remove();
+                    Joomla.renderMessages({ message: [T.TOOLS_PAIR_REJECTED] });
+                }).catch(function (err) {
+                    t.disabled = false;
+                    Joomla.renderMessages({ error: [err.message] });
+                });
+            }
+        });
+
+        noclicks();
+        pairs();
+    }
+
     // ================================================================ relevance tests
 
     // the subform of the tests on this page (Search engine), or null
@@ -1568,11 +1740,15 @@
                 var detail = JSON.parse(add);
                 if (detail && (detail.mode === 'synonyms' || detail.mode === 'redirects')) {
                     document.dispatchEvent(new CustomEvent('bs-dict-add', { detail: detail }));
-                    Joomla.renderMessages({ message: [T.TOOLS_DICT_ADDED] });
+                    say('message', T.TOOLS_DICT_ADDED);
                 }
             } catch (err) {
                 // not ours
             }
+        }
+        var rule = params.get('bs_rule');
+        if (rule) {
+            addRule(rule.slice(0, 200));
         }
         var q = params.get('q');
         var box = document.querySelector('.bs-test-q');
@@ -1595,6 +1771,8 @@
                 initGsc(root);
             } else if (root.querySelector('.bs-suite-out')) {
                 initSuite(root);
+            } else if (root.classList.contains('bs-improve')) {
+                initImprove(root);
             } else {
                 initTools(root);
             }

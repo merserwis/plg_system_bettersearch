@@ -5,3 +5,4 @@ DROP TABLE IF EXISTS `#__bettersearch_events`;
 DROP TABLE IF EXISTS `#__bettersearch_gsc`;
 DROP TABLE IF EXISTS `#__bettersearch_daily`;
 DROP TABLE IF EXISTS `#__bettersearch_carts`;
+DROP TABLE IF EXISTS `#__bettersearch_pairs`;

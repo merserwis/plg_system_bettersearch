@@ -27,6 +27,8 @@ final class Admin
         self::$done = true;
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
         $v  = fn (string $file) => \Merserwis\Plugin\System\BetterSearch\Extension\BetterSearch::VERSION . '-' . (int) @filemtime(JPATH_ROOT . '/' . $file);
+        // Joomla.renderMessages (the tools report what they did)
+        $wa->useScript('messages');
         $wa->registerAndUseStyle('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/css/admin.css', ['version' => $v('media/plg_system_bettersearch/css/admin.css')]);
         $wa->registerAndUseScript('plg_system_bettersearch.admin', 'media/plg_system_bettersearch/js/admin.js', ['version' => $v('media/plg_system_bettersearch/js/admin.js')], ['defer' => true]);
         $wa->registerAndUseScript('plg_system_bettersearch.preview', 'media/plg_system_bettersearch/js/preview.js', ['version' => $v('media/plg_system_bettersearch/js/preview.js')], ['defer' => true]);
@@ -44,7 +46,10 @@ final class Admin
             'TOOLS_SUITE_RUNNING', 'TOOLS_SUITE_COMPARED', 'TOOLS_SUITE_SAME', 'TOOLS_SUITE_QUERY', 'TOOLS_SUITE_EXPECTED', 'TOOLS_SUITE_FOUND',
             'TOOLS_SUITE_FIRST', 'TOOLS_SUITE_RESULT', 'TOOLS_SUITE_TOP_N', 'TOOLS_SUITE_ANYWHERE', 'TOOLS_SUITE_NOT_TOP_N', 'TOOLS_SUITE_NOT_ANY',
             'TOOLS_SUITE_SOME', 'TOOLS_SUITE_NOTHING', 'TOOLS_SUITE_TOTAL', 'TOOLS_SUITE_LIMIT', 'TOOLS_SUITE_CONSOLE', 'TOOLS_SUITE_PASS',
-            'TOOLS_SUITE_FAIL', 'TOOLS_SUITE_WORSE', 'TOOLS_SUITE_BETTER'];
+            'TOOLS_SUITE_FAIL', 'TOOLS_SUITE_WORSE', 'TOOLS_SUITE_BETTER',
+            'TOOLS_NO_TRACKING', 'TOOLS_NOCLICK_EMPTY', 'TOOLS_PAIRS_EMPTY', 'TOOLS_PIN', 'TOOLS_PIN_HINT', 'TOOLS_RULE_ADDED', 'TOOLS_PAIR_FROM',
+            'TOOLS_PAIR_TO', 'TOOLS_PAIR_TIMES', 'TOOLS_PAIR_SEARCHED', 'TOOLS_PAIR_DAYS', 'TOOLS_PAIR_SYNONYM', 'TOOLS_PAIR_SYNONYM_HINT',
+            'TOOLS_PAIR_REJECT', 'TOOLS_PAIR_REJECTED'];
         $texts = [];
         foreach ($keys as $k) {
             $texts[$k] = Text::_('PLG_SYSTEM_BETTERSEARCH_' . $k);
