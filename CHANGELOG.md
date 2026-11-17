@@ -2,7 +2,7 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
-## 1.9.0 — not released yet
+## 1.9.0 — 2026-11-17
 
 ### ✨ New
 
@@ -15,6 +15,10 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 
 - **Messages of the tools on pages opened from a link** (a line for the dictionaries, a new rule): Joomla's message script is now always loaded, and a message waits for it while the page is still loading.
 - **Emptied lists of rows in the previews and the test console:** a list of rows (rules, boosts) emptied in the form but not saved yet was taken as saved by the live preview and the test console — Joomla 6 names the list in the attribute `name`, not `data-base-name`.
+
+### 🔧 Under the hood
+
+- **The list of changes in Joomla's updates:** *Extensions: Update* (the version offered) and *Extensions: Manage* (the version installed) show a **Changelog** button with the short list of changes of the version — for a fix version also those of the versions of its line before it — and links to its full list on GitHub (`changelog.xml`, made from this file by `tools/changelog_xml.py`; `<changelogurl>` in the package and in every entry of `update.xml`).
 
 ## 1.8.2 — 2026-10-29
 

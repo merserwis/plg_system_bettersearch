@@ -2,11 +2,33 @@
 <updates>
     <update>
         <name>Better Search for Gridbox</name>
+        <description>Better Search for Gridbox 1.9.0: relevance tests (saved searches with the products they must find, run before saving); Statistics - To improve: phrases with results but no clicks and synonym suggestions from reworded searches; a Changelog button with the short list of changes in Joomla's updates. All changes: https://github.com/merserwis/plg_system_bettersearch/blob/main/CHANGELOG.md</description>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <client>site</client>
+        <version>1.9.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
+        <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
+        <downloads>
+            <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.9.0/pkg_bettersearch-1.9.0.zip</downloadurl>
+        </downloads>
+        <sha256>8387213c79be3fee7a529f759a952fdbada1d9f6739e59d2a65745a8140ee34a</sha256>
+        <tags>
+            <tag>stable</tag>
+        </tags>
+        <maintainer>Merserwis</maintainer>
+        <maintainerurl>https://github.com/merserwis/</maintainerurl>
+        <targetplatform name="joomla" version="6\..*"/>
+        <php_minimum>8.2</php_minimum>
+    </update>
+    <update>
+        <name>Better Search for Gridbox</name>
         <description>Better Search for Gridbox — live results and results page for Gridbox stores from an own index; model codes match however they are typed.</description>
         <element>pkg_bettersearch</element>
         <type>package</type>
         <client>site</client>
         <version>1.8.2</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.8.2/pkg_bettersearch-1.8.2.zip</downloadurl>
@@ -27,6 +49,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.8.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.8.1/pkg_bettersearch-1.8.1.zip</downloadurl>
@@ -47,6 +70,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.8.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.8.0/pkg_bettersearch-1.8.0.zip</downloadurl>
@@ -67,6 +91,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.7.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.7.1/pkg_bettersearch-1.7.1.zip</downloadurl>
@@ -87,6 +112,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.7.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.7.0/pkg_bettersearch-1.7.0.zip</downloadurl>
@@ -107,6 +133,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.11</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.11/pkg_bettersearch-1.6.11.zip</downloadurl>
@@ -127,6 +154,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.10</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.10/pkg_bettersearch-1.6.10.zip</downloadurl>
@@ -147,6 +175,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.9</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.9/pkg_bettersearch-1.6.9.zip</downloadurl>
@@ -167,6 +196,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.8</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.8/pkg_bettersearch-1.6.8.zip</downloadurl>
@@ -187,6 +217,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.7</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.7/pkg_bettersearch-1.6.7.zip</downloadurl>
@@ -207,6 +238,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.6</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.6/pkg_bettersearch-1.6.6.zip</downloadurl>
@@ -227,6 +259,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.5</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.5/pkg_bettersearch-1.6.5.zip</downloadurl>
@@ -247,6 +280,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.4</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.4/pkg_bettersearch-1.6.4.zip</downloadurl>
@@ -267,6 +301,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.3</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.3/pkg_bettersearch-1.6.3.zip</downloadurl>
@@ -287,6 +322,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.2</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.2/pkg_bettersearch-1.6.2.zip</downloadurl>
@@ -307,6 +343,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.1/pkg_bettersearch-1.6.1.zip</downloadurl>
@@ -327,6 +364,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.6.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.6.0/pkg_bettersearch-1.6.0.zip</downloadurl>
@@ -347,6 +385,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.5.3</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.5.3/pkg_bettersearch-1.5.3.zip</downloadurl>
@@ -367,6 +406,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.5.2</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.5.2/pkg_bettersearch-1.5.2.zip</downloadurl>
@@ -387,6 +427,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.5.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.5.1/pkg_bettersearch-1.5.1.zip</downloadurl>
@@ -407,6 +448,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.5.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.5.0/pkg_bettersearch-1.5.0.zip</downloadurl>
@@ -427,6 +469,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.4.3</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.4.3/pkg_bettersearch-1.4.3.zip</downloadurl>
@@ -447,6 +490,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.4.2</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.4.2/pkg_bettersearch-1.4.2.zip</downloadurl>
@@ -467,6 +511,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.4.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.4.1/pkg_bettersearch-1.4.1.zip</downloadurl>
@@ -487,6 +532,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.4.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.4.0/pkg_bettersearch-1.4.0.zip</downloadurl>
@@ -507,6 +553,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.3.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.3.1/pkg_bettersearch-1.3.1.zip</downloadurl>
@@ -527,6 +574,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.3.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.3.0/pkg_bettersearch-1.3.0.zip</downloadurl>
@@ -547,6 +595,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.2.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.2.0/pkg_bettersearch-1.2.0.zip</downloadurl>
@@ -567,6 +616,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.1.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.1.0/pkg_bettersearch-1.1.0.zip</downloadurl>
@@ -587,6 +637,7 @@
         <type>package</type>
         <client>site</client>
         <version>1.0.0</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
         <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
         <downloads>
             <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.0.0/pkg_bettersearch-1.0.0.zip</downloadurl>

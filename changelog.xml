@@ -1,0 +1,781 @@
+<?xml version="1.0" encoding="utf-8"?>
+<changelogs>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.9.0</version>
+        <fix>
+            <item>Messages of the tools on pages opened from a link</item>
+            <item>Emptied lists of rows in the previews and the test console</item>
+        </fix>
+        <addition>
+            <item>Relevance tests</item>
+            <item>Results, but no clicks</item>
+            <item>Synonym suggestions</item>
+            <item>Candidate limit shown</item>
+        </addition>
+        <change>
+            <item>The list of changes in Joomla's updates</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.9.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.9.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.8.2</version>
+        <security>
+            <item>1.8.1: Click counts accept only requests from the site itself</item>
+        </security>
+        <fix>
+            <item>Saving the search rules page counts only its own settings</item>
+            <item>1.8.1: The administrator in Czech, German, French and Dutch</item>
+            <item>1.8.1: The message after installing or updating showed a raw key</item>
+        </fix>
+        <addition>
+            <item>1.8.0: An administrator of its own, like Admin Tools</item>
+            <item>1.8.0: Check your site after every change</item>
+            <item>1.8.0: Code audit (Codex): security, bugs and speed</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.8.2" target="_blank" rel="noopener noreferrer">The full list of changes of 1.8.2 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.8.1</version>
+        <security>
+            <item>Click counts accept only requests from the site itself</item>
+        </security>
+        <fix>
+            <item>The administrator in Czech, German, French and Dutch</item>
+            <item>The message after installing or updating showed a raw key</item>
+        </fix>
+        <addition>
+            <item>1.8.0: An administrator of its own, like Admin Tools</item>
+            <item>1.8.0: Check your site after every change</item>
+            <item>1.8.0: Code audit (Codex): security, bugs and speed</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.8.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.8.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.8.0</version>
+        <addition>
+            <item>An administrator of its own, like Admin Tools</item>
+            <item>Check your site after every change</item>
+            <item>Code audit (Codex): security, bugs and speed</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.8.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.8.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.7.1</version>
+        <fix>
+            <item>Live results showed only 3 products although "Products shown" was 8</item>
+            <item>1.7.0: Thousands of pages waiting for indexing after a small change</item>
+            <item>1.7.0: Prices and stock without reindexing</item>
+        </fix>
+        <addition>
+            <item>1.7.0: Voice search</item>
+            <item>1.7.0: On all devices or on mobile devices only</item>
+            <item>1.7.0: After speaking</item>
+            <item>1.7.0: Language of speech</item>
+            <item>1.7.0: The speech recognition of the browser is used (Chrome, Edge, Safari, Samsung Internet)</item>
+            <item>1.7.0: The microphone in the Permissions-Policy header</item>
+            <item>1.7.0: The microphone sits before the Gridbox magnifier when it is on the same side and the...</item>
+            <item>1.7.0: Number of pages waiting on the "Update index" button</item>
+            <item>1.7.0: Why pages wait</item>
+        </addition>
+        <change>
+            <item>1.7.0: No reindex after the update: the pages that were up to date with the signatures of the...</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.7.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.7.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.7.0</version>
+        <fix>
+            <item>Thousands of pages waiting for indexing after a small change</item>
+            <item>Prices and stock without reindexing</item>
+        </fix>
+        <addition>
+            <item>Voice search</item>
+            <item>On all devices or on mobile devices only</item>
+            <item>After speaking</item>
+            <item>Language of speech</item>
+            <item>The speech recognition of the browser is used (Chrome, Edge, Safari, Samsung Internet)</item>
+            <item>The microphone in the Permissions-Policy header</item>
+            <item>The microphone sits before the Gridbox magnifier when it is on the same side and the...</item>
+            <item>Number of pages waiting on the "Update index" button</item>
+            <item>Why pages wait</item>
+        </addition>
+        <change>
+            <item>No reindex after the update: the pages that were up to date with the signatures of the...</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.7.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.7.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.11</version>
+        <fix>
+            <item>Uninstalling the plugin also removes its table of searches per day...</item>
+            <item>1.6.9: "{searchterms}" in the search report</item>
+            <item>1.6.8: Lighter Tools tab</item>
+            <item>1.6.7: Word endings and ignored words in every language</item>
+            <item>1.6.6: Languages</item>
+            <item>1.6.6: Tools -> Report: the label in front of the recipients said "To" (in German "Bis"): one...</item>
+            <item>1.6.5: Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>Orders placed on the site in the e-mail report</item>
+            <item>Below the tiles: the orders of the period (number, date, status with its colour from...</item>
+            <item>Refunded orders are listed (struck through) but left out of the sums; orders in...</item>
+            <item>How an order is put down to the search</item>
+            <item>Can be turned off: Orders placed on the site (tab E-mail report, on by default)</item>
+            <item>1.6.10: "Update index" button in the administrator's top bar</item>
+            <item>1.6.10: Shown only to users who may manage plugins; the request needs the form token</item>
+            <item>1.6.10: Close goes to the Gridbox panel</item>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.11" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.11 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.10</version>
+        <fix>
+            <item>1.6.9: "{searchterms}" in the search report</item>
+            <item>1.6.8: Lighter Tools tab</item>
+            <item>1.6.7: Word endings and ignored words in every language</item>
+            <item>1.6.6: Languages</item>
+            <item>1.6.6: Tools -> Report: the label in front of the recipients said "To" (in German "Bis"): one...</item>
+            <item>1.6.5: Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>"Update index" button in the administrator's top bar</item>
+            <item>Shown only to users who may manage plugins; the request needs the form token</item>
+            <item>Close goes to the Gridbox panel</item>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.10" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.10 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.9</version>
+        <fix>
+            <item>"{searchterms}" in the search report</item>
+            <item>1.6.8: Lighter Tools tab</item>
+            <item>1.6.7: Word endings and ignored words in every language</item>
+            <item>1.6.6: Languages</item>
+            <item>1.6.6: Tools -> Report: the label in front of the recipients said "To" (in German "Bis"): one...</item>
+            <item>1.6.5: Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.9" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.9 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.8</version>
+        <fix>
+            <item>Lighter Tools tab</item>
+            <item>1.6.7: Word endings and ignored words in every language</item>
+            <item>1.6.6: Languages</item>
+            <item>1.6.6: Tools -> Report: the label in front of the recipients said "To" (in German "Bis"): one...</item>
+            <item>1.6.5: Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.8" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.8 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.7</version>
+        <fix>
+            <item>Word endings and ignored words in every language</item>
+            <item>1.6.6: Languages</item>
+            <item>1.6.6: Tools -> Report: the label in front of the recipients said "To" (in German "Bis"): one...</item>
+            <item>1.6.5: Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.7" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.7 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.6</version>
+        <fix>
+            <item>Languages</item>
+            <item>Tools -> Report: the label in front of the recipients said "To" (in German "Bis"): one...</item>
+            <item>1.6.5: Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.6" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.6 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.5</version>
+        <fix>
+            <item>Only published items in the pickers</item>
+            <item>1.6.4: How the query is marked: one choice in Appearance</item>
+            <item>1.6.4: Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.5" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.5 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.4</version>
+        <fix>
+            <item>How the query is marked: one choice in Appearance</item>
+            <item>Appearing effects of the live panel</item>
+            <item>1.6.3: Old product names through redirects</item>
+            <item>1.6.3: Bold and highlight of the query separately</item>
+            <item>1.6.3: Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.4" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.4 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.3</version>
+        <fix>
+            <item>Old product names through redirects</item>
+            <item>Bold and highlight of the query separately</item>
+            <item>Theme editor: settings overridden by the own CSS</item>
+            <item>1.6.2: Statistics of customers only</item>
+            <item>1.6.2: E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.3" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.3 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.2</version>
+        <fix>
+            <item>Statistics of customers only</item>
+            <item>E-mail report for any period</item>
+            <item>1.6.1: Order of the result sections</item>
+            <item>1.6.1: Accent as in Gridbox</item>
+            <item>1.6.1: More fonts, Google Fonts</item>
+            <item>1.6.1: Background opacity</item>
+            <item>1.6.1: Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.2" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.2 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.1</version>
+        <fix>
+            <item>Order of the result sections</item>
+            <item>Accent as in Gridbox</item>
+            <item>More fonts, Google Fonts</item>
+            <item>Background opacity</item>
+            <item>Theme editor on wide screens</item>
+        </fix>
+        <addition>
+            <item>1.6.0: Themes</item>
+            <item>1.6.0: Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.6.0</version>
+        <addition>
+            <item>Themes</item>
+            <item>Basic and advanced settings</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.6.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.6.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.5.3</version>
+        <fix>
+            <item>Product badges in the results</item>
+            <item>1.5.2: Pages appear in the results right after switching Search pages too on</item>
+            <item>1.5.2: Diagnostics</item>
+            <item>1.5.1: Numbers of standards and model names are no longer read as values</item>
+            <item>1.5.1: HVACR values</item>
+        </fix>
+        <addition>
+            <item>1.5.0: Technical values</item>
+            <item>1.5.0: Featured products</item>
+            <item>1.5.0: Pages in the results</item>
+            <item>1.5.0: Recent searches</item>
+            <item>1.5.0: Products: availability, cart, quote (off by default)</item>
+            <item>1.5.0: E-mail report</item>
+            <item>1.5.0: Google Search Console</item>
+        </addition>
+        <change>
+            <item>1.5.0: New column t_params in the index and table #__bettersearch_daily; both are added by...</item>
+            <item>1.5.0: 127 new texts in English, Polish, Ukrainian and German</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.5.3" target="_blank" rel="noopener noreferrer">The full list of changes of 1.5.3 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.5.2</version>
+        <fix>
+            <item>Pages appear in the results right after switching Search pages too on</item>
+            <item>Diagnostics</item>
+            <item>1.5.1: Numbers of standards and model names are no longer read as values</item>
+            <item>1.5.1: HVACR values</item>
+        </fix>
+        <addition>
+            <item>1.5.0: Technical values</item>
+            <item>1.5.0: Featured products</item>
+            <item>1.5.0: Pages in the results</item>
+            <item>1.5.0: Recent searches</item>
+            <item>1.5.0: Products: availability, cart, quote (off by default)</item>
+            <item>1.5.0: E-mail report</item>
+            <item>1.5.0: Google Search Console</item>
+        </addition>
+        <change>
+            <item>1.5.0: New column t_params in the index and table #__bettersearch_daily; both are added by...</item>
+            <item>1.5.0: 127 new texts in English, Polish, Ukrainian and German</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.5.2" target="_blank" rel="noopener noreferrer">The full list of changes of 1.5.2 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.5.1</version>
+        <fix>
+            <item>Numbers of standards and model names are no longer read as values</item>
+            <item>HVACR values</item>
+        </fix>
+        <addition>
+            <item>1.5.0: Technical values</item>
+            <item>1.5.0: Featured products</item>
+            <item>1.5.0: Pages in the results</item>
+            <item>1.5.0: Recent searches</item>
+            <item>1.5.0: Products: availability, cart, quote (off by default)</item>
+            <item>1.5.0: E-mail report</item>
+            <item>1.5.0: Google Search Console</item>
+        </addition>
+        <change>
+            <item>1.5.0: New column t_params in the index and table #__bettersearch_daily; both are added by...</item>
+            <item>1.5.0: 127 new texts in English, Polish, Ukrainian and German</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.5.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.5.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.5.0</version>
+        <addition>
+            <item>Technical values</item>
+            <item>Featured products</item>
+            <item>Pages in the results</item>
+            <item>Recent searches</item>
+            <item>Products: availability, cart, quote (off by default)</item>
+            <item>E-mail report</item>
+            <item>Google Search Console</item>
+        </addition>
+        <change>
+            <item>New column t_params in the index and table #__bettersearch_daily; both are added by...</item>
+            <item>127 new texts in English, Polish, Ukrainian and German</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.5.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.5.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.4.3</version>
+        <fix>
+            <item>Help tooltips</item>
+            <item>1.4.2: Help tooltips</item>
+            <item>1.4.2: Search Console import</item>
+            <item>1.4.2: Languages</item>
+            <item>1.4.1: Google Search Console</item>
+            <item>1.4.1: Updates</item>
+            <item>1.4.1: Help tooltips</item>
+            <item>1.4.1: Faster product finder</item>
+            <item>1.4.1: Settings file and reset</item>
+        </fix>
+        <addition>
+            <item>1.4.0: Queries without results -> synonyms and redirects</item>
+            <item>1.4.0: Suggestions</item>
+            <item>1.4.0: Filters beside the results</item>
+            <item>1.4.0: Conversions</item>
+            <item>1.4.0: Google Search Console</item>
+            <item>1.4.0: Instant reindex</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.4.3" target="_blank" rel="noopener noreferrer">The full list of changes of 1.4.3 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.4.2</version>
+        <fix>
+            <item>Help tooltips</item>
+            <item>Search Console import</item>
+            <item>Languages</item>
+            <item>1.4.1: Google Search Console</item>
+            <item>1.4.1: Updates</item>
+            <item>1.4.1: Help tooltips</item>
+            <item>1.4.1: Faster product finder</item>
+            <item>1.4.1: Settings file and reset</item>
+        </fix>
+        <addition>
+            <item>1.4.0: Queries without results -> synonyms and redirects</item>
+            <item>1.4.0: Suggestions</item>
+            <item>1.4.0: Filters beside the results</item>
+            <item>1.4.0: Conversions</item>
+            <item>1.4.0: Google Search Console</item>
+            <item>1.4.0: Instant reindex</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.4.2" target="_blank" rel="noopener noreferrer">The full list of changes of 1.4.2 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.4.1</version>
+        <fix>
+            <item>Google Search Console</item>
+            <item>Updates</item>
+            <item>Help tooltips</item>
+            <item>Faster product finder</item>
+            <item>Settings file and reset</item>
+        </fix>
+        <addition>
+            <item>1.4.0: Queries without results -> synonyms and redirects</item>
+            <item>1.4.0: Suggestions</item>
+            <item>1.4.0: Filters beside the results</item>
+            <item>1.4.0: Conversions</item>
+            <item>1.4.0: Google Search Console</item>
+            <item>1.4.0: Instant reindex</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.4.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.4.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.4.0</version>
+        <addition>
+            <item>Queries without results -> synonyms and redirects</item>
+            <item>Suggestions</item>
+            <item>Filters beside the results</item>
+            <item>Conversions</item>
+            <item>Google Search Console</item>
+            <item>Instant reindex</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.4.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.4.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.3.1</version>
+        <security>
+            <item>1.3.0: Every value the SEO settings write into the page is escaped for its place (title...</item>
+            <item>1.3.0: Patterns in titles and descriptions are filled in one pass: {query} typed by a visitor...</item>
+            <item>1.3.0: Translations are checked automatically against English: the same keys, the same...</item>
+        </security>
+        <fix>
+            <item>Store sales</item>
+            <item>Currency choice</item>
+            <item>Publishing dates</item>
+            <item>1.3.0: Sale prices in the live results</item>
+        </fix>
+        <addition>
+            <item>1.3.0: SEO of the results page</item>
+            <item>1.3.0: 12 languages</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.3.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.3.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.3.0</version>
+        <security>
+            <item>Every value the SEO settings write into the page is escaped for its place (title...</item>
+            <item>Patterns in titles and descriptions are filled in one pass: {query} typed by a visitor...</item>
+            <item>Translations are checked automatically against English: the same keys, the same...</item>
+        </security>
+        <fix>
+            <item>Sale prices in the live results</item>
+        </fix>
+        <addition>
+            <item>SEO of the results page</item>
+            <item>12 languages</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.3.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.3.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.2.0</version>
+        <security>
+            <item>Visibility is current</item>
+            <item>Typo correction vocabulary</item>
+            <item>Resource use is bounded</item>
+            <item>Error messages</item>
+            <item>Search statistics</item>
+            <item>State-changing administrator tools are sent as POST; the preview's inline script...</item>
+        </security>
+        <fix>
+            <item>Gridbox items filter broken</item>
+            <item>Searches with less than</item>
+            <item>Broad queries on large stores</item>
+            <item>Store sales</item>
+            <item>Pinned products</item>
+            <item>Category chips</item>
+        </fix>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.2.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.2.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.1.0</version>
+        <fix>
+            <item>The search on phones</item>
+        </fix>
+        <addition>
+            <item>Live preview in the settings</item>
+            <item>Appearing effects</item>
+            <item>Search statistics</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.1.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.1.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <version>1.0.0</version>
+        <addition>
+            <item>Model codes, however they are typed</item>
+            <item>Own search index</item>
+            <item>Manual ranking and exclusions</item>
+            <item>Live results</item>
+            <item>Results page</item>
+            <item>Administration</item>
+        </addition>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.0.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.0.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+</changelogs>

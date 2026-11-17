@@ -2,8 +2,8 @@
 <extension type="package" method="upgrade">
     <name>Better Search for Gridbox Package</name>
     <packagename>bettersearch</packagename>
-    <version>1.8.2</version>
-    <creationDate>2026-10-15</creationDate>
+    <version>1.9.0</version>
+    <creationDate>2026-11-17</creationDate>
     <author>Merserwis</author>
     <authorUrl>https://github.com/merserwis/</authorUrl>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
@@ -14,6 +14,7 @@
         <file type="component" id="com_bettersearch">com_bettersearch.zip</file>
         <file type="module" id="mod_bettersearch" client="site">mod_bettersearch.zip</file>
     </files>
+    <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
     <updateservers>
         <server type="extension" priority="1" name="Better Search for Gridbox Updates">https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/update.xml</server>
     </updateservers>
