@@ -77,6 +77,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     /** Default words left out of queries (Polish and English connectors). */
     /** The default list of ignored words up to 1.6.6; a site that still has it gets the built-in list of its language. */
+    /** #__bettersearch_events kinds: 1 click (results page or live), 2 cart; 3 the same click of the results page once more. */
+    private const KIND_PAGE_CLICK = 3;
+
     /** Rows of the phrase pairs (searched without results → searched and clicked) kept at most. */
     private const PAIR_ROWS = 50000;
 
@@ -413,6 +416,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             return ['ok' => false];
         }
         $this->recordEvent($q, $id, 1);
+        // a click on a card of the results page also on its own: the phrases without clicks set it against the
+        // searches of the results page (a click in the live results would raise their rate without a search counted)
+        if ($input->post->getCmd('src', '') === 'page') {
+            $this->recordEvent($q, $id, self::KIND_PAGE_CLICK);
+        }
 
         // the phrase searched just before without results (kept only in the visitor's browser tab): the
         // shopper wrote it differently and found it — a synonym the shop may want
@@ -3278,6 +3286,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
      */
     private function noClickRows(string $from, string $to, int $min, int $limit): array
     {
+        // clicks of the results page are known since 1.9.0: earlier days would show every phrase without clicks
+        $from = max($from, $this->pageClicksSince());
+        if ($from >= $to) {
+            return [];
+        }
         $db    = $this->db();
         $range = ' AND day >= ' . $db->quote($from) . ' AND day < ' . $db->quote($to);
         // the result count of the latest day a phrase was searched
@@ -3289,7 +3302,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
         $clicks = [];
         $list   = implode(',', array_map(fn ($r) => $db->quote((string) $r['query']), $rows));
-        foreach ($db->setQuery('SELECT query, SUM(hits) FROM ' . $db->quoteName('#__bettersearch_events') . ' WHERE kind = 1' . $range
+        foreach ($db->setQuery('SELECT query, SUM(hits) FROM ' . $db->quoteName('#__bettersearch_events') . ' WHERE kind = ' . self::KIND_PAGE_CLICK . $range
             . ' AND query IN (' . $list . ') GROUP BY query')->loadRowList() ?: [] as [$q, $c]) {
             $clicks[mb_strtolower((string) $q)] = (int) $c;
         }
@@ -3310,9 +3323,28 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private function noClicks(int $days, int $min): array
     {
         $today = new \DateTimeImmutable('now', self::siteZone());
-        $rows  = $this->noClickRows($today->modify('-' . ($days - 1) . ' days')->format('Y-m-d'), $today->modify('+1 day')->format('Y-m-d'), $min, 100);
+        $from  = $today->modify('-' . ($days - 1) . ' days')->format('Y-m-d');
+        $rows  = $this->noClickRows($from, $today->modify('+1 day')->format('Y-m-d'), $min, 100);
+        $since = $this->pageClicksSince();
 
-        return ['rows' => $rows, 'tracking' => (bool) $this->params->get('track_conversions', 1), 'days' => $days, 'min' => $min];
+        // the days before the clicks of the results page were counted are left out: the list says so
+        return ['rows' => $rows, 'tracking' => (bool) $this->params->get('track_conversions', 1), 'days' => $days, 'min' => $min,
+            'since' => $since > $from ? $since : ''];
+    }
+
+    /**
+     * The first day whose clicks of the results page are all counted: the day after the update to 1.9.0
+     * (written by the installer; a site updated without it starts the day after it is first needed).
+     */
+    private function pageClicksSince(): string
+    {
+        $since = (string) $this->indexer()->state('page_clicks_since', '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) {
+            $since = (new \DateTimeImmutable('now', self::siteZone()))->modify('+1 day')->format('Y-m-d');
+            $this->indexer()->setState('page_clicks_since', $since);
+        }
+
+        return $since;
     }
 
     /**

@@ -119,6 +119,7 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             $this->removePlaceholderSearches($db);
             $this->removeDroppedLanguages();
             $this->fulltextIndex($db);
+            $this->pageClicksSince($db);
             Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_ADMINISTRATOR)
                 || Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_PLUGINS . '/system/bettersearch');
             // the texts of this very version, from the package being installed (on an update the copy already installed has none of the new ones)
@@ -188,6 +189,24 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
      * The full-text index on the descriptions, added apart from the table: a server that cannot
      * create it keeps a working (slower) search instead of no index table at all.
      */
+    /**
+     * Clicks of the results page are counted on their own since 1.9.0 (Statistics → To improve): the day after
+     * the first install or update of such a version is the first whole day. Kept on later updates.
+     */
+    private function pageClicksSince(DatabaseInterface $db): void
+    {
+        try {
+            try {
+                $zone = new \DateTimeZone((string) Factory::getApplication()->get('offset', 'UTC'));
+            } catch (\Throwable $e) {
+                $zone = new \DateTimeZone('UTC');
+            }
+            $day = (new \DateTimeImmutable('now', $zone))->modify('+1 day')->format('Y-m-d');
+            $db->setQuery('INSERT IGNORE INTO ' . $db->quoteName('#__bettersearch_state') . ' (k, v) VALUES (' . $db->quote('page_clicks_since') . ', ' . $db->quote($day) . ')')->execute();
+        } catch (\Throwable $e) {
+        }
+    }
+
     private function fulltextIndex(DatabaseInterface $db): void
     {
         try {

@@ -1478,11 +1478,12 @@
                     noclickOut.innerHTML = '<p class="text-warning-emphasis">' + esc(T.TOOLS_NO_TRACKING) + '</p>';
                     return;
                 }
+                var since = r.since ? '<p class="small text-warning-emphasis">' + esc(fmt(T.TOOLS_NOCLICK_SINCE, [r.since])) + '</p>' : '';
                 if (!r.rows.length) {
-                    noclickOut.innerHTML = '<p class="text-muted">' + esc(T.TOOLS_NOCLICK_EMPTY) + '</p>';
+                    noclickOut.innerHTML = since + '<p class="text-muted">' + esc(T.TOOLS_NOCLICK_EMPTY) + '</p>';
                     return;
                 }
-                noclickOut.innerHTML = '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_CONV_QUERY)
+                noclickOut.innerHTML = since + '<div class="bs-stats-wrap"><table class="table table-sm table-striped bs-stats-table"><thead><tr><th>' + esc(T.TOOLS_CONV_QUERY)
                     + '</th><th class="bs-num">' + esc(T.TOOLS_SEARCHES) + '</th><th class="bs-num">' + esc(T.TOOLS_RESULTS_COL) + '</th><th class="bs-num">' + esc(T.TOOLS_CONV_CLICKS)
                     + '</th><th class="bs-num">' + esc(T.TOOLS_CONV_CTR) + '</th><th></th></tr></thead><tbody>'
                     + r.rows.map(function (row) {

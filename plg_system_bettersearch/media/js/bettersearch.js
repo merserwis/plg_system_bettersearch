@@ -488,7 +488,7 @@
             if (openNow && active >= 0 && opts[active] && opts[active].hasAttribute('data-bs-q')) {
                 suggest(opts[active].getAttribute('data-bs-q'));
             } else if (openNow && active >= 0 && opts[active]) {
-                clicked(opts[active], lastQuery);
+                clicked(opts[active], lastQuery, 'live');
                 remember(lastQuery);
                 window.location.href = opts[active].href;
             } else {
@@ -1072,7 +1072,9 @@
         }
     }
 
-    function clicked(link, q) {
+    // where: 'page' (a card of the results page) or 'live' (the live results); the statistics of phrases
+    // without clicks count only the results page, whose searches they count
+    function clicked(link, q, where) {
         var id = link && (link.getAttribute('data-bs-id') || (link.closest && link.closest('[data-bs-id]') && link.closest('[data-bs-id]').getAttribute('data-bs-id')));
         q = String(q || '').trim();
         if (!cfg.track || !id || !q) {
@@ -1082,6 +1084,7 @@
             var body = new FormData();
             body.append('q', q);
             body.append('id', id);
+            body.append('src', where === 'page' ? 'page' : 'live');
             var miss = takeMiss();
             if (miss && miss.toLowerCase() !== q.toLowerCase()) {
                 body.append('prev', miss);
@@ -1136,14 +1139,14 @@
         }
         var item = t.closest('a.bs-item[data-bs-id]');
         if (item && panel && panel.contains(item)) {
-            clicked(item, lastQuery);
+            clicked(item, lastQuery, 'live');
             remember(lastQuery);
             return;
         }
         var card = t.closest('.bettersearch-results .bsr-card a');
         if (card) {
             var root = card.closest('.bettersearch-results');
-            clicked(card, root ? root.getAttribute('data-query') : '');
+            clicked(card, root ? root.getAttribute('data-query') : '', 'page');
         }
     }, true);
 
@@ -1167,7 +1170,7 @@
         var root = btn.closest('.bettersearch-results');
         var q = root ? root.getAttribute('data-query') : lastQuery;
         // counted as a conversion of the query (the cookie names the query of this product)
-        clicked(btn, q);
+        clicked(btn, q, root ? 'page' : 'live');
         var label = btn.textContent;
         btn.disabled = true;
         var data = new FormData();
