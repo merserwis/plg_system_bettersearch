@@ -21,6 +21,7 @@ Out of the box, Gridbox splits the query into words and looks for each of them s
 * **Manual ranking:** **Query rules** pin products to the top of chosen queries **in the order you set** (drag and drop) or hide them; the query is matched exactly, by its start or anywhere, and spaces or dashes in it do not matter. **Product boosts** and **category boosts** move products up or down in every search.
 * **Exclusions:** excluded categories (with or without their subcategories), excluded products, products out of stock shown normally, at the end or hidden. Subscription add-ons hidden by Gridbox stay hidden.
 * **Explainable relevance:** weights per field (code, name, fields, categories, descriptions), a factor for words with digits, popularity (page views) and a cut-off of weak matches. The **test console** shows every result with its score and the reasons.
+* **Relevance tests (new in 1.9.0):** the searches that must keep working, with the products they must (or must not) find among the first N results. One button runs them all with the settings of the page — also unsaved ones — and compares them with the saved settings: what a change of the weights, synonyms or ignored words would break, before it is saved. **+ Test** beside a result of the test console keeps that result as a test.
 * **Live results under every Gridbox search field:** categories matching the query, products grouped by app (store, blog…), price, category, code, availability, short description, a *show all results* button; keyboard navigation (arrows, Enter, Escape) and ARIA combobox semantics; a **full-screen search on phones** with its own field — the keyboard opens with the first tap (fixed in 1.1.0).
 * **Appearing effects (new in 1.1.0):** the panel fades in, slides up or down, zooms, flips down or unrolls from the top; the results inside it fade in, rise, slide in, zoom or sharpen from blur, one after another — each with its own duration and delay. Visitors who ask their system for less motion see none.
 * **Live preview in the settings (new in 1.1.0):** the live results and the results page rendered from the settings in the form, before you save — real products, at desktop, tablet and phone width.
@@ -91,7 +92,7 @@ Everything is under **Components → Better Search for Gridbox** (the plugin's o
 | **Control Panel** | The tools as tiles in sections, each with a dot that says whether it is on; the state of the search (version, pages in the index and waiting) and shortcuts: quick setup, configuration, update the index, test a search, clear the cache, open Gridbox. |
 | **Quick Setup** | 15 switches, each *recommended* or *optional*; *Turn on the recommended* leaves the optional ones as they are; only the switches you change are saved. |
 | **Index** | Index status and the buttons (update, rebuild, clear the caches, remove small images) · Indexing (apps, pages, automatic check, cache) · What is indexed. |
-| **Search Engine** | Test console · Matching (typos, word endings, partial matches, ignored words) · Ranking weights · Synonyms and redirects. |
+| **Search Engine** | Test console · Relevance tests · Matching (typos, word endings, partial matches, ignored words) · Ranking weights · Synonyms and redirects. |
 | **Rules** | Pinned and hidden products, boosts, exclusions. |
 | **Live Results** · **Results Page** · **Appearance** | What they show, how they look and move, with the live preview of unsaved changes; themes and the editors. |
 | **Statistics** | Search statistics and conversions · Collecting · E-mail report · Google Search Console. |
@@ -301,6 +302,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Words with digits × | `1.5` | Model numbers say more than words: their weight is multiplied by this factor. |
 | Popularity | `1` | Points for page views (logarithmic): with equal matches, the more viewed product goes first. 0 = off. |
 | Maximum candidates per query | `3000` |  |
+| Relevance tests | *(none)* | Row: Query, Expectation (*among the first* / *not among the first*), Positions (0 = all results), Products. Without products: the query must find something / must find nothing. *Run the tests* uses the settings of the page (also unsaved) and compares them with the saved ones; rules and exclusions are taken as saved. At most 200. |
 
 ### Ranking & exclusions
 

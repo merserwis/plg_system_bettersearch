@@ -2,6 +2,17 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.9.0 — not released yet
+
+### ✨ New
+
+- **Relevance tests** (Search engine → *Relevance tests*): the searches that must keep working, each with the products it must find among the first N results — or must not find; without products, a query that must find something or must find nothing. *Run the tests* searches each query as a guest with the settings of the page, also before they are saved, and — when they differ from the saved ones — also with the saved settings: every test shows its result, the positions of its products (before → now) and the first results, and the summary counts the tests that got worse or better. A test is added in the table or with **+ Test** beside a result of the test console (the query, the product and its present position). Up to 200 tests, run 10 per request. The tests change no search: saving them keeps the caches.
+- **Candidate limit shown:** the test console and the relevance tests say when a query reached *Maximum candidates per query*, so products beyond it were not scored.
+
+### 🐞 Fixes
+
+- **Emptied lists of rows in the previews and the test console:** a list of rows (rules, boosts) emptied in the form but not saved yet was taken as saved by the live preview and the test console — Joomla 6 names the list in the attribute `name`, not `data-base-name`.
+
 ## 1.8.2 — 2026-10-29
 
 ### 🐞 Fixes

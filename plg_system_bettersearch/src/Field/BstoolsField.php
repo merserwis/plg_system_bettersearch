@@ -46,6 +46,12 @@ class BstoolsField extends FormField
                 . '<div class="bs-report-out"></div></section></div>';
         }
 
+        if ((string) $this->element['mode'] === 'suite') {
+            return '<div class="bs-tools"><section class="bs-tools-card"><h3>' . $t('SUITE') . '</h3><p class="small text-muted">' . $t('SUITE_DESC') . '</p>'
+                . '<p class="bs-tools-buttons"><button type="button" class="btn btn-primary" data-bs-tool="suite">' . $t('SUITE_RUN') . '</button></p>'
+                . '<div class="bs-suite-out" aria-live="polite"></div></section></div>';
+        }
+
         if ((string) $this->element['mode'] === 'gsc') {
             return '<div class="bs-tools"><section class="bs-tools-card"><h3>' . $t('GSC') . '</h3><p class="small text-muted">' . $t('GSC_DESC') . '</p>'
                 . '<div class="bs-gsc-status small"></div>'

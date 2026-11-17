@@ -97,7 +97,7 @@
         });
         form.querySelectorAll('joomla-field-subform, .subform-repeatable-wrapper').forEach(function (wrapper) {
             if (!wrapper.querySelector('.subform-repeatable-group')) {
-                add(wrapper.getAttribute('data-base-name'));
+                add(wrapper.getAttribute('name') || wrapper.getAttribute('data-base-name'));
             }
         });
         return keys.join(',');
@@ -203,6 +203,12 @@
             }
             wantTitles(missing).then(draw);
         }
+
+        // the value set by a script ("+ Test" of the test console)
+        root.addEventListener('bs-picker-set', function () {
+            draw();
+            loadTitles();
+        });
 
         list.addEventListener('click', function (e) {
             var li = e.target.closest('li[data-id]');
@@ -1062,13 +1068,21 @@
                         return '<code>' + esc(g) + '</code>';
                     }).join(' ') : '') + ' · ' + r.ms + ' ms'
                     + (r.corrected ? ' · ' + esc(T.TOOLS_CORRECTED) + ': <b>' + esc(r.corrected) + '</b>' : '') + '</p>';
+                if (r.truncated) {
+                    html += '<p class="small text-warning-emphasis">⚠ ' + esc(T.TOOLS_TRUNCATED) + '</p>';
+                }
+                // "+ Test": the result kept as a relevance test, when the page has the tests
+                var canAdd = !!suiteForm();
                 if (r.rows.length) {
                     html += '<table class="table table-sm table-striped bs-test-table"><thead><tr><th>#</th><th>ID</th><th></th><th>'
-                        + esc(T.TOOLS_SCORE) + '</th><th>' + esc(T.TOOLS_WHY) + '</th></tr></thead><tbody>'
+                        + esc(T.TOOLS_SCORE) + '</th><th>' + esc(T.TOOLS_WHY) + '</th>' + (canAdd ? '<th></th>' : '') + '</tr></thead><tbody>'
                         + r.rows.map(function (row, i) {
                             return '<tr' + (row.featured ? ' class="table-warning"' : (row.pinned ? ' class="table-info"' : '')) + '><td>' + (i + 1) + '</td><td>' + row.id + '</td><td>' + esc(row.title)
                                 + (row.sku ? '<br><small class="text-muted">' + esc(row.sku) + '</small>' : '') + '</td><td>'
-                                + (row.featured ? esc(T.TOOLS_FEATURED) : (row.pinned ? esc(T.TOOLS_PINNED) : row.score.toFixed(1))) + '</td><td><small>' + row.reasons.map(esc).join('<br>') + '</small></td></tr>';
+                                + (row.featured ? esc(T.TOOLS_FEATURED) : (row.pinned ? esc(T.TOOLS_PINNED) : row.score.toFixed(1))) + '</td><td><small>' + row.reasons.map(esc).join('<br>') + '</small></td>'
+                                + (canAdd ? '<td><button type="button" class="btn btn-sm btn-outline-primary text-nowrap" data-bs-addtest="' + esc(r.query) + '" data-id="' + row.id
+                                    + '" data-pos="' + (i + 1) + '" data-title="' + esc(row.title) + '" data-sku="' + esc(row.sku) + '" title="' + esc(T.TOOLS_SUITE_ADD_HINT) + '">'
+                                    + esc(T.TOOLS_SUITE_ADD) + '</button></td>' : '') + '</tr>';
                         }).join('') + '</tbody></table>';
                 }
                 out.innerHTML = html;
@@ -1369,6 +1383,182 @@
         });
     });
 
+    // ================================================================ relevance tests
+
+    // the subform of the tests on this page (Search engine), or null
+    function suiteForm() {
+        return document.querySelector('joomla-field-subform[name$="[relevance_tests]"]');
+    }
+
+    // a tab of the page (joomla-tab) that holds this element is shown
+    function showTab(el) {
+        var panel = el && el.closest('joomla-tab-element, [role="tabpanel"]');
+        var button = panel && panel.id && document.querySelector('[role="tab"][aria-controls="' + panel.id + '"]');
+        if (button && button.getAttribute('aria-expanded') !== 'true' && button.getAttribute('aria-selected') !== 'true') {
+            button.click();
+        }
+    }
+
+    // "+ Test" beside a result of the test console: a new row of the tests with the query, the product and its position
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-bs-addtest]');
+        if (!b) {
+            return;
+        }
+        e.preventDefault();
+        var sub = suiteForm();
+        var row = sub && sub.addRow ? sub.addRow() : null;
+        if (!row) {
+            Joomla.renderMessages({ warning: [T.TOOLS_SUITE_FULL] });
+            return;
+        }
+        var id = parseInt(b.dataset.id, 10);
+        titles[id] = titles[id] || { id: id, title: b.dataset.title || ('#' + id), sku: b.dataset.sku || '' };
+        var set = function (selector, value) {
+            var input = row.querySelector(selector);
+            if (input) {
+                input.value = value;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
+        set('[name$="[query]"]', b.getAttribute('data-bs-addtest'));
+        set('[name$="[expect]"]', 'top');
+        // the product is to stay at least where it is now
+        set('[name$="[n]"]', Math.max(1, parseInt(b.dataset.pos, 10) || 1));
+        set('.bs-picker-value', String(id));
+        var picker = row.querySelector('.bs-picker');
+        if (picker) {
+            picker.dispatchEvent(new CustomEvent('bs-picker-set'));
+        }
+        b.disabled = true;
+        b.textContent = '✓';
+        Joomla.renderMessages({ message: [T.TOOLS_SUITE_ADDED] });
+    });
+
+    function initSuite(root) {
+        var out = root.querySelector('.bs-suite-out');
+        var button = root.querySelector('[data-bs-tool="suite"]');
+        var form = root.closest('form');
+
+        function title(id, r) {
+            var t = r.titles[id] || titles[id];
+            return t ? t.title + (t.sku ? ' (' + t.sku + ')' : '') : '#' + id;
+        }
+
+        function expectation(test) {
+            if (!test.ids.length) {
+                return test.expect === 'top' ? T.TOOLS_SUITE_SOME : T.TOOLS_SUITE_NOTHING;
+            }
+            if (test.expect === 'top') {
+                return test.n > 0 ? fmt(T.TOOLS_SUITE_TOP_N, [test.n]) : T.TOOLS_SUITE_ANYWHERE;
+            }
+            return test.n > 0 ? fmt(T.TOOLS_SUITE_NOT_TOP_N, [test.n]) : T.TOOLS_SUITE_NOT_ANY;
+        }
+
+        function position(p) {
+            return p > 0 ? '#' + p : '–';
+        }
+
+        function draw(state) {
+            var rows = state.rows;
+            var pass = rows.filter(function (row) {
+                return row.now.pass;
+            }).length;
+            var worse = 0, better = 0, moved = 0;
+            rows.forEach(function (row) {
+                if (!row.saved) {
+                    return;
+                }
+                if (row.saved.pass && !row.now.pass) {
+                    worse++;
+                } else if (!row.saved.pass && row.now.pass) {
+                    better++;
+                } else if (JSON.stringify(row.saved.pos) !== JSON.stringify(row.now.pos) || row.saved.total !== row.now.total) {
+                    moved++;
+                }
+            });
+            var html = '<p class="bs-test-sum"><b>' + esc(fmt(T.TOOLS_SUITE_SUMMARY, [pass, rows.length])) + '</b>'
+                + (state.running ? ' · ' + esc(fmt(T.TOOLS_SUITE_RUNNING, [rows.length, state.total])) : '') + '</p>'
+                + '<p class="small ' + (worse ? 'text-danger' : 'text-muted') + '">' + esc(state.compare ? fmt(T.TOOLS_SUITE_COMPARED, [worse, better, moved]) : T.TOOLS_SUITE_SAME) + '</p>';
+            if (rows.some(function (row) {
+                return row.now.truncated;
+            })) {
+                html += '<p class="small text-warning-emphasis">⚠ ' + esc(T.TOOLS_TRUNCATED) + '</p>';
+            }
+            html += '<table class="table table-sm bs-test-table bs-suite-table"><thead><tr><th>#</th><th>' + esc(T.TOOLS_SUITE_QUERY) + '</th><th>'
+                + esc(T.TOOLS_SUITE_EXPECTED) + '</th><th>' + esc(T.TOOLS_SUITE_FOUND) + '</th><th>' + esc(T.TOOLS_SUITE_FIRST) + '</th><th>'
+                + esc(T.TOOLS_SUITE_RESULT) + '</th></tr></thead><tbody>'
+                + rows.map(function (row) {
+                    var now = row.now, was = row.saved;
+                    var change = was && was.pass !== now.pass ? (now.pass ? 'better' : 'worse') : '';
+                    var found = now.pos.map(function (p, i) {
+                        var before = was ? was.pos[i][1] : p[1];
+                        return '<div>' + esc(title(p[0], state)) + ': <b>' + (before !== p[1] ? '<s class="text-muted">' + position(before) + '</s> → ' : '') + position(p[1]) + '</b></div>';
+                    }).join('') || '<span class="text-muted">' + esc(fmt(T.TOOLS_SUITE_TOTAL, [(was && was.total !== now.total ? was.total + ' → ' : '') + now.total])) + '</span>';
+                    var first = now.top.map(function (id, i) {
+                        return '<div><small>' + (i + 1) + '. ' + esc(title(id, state)) + '</small></div>';
+                    }).join('') + (now.corrected ? '<div><small class="text-muted">' + esc(T.TOOLS_CORRECTED) + ': ' + esc(now.corrected) + '</small></div>' : '')
+                        + (now.mode === 'partial' ? '<div><small class="text-muted">' + esc(T.TOOLS_MODE) + ': partial</small></div>' : '')
+                        + (now.truncated ? '<div><small class="text-warning-emphasis">⚠ ' + esc(T.TOOLS_SUITE_LIMIT) + '</small></div>' : '');
+                    return '<tr class="' + (now.pass ? '' : 'table-danger') + '"><td>' + row.row + '</td><td><code>' + esc(row.query) + '</code><br>'
+                        + '<button type="button" class="btn btn-sm btn-link p-0" data-bs-suitetry="' + esc(row.query) + '">' + esc(T.TOOLS_SUITE_CONSOLE) + '</button></td>'
+                        + '<td>' + esc(expectation(row)) + '</td><td>' + found + '</td><td>' + (first || '<span class="text-muted">–</span>') + '</td><td>'
+                        + '<span class="badge ' + (now.pass ? 'bg-success' : 'bg-danger') + '">' + esc(now.pass ? T.TOOLS_SUITE_PASS : T.TOOLS_SUITE_FAIL) + '</span>'
+                        + (change ? '<br><span class="badge ' + (change === 'worse' ? 'bg-warning text-dark' : 'bg-info text-dark') + '">'
+                            + esc(change === 'worse' ? T.TOOLS_SUITE_WORSE : T.TOOLS_SUITE_BETTER) + '</span>' : '') + '</td></tr>';
+                }).join('') + '</tbody></table>';
+            out.innerHTML = html;
+        }
+
+        function run() {
+            var state = { rows: [], titles: {}, total: 0, compare: false, running: true };
+            button.disabled = true;
+            out.innerHTML = '<p>' + esc(T.TOOLS_WORKING) + '</p>';
+            var step = function (offset) {
+                return call('suite', { offset: offset }, form).then(function (r) {
+                    state.total = r.total;
+                    state.compare = r.compare;
+                    state.rows = state.rows.concat(r.rows);
+                    Object.keys(r.titles || {}).forEach(function (id) {
+                        state.titles[id] = r.titles[id];
+                    });
+                    if (!r.total) {
+                        out.innerHTML = '<p class="text-muted">' + esc(T.TOOLS_SUITE_NONE) + '</p>';
+                        return null;
+                    }
+                    state.running = r.next > 0;
+                    draw(state);
+                    return r.next > 0 ? step(r.next) : null;
+                });
+            };
+            step(0).catch(function (e) {
+                out.insertAdjacentHTML('beforeend', '<p class="text-danger">' + esc(e.message) + '</p>');
+            }).then(function () {
+                button.disabled = false;
+            });
+        }
+
+        root.addEventListener('click', function (e) {
+            var tryQ = e.target.closest('[data-bs-suitetry]');
+            if (tryQ) {
+                e.preventDefault();
+                var box = document.querySelector('.bs-test-q');
+                var go = box && box.closest('.bs-tools').querySelector('[data-bs-tool="test"]');
+                if (go) {
+                    showTab(box);
+                    box.value = tryQ.getAttribute('data-bs-suitetry');
+                    go.click();
+                    box.scrollIntoView({ block: 'center' });
+                }
+                return;
+            }
+            if (e.target.closest('[data-bs-tool="suite"]')) {
+                e.preventDefault();
+                run();
+            }
+        });
+    }
+
     // what the statistics carry to this page in the address: a line for the dictionaries, a query for the test console
     function carried() {
         var params = new URLSearchParams(window.location.search);
@@ -1403,6 +1593,8 @@
                 initReport(root);
             } else if (root.querySelector('.bs-gsc-out')) {
                 initGsc(root);
+            } else if (root.querySelector('.bs-suite-out')) {
+                initSuite(root);
             } else {
                 initTools(root);
             }

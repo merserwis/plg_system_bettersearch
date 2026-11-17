@@ -77,7 +77,13 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     /** Default words left out of queries (Polish and English connectors). */
     /** The default list of ignored words up to 1.6.6; a site that still has it gets the built-in list of its language. */
-    private const OLD_STOPWORDS = 'i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
+    /** Relevance tests searched per request (each up to twice: with the settings of the form and the saved ones). */
+    private const SUITE_BATCH = 10;
+
+    /** Relevance tests run at most. */
+    private const SUITE_MAX = 200;
+
+    private const OLD_STOPWORDS ='i, w, z, ze, na, do, dla, od, po, o, u, a, oraz, lub, czy, the, and, of, for, with, to, in';
 
     protected $autoloadLanguage = true;
 
@@ -1227,19 +1233,36 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             return $this->searcherInstance;
         }
         $searcher = new Searcher($this->db(), $this->params, $this->normalizer(), $this->levels(), $this->getApplication()->getLanguage()->getTag());
-        $searcher->setVocabularyLoader(function () use ($searcher) {
-            $cache = $this->cache(1440);
-            $key   = 'vocab-' . $this->indexVersion();
-            $vocab = $cache->get($key);
-            if (!is_array($vocab)) {
-                $vocab = $searcher->buildVocabulary();
-                $cache->store($vocab, $key);
-            }
-
-            return $vocab;
-        });
+        $searcher->setVocabularyLoader(fn () => $this->vocabulary($searcher));
 
         return $this->searcherInstance = $searcher;
+    }
+
+    /**
+     * A searcher of the administrator tools (test console, relevance tests): as a guest of the site sees it
+     * (guest view levels, the default site language), with the given settings.
+     */
+    private function guestSearcher(Registry $params): Searcher
+    {
+        $siteLang = (string) ComponentHelper::getParams('com_languages')->get('site', 'en-GB');
+        $searcher = new Searcher($this->db(), $params, $this->makeNormalizer($params), $this->guestLevels(), $siteLang);
+        $searcher->setVocabularyLoader(fn () => $this->vocabulary($searcher));
+
+        return $searcher;
+    }
+
+    /** The words of the index for typo correction (the same for any settings), cached per index version. */
+    private function vocabulary(Searcher $searcher): array
+    {
+        $cache = $this->cache(1440);
+        $key   = 'vocab-' . $this->indexVersion();
+        $vocab = $cache->get($key);
+        if (!is_array($vocab)) {
+            $vocab = $searcher->buildVocabulary();
+            $cache->store($vocab, $key);
+        }
+
+        return $vocab;
     }
 
     // ================================================================ live results (com_ajax)
@@ -2645,10 +2668,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             return ['error' => Text::_('JERROR_ALERTNOAUTHOR')];
         }
         $input = $app->getInput();
+        $saved = $this->params;
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'preview', 'settings_export', 'report_preview', 'report_info', 'theme_css'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'suite', 'preview', 'settings_export', 'report_preview', 'report_info', 'theme_css'], true)) {
             $this->params = $this->withForm($form['params']);
         }
 
@@ -2667,10 +2691,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
             case 'test':
                 $query    = mb_substr(trim((string) $input->get('q', '', 'raw')), 0, 200);
-                // as a guest of the site sees it: guest view levels, the default site language
-                $siteLang = (string) ComponentHelper::getParams('com_languages')->get('site', 'en-GB');
-                $searcher = new Searcher($this->db(), $this->params, $this->normalizer(), $this->guestLevels(), $siteLang);
-                $result   = $searcher->search($query, $input->getCmd('sort', 'relevance'), [], true);
+                $result   = $this->guestSearcher($this->params)->search($query, $input->getCmd('sort', 'relevance'), [], true);
                 $titles   = $this->titles(array_slice(array_column($result['items'], 'id'), 0, 60));
                 $rows     = [];
                 foreach (array_slice($result['items'], 0, 60) as $item) {
@@ -2679,7 +2700,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 }
 
                 return ['query' => $query, 'mode' => $result['mode'], 'corrected' => $result['corrected'], 'total' => $result['total'],
-                    'groups' => $result['groups'], 'params' => $result['params'] ?? [], 'ms' => $result['ms'], 'rows' => $rows];
+                    'groups' => $result['groups'], 'params' => $result['params'] ?? [], 'ms' => $result['ms'], 'rows' => $rows,
+                    'truncated' => !empty($result['truncated'])];
+
+            case 'suite':
+                return $this->runSuite($saved, max(0, $input->getInt('offset', 0)));
 
             case 'preview':
                 return $this->preview((string) $input->getCmd('mode', 'live'), (string) $input->getCmd('device', 'desktop'),
@@ -2800,6 +2825,109 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
 
         return ['error' => 'unknown task'];
+    }
+
+    // ================================================================ relevance tests
+
+    /**
+     * The relevance tests (Search engine → Relevance tests), a few per request: each query searched as a
+     * guest of the site with the settings of the form (also unsaved) and, when they differ from the saved
+     * ones, with the saved settings too — what a change would do to the searches the shop cares about,
+     * before it is saved. The settings of other pages (rules, exclusions) are the saved ones in both runs.
+     */
+    private function runSuite(Registry $saved, int $offset): array
+    {
+        $tests   = self::suiteTests($this->params->get('relevance_tests'));
+        $batch   = array_slice($tests, $offset, self::SUITE_BATCH);
+        $compare = self::suiteSettings($this->params) !== self::suiteSettings($saved);
+        $now     = $this->guestSearcher($this->params);
+        $before  = $compare ? $this->guestSearcher($saved) : null;
+        $rows    = [];
+        $ids     = [];
+        foreach ($batch as $test) {
+            $row = $test + ['now' => self::suiteCheck($now, $test)];
+            if ($before) {
+                $row['saved'] = self::suiteCheck($before, $test);
+            }
+            $rows[] = $row;
+            $ids    = array_merge($ids, $test['ids'], $row['now']['top'], $row['saved']['top'] ?? []);
+        }
+        $done = $offset + count($batch);
+
+        return ['total' => count($tests), 'next' => $done < count($tests) ? $done : 0, 'compare' => $compare, 'rows' => $rows,
+            'titles' => $this->titles(array_values(array_unique($ids)))];
+    }
+
+    /**
+     * The tests of the setting, as written in the form: rows without a query are left out.
+     *
+     * @return list<array{row: int, query: string, expect: string, n: int, ids: int[]}>
+     */
+    private static function suiteTests($value): array
+    {
+        $rows  = json_decode((string) json_encode($value), true);
+        $tests = [];
+        foreach (is_array($rows) ? array_values($rows) : [] as $i => $row) {
+            $query = is_array($row) ? mb_substr(trim(preg_replace('/\s+/u', ' ', (string) ($row['query'] ?? '')) ?? ''), 0, 200) : '';
+            if ($query === '') {
+                continue;
+            }
+            $ids     = is_array($row['products'] ?? null) ? $row['products'] : explode(',', (string) ($row['products'] ?? ''));
+            $tests[] = ['row' => $i + 1, 'query' => $query, 'expect' => ($row['expect'] ?? '') === 'absent' ? 'absent' : 'top',
+                'n' => max(0, min(100, (int) ($row['n'] ?? 1))), 'ids' => array_values(array_unique(array_filter(array_map('intval', $ids))))];
+            if (count($tests) >= self::SUITE_MAX) {
+                break;
+            }
+        }
+
+        return $tests;
+    }
+
+    /**
+     * One test: "top" — every chosen product is among the first n results (n = 0: anywhere; no products:
+     * the query finds something); "absent" — none of them is among the first n (no products: the query
+     * finds nothing). Positions are the ones a visitor sees: pinned and featured products count.
+     */
+    private static function suiteCheck(Searcher $searcher, array $test): array
+    {
+        $result = $searcher->search($test['query'], 'relevance');
+        $order  = array_map('intval', array_column($result['items'], 'id'));
+        $at     = array_flip($order);
+        $limit  = $test['n'] > 0 ? $test['n'] : PHP_INT_MAX;
+        $within = 0;
+        $pos    = [];
+        foreach ($test['ids'] as $id) {
+            $pos[$id] = isset($at[$id]) ? $at[$id] + 1 : 0;
+            $within += $pos[$id] > 0 && $pos[$id] <= $limit ? 1 : 0;
+        }
+        if (!$test['ids']) {
+            $pass = $test['expect'] === 'top' ? $result['total'] > 0 : $result['total'] === 0;
+        } else {
+            $pass = $test['expect'] === 'top' ? $within === count($test['ids']) : $within === 0;
+        }
+
+        // positions as a list: an object keyed by ids would lose its order in JSON
+        return ['pass' => $pass, 'pos' => array_map(fn ($id) => [$id, $pos[$id]], $test['ids']), 'total' => (int) $result['total'],
+            'mode' => (string) $result['mode'], 'corrected' => (string) $result['corrected'], 'top' => array_slice($order, 0, 3),
+            'truncated' => !empty($result['truncated']), 'ms' => (float) $result['ms']];
+    }
+
+    /** The settings that change a search, comparable however the form sent them (numbers as text, keys in any order). */
+    private static function suiteSettings(Registry $params): string
+    {
+        $all = $params->toArray();
+        unset($all['relevance_tests']);
+        $norm = function ($value) use (&$norm) {
+            if (is_array($value)) {
+                ksort($value);
+
+                return array_map($norm, $value);
+            }
+
+            return is_bool($value) ? (string) (int) $value : (string) $value;
+        };
+
+        return (string) json_encode($norm($all));
     }
 
     /**
@@ -3182,13 +3310,16 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     private function normalizer(): Normalizer
     {
-        if ($this->normalizer === null) {
-            $words = trim((string) $this->params->get('stopwords', ''));
-            $words = preg_replace('/\s*,\s*/', ', ', $words) === self::OLD_STOPWORDS ? '' : $words;
-            $this->normalizer = new Normalizer($words === '' ? [] : array_map('trim', explode(',', $words)));
-        }
+        return $this->normalizer ??= $this->makeNormalizer($this->params);
+    }
 
-        return $this->normalizer;
+    /** A normalizer with the ignored words of these settings. */
+    private function makeNormalizer(Registry $params): Normalizer
+    {
+        $words = trim((string) $params->get('stopwords', ''));
+        $words = preg_replace('/\s*,\s*/', ', ', $words) === self::OLD_STOPWORDS ? '' : $words;
+
+        return new Normalizer($words === '' ? [] : array_map('trim', explode(',', $words)));
     }
 
     private function indexer(): Indexer
@@ -3320,7 +3451,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
     private function configHash(): string
     {
-        return substr(md5(json_encode($this->params->toArray())), 0, 12);
+        // the relevance tests change no search: saving them keeps the caches
+        $params = $this->params->toArray();
+        unset($params['relevance_tests']);
+
+        return substr(md5(json_encode($params)), 0, 12);
     }
 
     private function indexVersion(): string

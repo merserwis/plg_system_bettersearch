@@ -119,6 +119,20 @@
             <fieldset name="engine_test" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_ENGINE_TEST" page="engine">
                 <field name="test_tools" type="bstools" mode="test" label="" parentclass="stack bs-tools-wrap" />
             </fieldset>
+            <fieldset name="engine_suite" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_ENGINE_SUITE" page="engine">
+                <field name="suite_tools" type="bstools" mode="suite" label="" parentclass="stack bs-tools-wrap" />
+                <field name="relevance_tests" type="subform" multiple="true" max="200" layout="joomla.form.field.subform.repeatable-table" buttons="add,remove,move" label="PLG_SYSTEM_BETTERSEARCH_SUITE_TESTS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SUITE_TESTS_DESC">
+                    <form>
+                        <field name="query" type="text" default="" hint="MI 3155" label="PLG_SYSTEM_BETTERSEARCH_SUITE_QUERY_LABEL" />
+                        <field name="expect" type="list" default="top" label="PLG_SYSTEM_BETTERSEARCH_SUITE_EXPECT_LABEL">
+                            <option value="top">PLG_SYSTEM_BETTERSEARCH_SUITE_EXPECT_TOP</option>
+                            <option value="absent">PLG_SYSTEM_BETTERSEARCH_SUITE_EXPECT_ABSENT</option>
+                        </field>
+                        <field name="n" type="number" default="1" min="0" max="100" label="PLG_SYSTEM_BETTERSEARCH_SUITE_N_LABEL" />
+                        <field name="products" type="bsproducts" multiple="true" default="" label="PLG_SYSTEM_BETTERSEARCH_SUITE_PRODUCTS_LABEL" />
+                    </form>
+                </field>
+            </fieldset>
             <fieldset name="engine" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_ENGINE" page="engine">
                 <field name="engine_note" type="note" class="alert alert-info" description="PLG_SYSTEM_BETTERSEARCH_ENGINE_NOTE" />
                 <field name="min_chars" parentclass="bs-adv" type="number" default="2" min="1" max="10" label="PLG_SYSTEM_BETTERSEARCH_MIN_CHARS_LABEL" />
