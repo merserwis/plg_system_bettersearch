@@ -27,7 +27,7 @@ class BsfieldsField extends ListField
         try {
             $db    = Factory::getContainer()->get(DatabaseInterface::class);
             $query = $db->createQuery()
-                ->select(['f.id', 'f.label', 'f.field_type', 'a.title AS app'])
+                ->select(['f.id', 'f.label', 'f.field_type', 'f.options', 'a.title AS app'])
                 ->from($db->quoteName('#__gridbox_fields', 'f'))
                 ->leftJoin($db->quoteName('#__gridbox_app', 'a') . ' ON a.id = f.app_id')
                 ->order('a.order_list ASC, f.app_id ASC, f.order_list ASC, f.id ASC');
@@ -39,12 +39,28 @@ class BsfieldsField extends ListField
                 if ((string) $this->element['selectonly'] === 'true' && !in_array($field->field_type, ['select', 'radio', 'checkbox'], true)) {
                     continue;
                 }
-                $label     = trim((string) $field->label) !== '' ? $field->label : '#' . $field->id;
-                $options[] = (object) ['value' => (int) $field->id, 'text' => $field->app . ' › ' . $label . ' [' . $field->field_type . ']'];
+                $options[] = (object) ['value' => (int) $field->id, 'text' => $field->app . ' › ' . self::name($field) . ' [' . $field->field_type . ']'];
             }
         } catch (\Throwable $e) {
         }
 
         return $options;
+    }
+
+    /**
+     * The name of a field as in Gridbox's app settings (options.label). The label column is the text shown
+     * before the value on the page: empty for text areas, or "." and "Uwaga:" for others.
+     */
+    public static function name(object $field): string
+    {
+        $options = json_decode((string) ($field->options ?? ''), true);
+        foreach ([is_array($options) ? (string) ($options['label'] ?? '') : '', (string) ($field->label ?? '')] as $name) {
+            $name = trim($name);
+            if ($name !== '' && preg_match('/[\p{L}\p{N}]/u', $name)) {
+                return $name;
+            }
+        }
+
+        return '#' . (int) $field->id;
     }
 }

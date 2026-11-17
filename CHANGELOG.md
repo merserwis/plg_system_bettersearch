@@ -2,6 +2,12 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.9.1 — not released yet
+
+### 🐞 Fixes
+
+- **Names of the product fields in the lists of the settings:** *Product fields to search* and *Brand field* listed text areas as "#2 [textarea]", "#5 [textarea]"… — Gridbox keeps the name of such a field in its settings, not in the label column (which holds the text shown before the value on the page, empty for text areas or "." and "Uwaga:" for others). The lists show the name set in Gridbox ("Cechy i funkcje", "Dane techniczne"…); the brand filter on the site keeps the text shown before the value and takes the name only when there is none.
+
 ## 1.9.0 — 2026-11-17
 
 ### ✨ New

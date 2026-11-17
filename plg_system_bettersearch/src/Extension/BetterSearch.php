@@ -42,6 +42,7 @@ use Merserwis\Plugin\System\BetterSearch\Engine\Indexer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Normalizer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Searcher;
 use Merserwis\Plugin\System\BetterSearch\Engine\Visitor;
+use Merserwis\Plugin\System\BetterSearch\Field\BsfieldsField;
 use Merserwis\Plugin\System\BetterSearch\Render\Renderer;
 use Merserwis\Plugin\System\BetterSearch\Render\Seo;
 use Merserwis\Plugin\System\BetterSearch\Render\Store;
@@ -1245,7 +1246,14 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         try {
             $db = $this->db();
 
-            return trim((string) $db->setQuery($db->createQuery()->select('label')->from($db->quoteName('#__gridbox_fields'))->where('id = ' . $id))->loadResult());
+            $field = $db->setQuery($db->createQuery()->select(['id', 'label', 'options'])->from($db->quoteName('#__gridbox_fields'))->where('id = ' . $id))->loadObject();
+            if (!$field) {
+                return '';
+            }
+            // the text the page shows before the value ("Producent:"); a text area has none: its name in Gridbox
+            $label = trim((string) $field->label);
+
+            return preg_match('/[\p{L}\p{N}]/u', $label) ? $label : (str_starts_with($name = BsfieldsField::name($field), '#') ? '' : $name);
         } catch (\Throwable $e) {
             return '';
         }
