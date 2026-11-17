@@ -2,7 +2,7 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
-## 1.9.1 — not released yet
+## 1.10.0 — not released yet
 
 ### 🐞 Fixes
 
