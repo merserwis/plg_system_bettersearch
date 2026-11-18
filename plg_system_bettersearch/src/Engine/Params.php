@@ -44,8 +44,8 @@ final class Params
     /** A number: "1000", "1,5", "-20", "1 000" (a space between thousands only after one or two digits). */
     private const NUM = '[-−–]?(?:\d{1,2}(?:[  ]\d{3})+|\d+)(?:[.,]\d+)?';
 
-    /** Words and signs between the two ends of a range. */
-    private const SEP = '(?:\.{2,3}|…|–|—|-|−|÷|~|\bto\b|\bdo\b|\bbis\b)';
+    /** Words and signs between the two ends of a range ("¸" is a "÷" broken by a copy from a PDF). */
+    private const SEP = '(?:\.{2,3}|…|–|—|-|−|÷|¸|~|\bto\b|\bdo\b|\bbis\b)';
 
     /**
      * Designations of standards: "PN-EN 62446", "PN-HD 60364-6", "IEC 61010-1", "EN 61557-1:2007", "BS 7671".
@@ -194,7 +194,7 @@ final class Params
         // a number glued to a code with a hyphen is part of a model name ("C-4A", "APS-1102A",
         // "M10-522-10 260V"), not a value; "DC-150 kHz" is a band from DC
         // ranges: "-20…+50 °C", "0-600 V", "od -10 do 40°C", "1 mA ... 10 A"
-        $range = '/(?<![\p{L}\d.,])(?:(?<![\p{L}\d]-)|(?<=DC-)|(?<=AC-))(?:od\s+|from\s+|von\s+)?(?<n1>\+?' . self::NUM . ')\s*(?:' . $unit . ')?\s*' . self::SEP
+        $range = '/(?<![\p{L}\d.,])(?:(?<![\p{L}\d]-)|(?<=DC-)|(?<=AC-))(?:od\s+|from\s+|von\s+)?(?<n1>\+?' . self::NUM . ')(?:°(?!\s?[CcFf]))?\s*(?:' . $unit . ')?\s*' . self::SEP
             . '\s*\+?(?<n2>' . self::NUM . ')\s*' . str_replace(['(?<prefix>', '(?<unit>'], ['(?<bprefix>', '(?<bunit>'], $unit) . '/u';
         if (preg_match_all($range, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($all as $m) {
