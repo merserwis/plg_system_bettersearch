@@ -2,6 +2,27 @@
 <updates>
     <update>
         <name>Better Search for Gridbox</name>
+        <description>Better Search for Gridbox 1.10.1: short words found in another form (pętla finds pętli, torby the bags, kable the cables), never a longer word (testo does not find tester); technical values written "do + 50 °C", "od - 40 do 125 °C" or "0° ... 40°C" read as ranges; the shop is indexed again once after the update. All changes: https://github.com/merserwis/plg_system_bettersearch/blob/main/CHANGELOG.md</description>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
+        <client>site</client>
+        <version>1.10.1</version>
+        <changelogurl>https://raw.githubusercontent.com/merserwis/plg_system_bettersearch/main/changelog.xml</changelogurl>
+        <infourl title="Better Search for Gridbox">https://github.com/merserwis/plg_system_bettersearch</infourl>
+        <downloads>
+            <downloadurl type="full" format="zip">https://github.com/merserwis/plg_system_bettersearch/releases/download/v1.10.1/pkg_bettersearch-1.10.1.zip</downloadurl>
+        </downloads>
+        <sha256>d4f8f836584a388c6f2e339b458e56eef3bc90e6e3d1c6dadb8b4345ba877d87</sha256>
+        <tags>
+            <tag>stable</tag>
+        </tags>
+        <maintainer>Merserwis</maintainer>
+        <maintainerurl>https://github.com/merserwis/</maintainerurl>
+        <targetplatform name="joomla" version="6\..*"/>
+        <php_minimum>8.2</php_minimum>
+    </update>
+    <update>
+        <name>Better Search for Gridbox</name>
         <description>Better Search for Gridbox 1.10.0: product descriptions searched (Description fields) with the weight of descriptions, their technical values too; every candidate scored, so counts, filters and sortings see all results; sorting by the price the cards show; the brand filter with several brands per product. All changes: https://github.com/merserwis/plg_system_bettersearch/blob/main/CHANGELOG.md</description>
         <element>pkg_bettersearch</element>
         <type>package</type>

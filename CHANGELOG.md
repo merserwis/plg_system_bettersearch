@@ -2,12 +2,13 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
-## 1.11.0 — not released yet
+## 1.10.1 — 2026-11-18
 
 ### 🐞 Fixes
 
 - **Short words in another form are found:** the stemming of the search engine left words shorter than 6 letters as typed, so “pętla” did not find “pętli”, “sondy” not “sonda”, “kable” not “kabli”. A word of 5 letters now loses a vowel ending or the mobile e (“petl”, “sond”, “kabl”) and finds only the forms of a noun with that stem — “pętla”, “pętli”, “pętlą”, “pętlach” — never a longer word starting the same: “testo” does not find “tester” or “testowanie”, in the names nor in the descriptions. On a copy of a store of 4 600 products “pętla zwarcia 15 mA” brings the meters of loop impedance first (it brought brand pages and guides), “torby” finds the 35 bags and cases (it found 4), “kable” 60 products (4). Of the 78 queries of the 1.10.0 bench 74 are unchanged; “sonda” and “sonda typu k” find also the products of “sond” and “sondy” (an adapter for type K probes), “pętla zwarcia 15 mA” see above, “-20…50 °C” below.
-- **Technical values with the sign written apart:** “od 0 do + 50 °C”, “-10 °C ... + 85 °C”, “od - 40 do 125 °C” and “0° ... 40°C” were read as a single value (50 °C, 85 °C, 40 °C) or without the minus, so a query “-20…50 °C” missed such products (about 100 in the copy of a store; “-20…50 °C” finds 286 products, 274 before); “+35 … +220 °C” is a range too. The size of a pipe thread (“G 1/2 A”) is no longer read as a current. The values are read again by the next indexing.
+- **Technical values with the sign written apart:** “od 0 do + 50 °C”, “-10 °C ... + 85 °C”, “od - 40 do 125 °C” and “0° ... 40°C” were read as a single value (50 °C, 85 °C, 40 °C) or without the minus, so a query “-20…50 °C” missed such products (about 100 in the copy of a store; “-20…50 °C” finds 286 products, 274 before); “+35 … +220 °C” is a range too. The size of a pipe thread (“G 1/2 A”) is no longer read as a current.
+- The index format changed: after the update every product is indexed again (automatically, or at once with *Update index*), so the values are read again.
 
 ## 1.10.0 — 2026-11-18
 

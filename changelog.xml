@@ -3,6 +3,32 @@
     <changelog>
         <element>pkg_bettersearch</element>
         <type>package</type>
+        <version>1.10.1</version>
+        <fix>
+            <item>Short words in another form are found</item>
+            <item>Technical values with the sign written apart</item>
+            <item>The index format changed: after the update every product is indexed again...</item>
+            <item>1.10.0: Sorting by price uses the price the cards show</item>
+            <item>1.10.0: The brand filter with a field of several values</item>
+            <item>1.10.0: Words found only in the descriptions no longer push back better matches</item>
+            <item>1.10.0: Names of the product fields in the lists of the settings</item>
+        </fix>
+        <addition>
+            <item>1.10.0: Product descriptions are searched</item>
+            <item>1.10.0: Technical values of the descriptions weigh as descriptions</item>
+            <item>1.10.0: Every candidate of a query is scored</item>
+        </addition>
+        <change>
+            <item>1.10.0: A regression bench of the search engine</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.10.1" target="_blank" rel="noopener noreferrer">The full list of changes of 1.10.1 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
         <version>1.10.0</version>
         <fix>
             <item>Sorting by price uses the price the cards show</item>

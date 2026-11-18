@@ -22,7 +22,7 @@ use Joomla\Registry\Registry;
 final class Indexer
 {
     /** Bump when the index format changes: every item is indexed again. */
-    public const FORMAT = 6;
+    public const FORMAT = 7;
 
     private DatabaseInterface $db;
 
