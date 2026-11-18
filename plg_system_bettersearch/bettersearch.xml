@@ -6,7 +6,7 @@
     <creationDate>2026-10-15</creationDate>
     <copyright>Copyright (C) 2026 Merserwis. All rights reserved.</copyright>
     <license>GNU General Public License version 3</license>
-    <version>1.9.0</version>
+    <version>1.10.0</version>
     <description>PLG_SYSTEM_BETTERSEARCH_XML_DESCRIPTION</description>
     <namespace path="src">Merserwis\Plugin\System\BetterSearch</namespace>
     <files>
@@ -81,6 +81,8 @@
             </fieldset>
             <fieldset name="index_content" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_INDEX_CONTENT" page="index">
                 <field name="index_fields" type="bsfields" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_INDEX_FIELDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_FIELDS_DESC" />
+                <field name="index_desc_fields" type="bsfields" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_INDEX_DESC_FIELDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_INDEX_DESC_FIELDS_DESC" />
+                <field name="params_skip_fields" parentclass="bs-adv" type="bsfields" multiple="true" layout="joomla.form.field.list-fancy-select" default="" label="PLG_SYSTEM_BETTERSEARCH_PARAMS_SKIP_FIELDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_PARAMS_SKIP_FIELDS_DESC" />
                 <field name="index_variation_sku" parentclass="bs-adv" type="radio" layout="joomla.form.field.radio.switcher" default="1" label="PLG_SYSTEM_BETTERSEARCH_INDEX_VARIATION_SKU_LABEL">
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
@@ -170,7 +172,7 @@
                 <field name="w_params" parentclass="bs-adv" type="number" default="8" min="0" max="100" step="0.5" showon="tech_params:1" label="PLG_SYSTEM_BETTERSEARCH_W_PARAMS_LABEL" />
                 <field name="w_digits" parentclass="bs-adv" type="number" default="1.5" min="1" max="5" step="0.1" label="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_W_DIGITS_DESC" />
                 <field name="popularity_boost" parentclass="bs-adv" type="number" default="1" min="0" max="20" step="0.5" label="PLG_SYSTEM_BETTERSEARCH_POPULARITY_LABEL" description="PLG_SYSTEM_BETTERSEARCH_POPULARITY_DESC" />
-                <field name="max_candidates" parentclass="bs-adv" type="number" default="3000" min="100" max="5000" label="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_LABEL" />
+                <field name="max_candidates" parentclass="bs-adv" type="number" default="20000" min="100" max="20000" label="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_LABEL" description="PLG_SYSTEM_BETTERSEARCH_MAX_CANDIDATES_DESC" />
             </fieldset>
             <fieldset name="synonyms" label="PLG_SYSTEM_BETTERSEARCH_FIELDSET_SYNONYMS" page="engine">
                 <field name="synonyms" type="textarea" rows="7" default="" filter="raw" hint="multimetr, miernik uniwersalny&#10;kamera termowizyjna, termowizor, kamera ir&#10;rcd => wyłącznik różnicowoprądowy" label="PLG_SYSTEM_BETTERSEARCH_SYNONYMS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_SYNONYMS_DESC" />

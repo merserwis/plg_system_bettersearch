@@ -51,7 +51,7 @@ use Merserwis\Plugin\System\BetterSearch\Render\Themes;
 
 final class BetterSearch extends CMSPlugin implements SubscriberInterface
 {
-    public const VERSION = '1.9.0';
+    public const VERSION = '1.10.0';
 
     /** Log file of the plugin, in Joomla's log folder. */
     public const LOG_FILE = 'plg_system_bettersearch.php';
@@ -118,6 +118,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private bool $savedRead = false;
 
     private ?Searcher $searcherInstance = null;
+
+    /** @var array<string, array> Store::facets of the items of this request (see facetData) */
+    private array $facetMemo = [];
 
     /** @var int[]|null */
     private ?array $appIdsMemo = null;
@@ -985,6 +988,12 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $result['items'] = $items;
         }
 
+        // the price sortings by the price the cards show (the index keeps the regular one)
+        if ($sort === 'price' || $sort === 'price_desc') {
+            $items = $this->byShownPrice($items, $sort === 'price' ? 1 : -1);
+            $result['items'] = $items;
+        }
+
         // the address of the results page with other filters
         $base = Uri::getInstance();
         $f    = $this->facetInput();
@@ -1162,7 +1171,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
 
         $store = $this->store();
-        $data  = $store->facets(array_slice(array_column($items, 'id'), 0, 5000), $useBrand ? $brandField : 0);
+        $data  = $this->facetData(array_column($items, 'id'));
         $rate  = $store->rate();
         $pass  = function (array $item, string $skip) use ($data, $f, $rate, $useBrand, $usePrice, $useSale, $useStock): bool {
             $d = $data[$item['id']] ?? null;
@@ -1171,7 +1180,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 return !($useBrand && $f['brand'] !== '' && $skip !== 'brand') && !($usePrice && ($f['min'] !== null || $f['max'] !== null) && $skip !== 'price')
                     && !($useSale && $f['sale'] && $skip !== 'sale') && !($useStock && $f['stock'] && $skip !== 'stock');
             }
-            if ($useBrand && $skip !== 'brand' && $f['brand'] !== '' && mb_strtolower($d['brand']) !== mb_strtolower($f['brand'])) {
+            if ($useBrand && $skip !== 'brand' && $f['brand'] !== '' && !in_array(mb_strtolower($f['brand']), array_map('mb_strtolower', $d['brand']), true)) {
                 return false;
             }
             if ($usePrice && $skip !== 'price' && ($f['min'] !== null || $f['max'] !== null)) {
@@ -1194,9 +1203,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         if ($useBrand) {
             $counts = [];
             foreach ($items as $item) {
-                $brand = $data[$item['id']]['brand'] ?? '';
-                if ($brand !== '' && $pass($item, 'brand')) {
-                    $counts[$brand] = ($counts[$brand] ?? 0) + 1;
+                if (!empty($data[$item['id']]['brand']) && $pass($item, 'brand')) {
+                    // a product of several brands (a checkbox field) counts for each
+                    foreach ($data[$item['id']]['brand'] as $brand) {
+                        $counts[$brand] = ($counts[$brand] ?? 0) + 1;
+                    }
                 }
             }
             uksort($counts, fn ($a, $b) => strnatcasecmp($a, $b));
@@ -1238,6 +1249,50 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $items = array_values(array_filter($items, fn ($i) => $pass($i, '')));
 
         return [$items, $facets];
+    }
+
+    /**
+     * What the filters and the price sorting need of the items (Store::facets: the price the cards show,
+     * sale, stock, brands), read once per request for the same items.
+     */
+    private function facetData(array $ids): array
+    {
+        $p     = $this->params;
+        $brand = $p->get('page_facets', 1) ? max(0, (int) $p->get('facet_brand_field', 0)) : 0;
+        $ids   = array_values(array_unique(array_map('intval', $ids)));
+        sort($ids);
+        $key = md5($brand . ':' . implode(',', $ids));
+        if (!isset($this->facetMemo[$key])) {
+            // one set of items per request (the results page): the memo keeps only the last one
+            $this->facetMemo = [$key => $this->store()->facets($ids, $brand)];
+        }
+
+        return $this->facetMemo[$key];
+    }
+
+    /**
+     * Sorting by price by the price the cards show — the sale price, the active store sales — not the
+     * regular price kept in the index. Pinned and featured products stay first in their order; items
+     * without a price (posts, pages, products without one) last; equal prices keep their order before.
+     */
+    private function byShownPrice(array $items, int $dir): array
+    {
+        $data  = $this->facetData(array_column($items, 'id'));
+        $list  = array_values($items);
+        $order = array_keys($list);
+        usort($order, function (int $a, int $b) use ($list, $data, $dir): int {
+            $x = $list[$a];
+            $y = $list[$b];
+            if ($x['pinned'] || $y['pinned']) {
+                return ($y['pinned'] <=> $x['pinned']) ?: $a <=> $b;
+            }
+            $px = $data[$x['id']]['price'] ?? null;
+            $py = $data[$y['id']]['price'] ?? null;
+
+            return (($px === null) <=> ($py === null)) ?: ($px === null ? 0 : $dir * ($px <=> $py)) ?: $a <=> $b;
+        });
+
+        return array_map(fn (int $i) => $list[$i], $order);
     }
 
     /** Label of a Gridbox field (the brand filter's heading). */

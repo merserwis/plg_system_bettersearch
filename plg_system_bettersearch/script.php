@@ -82,6 +82,10 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['t_params'])) {
                 $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('t_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_body'))->execute();
             }
+            // 1.10.0: technical values of the description fields, kept apart (they weigh as descriptions)
+            if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['d_params'])) {
+                $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('d_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_params'))->execute();
+            }
             // 1.7.0: signature of the price and stock alone (updated without indexing the text again)
             if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['vsig'])) {
                 $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('vsig') . ' bigint(20) NOT NULL DEFAULT 0 AFTER ' . $db->quoteName('sig'))->execute();
@@ -120,6 +124,7 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             $this->removeDroppedLanguages();
             $this->fulltextIndex($db);
             $this->pageClicksSince($db);
+            $this->candidateLimit($db);
             Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_ADMINISTRATOR)
                 || Factory::getApplication()->getLanguage()->load('plg_system_bettersearch', JPATH_PLUGINS . '/system/bettersearch');
             // the texts of this very version, from the package being installed (on an update the copy already installed has none of the new ones)
@@ -203,6 +208,29 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             }
             $day = (new \DateTimeImmutable('now', $zone))->modify('+1 day')->format('Y-m-d');
             $db->setQuery('INSERT IGNORE INTO ' . $db->quoteName('#__bettersearch_state') . ' (k, v) VALUES (' . $db->quote('page_clicks_since') . ', ' . $db->quote($day) . ')')->execute();
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * 1.10.0 scores every candidate of a query (the limit is a safeguard of 20 000, it was 3 000 and cut the
+     * number of results, the filters and the sortings of broad queries): the old default, saved by Joomla
+     * on installation, becomes the new one; a value chosen by the administrator stays.
+     */
+    private function candidateLimit(DatabaseInterface $db): void
+    {
+        try {
+            $query = $db->createQuery()->select(['extension_id', 'params'])->from($db->quoteName('#__extensions'))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))->where($db->quoteName('folder') . ' = ' . $db->quote('system'))
+                ->where($db->quoteName('element') . ' = ' . $db->quote('bettersearch'));
+            $row    = $db->setQuery($query)->loadObject();
+            $params = $row ? json_decode((string) $row->params, true) : null;
+            if (is_array($params) && (string) ($params['max_candidates'] ?? '') === '3000') {
+                $params['max_candidates'] = '20000';
+                $db->setQuery($db->createQuery()->update($db->quoteName('#__extensions'))
+                    ->set($db->quoteName('params') . ' = ' . $db->quote(json_encode($params)))
+                    ->where($db->quoteName('extension_id') . ' = ' . (int) $row->extension_id))->execute();
+            }
         } catch (\Throwable $e) {
         }
     }

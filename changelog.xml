@@ -3,6 +3,29 @@
     <changelog>
         <element>pkg_bettersearch</element>
         <type>package</type>
+        <version>1.10.0</version>
+        <fix>
+            <item>Sorting by price uses the price the cards show</item>
+            <item>The brand filter with a field of several values</item>
+            <item>Words found only in the descriptions no longer push back better matches</item>
+            <item>Names of the product fields in the lists of the settings</item>
+        </fix>
+        <addition>
+            <item>Product descriptions are searched</item>
+            <item>Technical values of the descriptions weigh as descriptions</item>
+            <item>Every candidate of a query is scored</item>
+        </addition>
+        <change>
+            <item>A regression bench of the search engine</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.10.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.10.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
         <version>1.9.0</version>
         <fix>
             <item>Messages of the tools on pages opened from a link</item>

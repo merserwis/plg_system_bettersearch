@@ -320,6 +320,19 @@ final class Store
      */
     public function fieldValues(array $ids, int $fieldId): array
     {
+        return array_map(fn ($labels) => $labels[0], $this->fieldValueLists($ids, $fieldId));
+    }
+
+    /**
+     * Every value of one Gridbox field for the given pages: a field of several values (checkbox) gives
+     * all its option titles, the others one value.
+     *
+     * @param int[] $ids
+     *
+     * @return array<int, string[]>
+     */
+    public function fieldValueLists(array $ids, int $fieldId): array
+    {
         $ids = array_values(array_filter(array_map('intval', $ids)));
         if (!$ids || $fieldId <= 0) {
             return [];
@@ -333,12 +346,18 @@ final class Store
                 ->where('field_id = ' . $fieldId)
                 ->where('page_id IN (' . implode(',', $ids) . ')');
             foreach ($this->db->setQuery($query)->loadObjectList() ?: [] as $row) {
-                $value = trim((string) $row->value);
-                $json  = json_decode($value);
-                $key   = is_array($json) ? (string) ($json[0] ?? '') : $value;
-                $label = $options ? trim($options[$key] ?? '') : trim(html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                if ($label !== '') {
-                    $out[(int) $row->page_id] = mb_substr($label, 0, 120);
+                $value  = trim((string) $row->value);
+                $json   = json_decode($value);
+                $keys   = is_array($json) ? array_map('strval', array_filter($json, 'is_scalar')) : [$value];
+                $labels = [];
+                foreach ($options ? $keys : [$value] as $key) {
+                    $label = $options ? trim($options[$key] ?? '') : trim(html_entity_decode(strip_tags($key), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    if ($label !== '') {
+                        $labels[] = mb_substr($label, 0, 120);
+                    }
+                }
+                if ($labels) {
+                    $out[(int) $row->page_id] = array_values(array_unique($labels));
                 }
             }
         } catch (\Throwable $e) {
@@ -355,7 +374,7 @@ final class Store
      *
      * @param int[] $ids
      *
-     * @return array<int, array{price: ?float, sale: bool, stock: bool, brand: string}>
+     * @return array<int, array{price: ?float, sale: bool, stock: bool, brand: string[]}>
      */
     public function facets(array $ids, int $brandField = 0): array
     {
@@ -380,13 +399,14 @@ final class Store
                     'price' => $values ? $values[1] : null,
                     'sale'  => $values ? $values[1] < $values[0] : false,
                     'stock' => (int) $row->in_stock === 1,
-                    'brand' => '',
+                    'brand' => [],
                 ];
             }
             if ($brandField > 0) {
-                foreach ($this->fieldValues($chunk, $brandField) as $pageId => $label) {
+                // a field of several values (checkbox): the product has every brand ticked
+                foreach ($this->fieldValueLists($chunk, $brandField) as $pageId => $labels) {
                     if (isset($out[$pageId])) {
-                        $out[$pageId]['brand'] = mb_substr($label, 0, 80);
+                        $out[$pageId]['brand'] = array_map(fn ($l) => mb_substr($l, 0, 80), $labels);
                     }
                 }
             }

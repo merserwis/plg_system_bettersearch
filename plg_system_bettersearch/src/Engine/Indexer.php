@@ -98,10 +98,26 @@ final class Indexer
         return in_array($appId, $this->singleApps, true) ? 0 : $appId;
     }
 
-    /** @return int[] */
+    /** @return int[] the fields of a setting (a list of field ids) */
+    private function idsOf(string $key): array
+    {
+        $ids = [];
+        // a multiple list may be saved as ["1,2"]
+        foreach ((array) $this->params->get($key, []) as $value) {
+            foreach (explode(',', (string) $value) as $id) {
+                if ((int) $id > 0) {
+                    $ids[] = (int) $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /** @return int[] every field read for the index: the searched fields and the description fields */
     private function fieldIds(): array
     {
-        return array_values(array_filter(array_map('intval', (array) $this->params->get('index_fields', []))));
+        return array_values(array_unique(array_merge($this->idsOf('index_fields'), $this->idsOf('index_desc_fields'))));
     }
 
     /**
@@ -120,6 +136,12 @@ final class Indexer
         $cfg  = [self::FORMAT, $this->appIds()];
         foreach ($keys as $key) {
             $cfg[] = $this->params->get($key);
+        }
+        // the settings of 1.10.0 only when set: an update leaves the signature (and the index) as it was
+        foreach (['index_desc_fields', 'params_skip_fields'] as $key) {
+            if ($this->idsOf($key)) {
+                $cfg[] = [$key => $this->idsOf($key)];
+            }
         }
 
         $db = $this->db;
@@ -346,6 +368,9 @@ final class Indexer
         $db = $this->db;
         if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('t_params'))->loadRow()) {
             $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('t_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_body'))->execute();
+        }
+        if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('d_params'))->loadRow()) {
+            $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('d_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_params'))->execute();
         }
         if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('vsig'))->loadRow()) {
             $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('vsig') . ' bigint(20) NOT NULL DEFAULT 0 AFTER ' . $db->quoteName('sig'))->execute();
@@ -654,7 +679,7 @@ final class Indexer
             foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
                 $text = $this->fieldText($fields[(int) $row->field_id] ?? null, (string) $row->value);
                 if ($text !== '') {
-                    $fieldValues[(int) $row->page_id][] = $text;
+                    $fieldValues[(int) $row->page_id][(int) $row->field_id] = $text;
                 }
             }
         }
@@ -699,7 +724,15 @@ final class Indexer
         // product codes: the product SKU and the codes of its variants
         ['skus' => $skus, 'price' => $price, 'stock' => $stock] = $this->productValues($product);
 
-        $fieldText = implode(' ', $fields);
+        // $fields: field id => text. The searched fields weigh as fields; the description fields (not also
+        // searched) are descriptions, and so are their technical values (d_params); fields marked so give no
+        // technical values (accessories of a product with their own voltages and currents)
+        $searched   = array_flip($this->idsOf('index_fields'));
+        $noValues   = array_flip($this->idsOf('params_skip_fields'));
+        $fieldText  = implode(' ', array_intersect_key($fields, $searched));
+        $descText   = implode("\n", array_diff_key($fields, $searched));
+        $valueText  = implode("\n", array_diff_key(array_intersect_key($fields, $searched), $noValues));
+        $descValues = implode("\n", array_diff_key(array_diff_key($fields, $searched), $noValues));
 
         // body: intro text, meta data, the text of the page itself
         $body = [];
@@ -714,7 +747,8 @@ final class Indexer
             $body[] = $this->pageText((string) $page->params);
         }
         $limit    = max(1000, (int) $this->params->get('content_limit', 20000));
-        $bodyText = mb_substr($this->plain(implode(' ', $body)), 0, $limit);
+        $pageText = $this->plain(implode(' ', $body));
+        $bodyText = mb_substr(trim($pageText . ' ' . $this->plain($descText)), 0, $limit);
 
         $excerpt = $this->plain((string) $page->intro_text);
         if ($excerpt === '') {
@@ -744,7 +778,8 @@ final class Indexer
             't_main'      => $n->indexTokens($title . ' ' . implode(' ', $skus) . ' ' . $fieldText . ' ' . $catText),
             't_body'      => $n->indexTokens($bodyText, 4000),
             // technical values of the name, the fields and the description ("1000 V", "IP67", "-20…50 °C")
-            't_params'    => Params::index($title . "\n" . $fieldText . "\n" . $bodyText),
+            't_params'    => Params::index($title . "\n" . $valueText . "\n" . mb_substr($pageText, 0, $limit)),
+            'd_params'    => $descValues !== '' ? Params::index(mb_substr($this->plain($descValues), 0, $limit)) : '',
             'excerpt'     => mb_substr($excerpt, 0, 600),
             'price'       => $price,
             'in_stock'    => $stock ? 1 : 0,

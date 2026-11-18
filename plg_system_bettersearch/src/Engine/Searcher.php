@@ -21,6 +21,9 @@ final class Searcher
 {
     public const SORTS = ['relevance', 'title', 'title_desc', 'price', 'price_desc', 'newest', 'popular'];
 
+    /** Candidates scored per query at most (a safeguard: a shop of 5 000 products is scored whole in about 50 ms). */
+    public const MAX_CANDIDATES = 20000;
+
     /** Words of a query that are searched (the rest is ignored). */
     public const MAX_GROUPS = 8;
 
@@ -134,6 +137,18 @@ final class Searcher
             $words  = $query;
             $groups = $this->prepare($query, true);
             $items  = $this->replaced($this->run($groups, $phrase, $apps, $explain, false), $groups, $phrase, $apps, $explain);
+        }
+
+        // 1c. every item with all the words has some of them only in its description: the items with more of
+        // them in the name, code, fields or categories come first, also when a word is missing (an accessory
+        // named like the query before a meter whose description lists it among its equipment)
+        if ($items && count($groups) > 1 && $this->params->get('partial_matches', 1)
+            && !array_filter($items, fn ($i) => ($i['strong'] ?? 0) >= count($groups))) {
+            $mixed = $this->run($groups, $phrase, $apps, $explain, true);
+            if ($mixed) {
+                $items = $this->replaced($mixed, $groups, $phrase, $apps, $explain);
+                $mode  = 'mixed';
+            }
         }
 
         // 2. the parts of a joined code as separate words
@@ -282,6 +297,21 @@ final class Searcher
         return $has;
     }
 
+    /** The description fields give technical values of their own (1.10.0: column d_params, settings chosen). */
+    private function descValues(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            try {
+                $has = (bool) $this->db->setQuery('SHOW COLUMNS FROM ' . $this->db->quoteName('#__bettersearch_items') . ' LIKE ' . $this->db->quote('d_params'))->loadRow();
+            } catch (\Throwable $e) {
+                $has = false;
+            }
+        }
+
+        return $has && array_filter(array_map('intval', explode(',', implode(',', array_map('strval', (array) $this->params->get('index_desc_fields', []))))));
+    }
+
     /** @return array<string, string[]> */
     private function synonyms(): array
     {
@@ -344,6 +374,9 @@ final class Searcher
     /**
      * @return array<int, array<string, mixed>> scored items by id
      */
+    /**
+     * @param bool $partial items with some of the groups too, ranked by how many they have (outside the descriptions first)
+     */
     private function run(array $groups, string $phrase, array $apps, bool $explain, bool $partial): array
     {
         if (!$groups) {
@@ -357,8 +390,12 @@ final class Searcher
         $conds  = [];
         $rank   = [];
         $ft     = $this->fulltext();
+        $descValues = $this->descValues();
         if (array_filter($groups, fn ($g) => isset($g['param']))) {
             $select[] = 'i.t_params';
+            if ($descValues) {
+                $select[] = 'i.d_params';
+            }
         }
         foreach ($groups as $gi => $group) {
             if (isset($group['param'])) {
@@ -366,6 +403,9 @@ final class Searcher
                 $or = [];
                 foreach (Params::likePatterns($group['param']) as $i => $pattern) {
                     $or[] = 'i.t_params LIKE ' . $db->quote($pattern);
+                    if ($descValues) {
+                        $or[] = 'i.d_params LIKE ' . $db->quote($pattern);
+                    }
                     if ($i === 0) {
                         $rank[] = '(i.t_params LIKE ' . $db->quote($pattern) . ') * 3';
                     }
@@ -414,8 +454,9 @@ final class Searcher
             $conds[] = '(' . implode(' OR ', $or) . ')';
         }
 
-        // the candidates most likely to rank high come first, so the limit cuts the weak tail only
-        $limit = max(100, min(5000, (int) $this->params->get('max_candidates', 3000)));
+        // every candidate is scored, so the number of results, the filters and the sortings by price, name or
+        // date see them all; the limit is a safeguard only (the candidates most likely to rank high come first)
+        $limit = max(100, min(self::MAX_CANDIDATES, (int) $this->params->get('max_candidates', self::MAX_CANDIDATES)));
         $query = $db->createQuery()
             ->select($select)
             ->from($db->quoteName('#__bettersearch_items', 'i'))
@@ -456,8 +497,9 @@ final class Searcher
             $reasons = $s['reasons'];
 
             if ($partial) {
-                // a partial match ranks by how many words it has, then by relevance
-                $score += 100 * $s['matched'];
+                // a partial match ranks by how many words it has, then by relevance; a word found only in the
+                // descriptions counts a quarter of one in the name, code, fields or categories (step 1c ranks so too)
+                $score += 100 * $s['strong'] + 25 * ($s['matched'] - $s['strong']);
             }
             $boost = (float) ($productBoost[(int) $row->id] ?? 0);
             foreach ($row->cats as $catId) {
@@ -483,7 +525,7 @@ final class Searcher
                 }
             }
 
-            $items[(int) $row->id] = $this->item($row, $score, $s['score'], $reasons) + ['matched' => $s['matched']];
+            $items[(int) $row->id] = $this->item($row, $score, $s['score'], $reasons) + ['matched' => $s['matched'], 'strong' => $s['strong']];
         }
         $this->truncated = $this->truncated || $n >= $limit;
 
@@ -539,11 +581,12 @@ final class Searcher
                     $items[$id]['score']   += $hit['score'] - $items[$id]['base'];
                     $items[$id]['base']     = $hit['score'];
                     $items[$id]['replaced'] = $hit['name'];
+                    $items[$id]['strong']   = count($groups);
                     $items[$id]['reasons']  = array_merge($items[$id]['reasons'], $why);
                 }
             } elseif (isset($new[$id])) {
                 $items[$id] = array_merge($new[$id], ['score' => round($hit['score'], 3), 'base' => $hit['score'], 'replaced' => $hit['name'],
-                    'reasons' => $why, 'matched' => count($groups)]);
+                    'reasons' => $why, 'matched' => count($groups), 'strong' => count($groups)]);
             }
         }
 

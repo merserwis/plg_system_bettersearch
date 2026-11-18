@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.9.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.10.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -274,6 +274,8 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 
 | Option | Default | Description |
 |---|---|---|
+| Description fields | *(empty)* | Gridbox fields with the descriptions of the products (features, technical data…), searched like a description: with the weight of descriptions, far below names, codes and the fields above. Their technical values weigh as descriptions too. Saving a change reindexes the shop. **(1.10.0)** |
+| Fields without technical values | *(empty)* | Fields among the searched and description fields whose values are not values of the product (equipment, accessories with their own voltages and currents); their words are still searched. **(1.10.0)** |
 | Product fields to search | *(empty)* | Values of these Gridbox fields are found (e.g. manufacturer, model, parameters). Leave out fields shared by many products, such as contact persons — they would make every product match their names. |
 | Search variant codes (SKU) | Yes |  |
 | Search parent category names | Yes | A query with a category name also finds the products of its subcategories. |
@@ -302,7 +304,7 @@ Empty colour fields mean **“use the Gridbox theme value”**; the accent colou
 | Weight: technical value | `8` |  |
 | Words with digits × | `1.5` | Model numbers say more than words: their weight is multiplied by this factor. |
 | Popularity | `1` | Points for page views (logarithmic): with equal matches, the more viewed product goes first. 0 = off. |
-| Maximum candidates per query | `3000` |  |
+| Maximum candidates per query | `20000` | A safeguard: every candidate is scored, so the number of results, the filters and the sortings see them all (3 000 before 1.10.0). |
 | Relevance tests | *(none)* | Row: Query, Expectation (*among the first* / *not among the first*), Positions (0 = all results), Products. Without products: the query must find something / must find nothing. *Run the tests* uses the settings of the page (also unsaved) and compares them with the saved ones; rules and exclusions are taken as saved. At most 200. |
 
 ### Ranking & exclusions
@@ -622,6 +624,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.10.0** — Product descriptions searched (*Description fields*) with the weight of descriptions, their technical values too; every candidate scored, so counts, filters and sortings see all the results; sorting by the price the cards show; the brand filter with several brands per product; words only in descriptions no longer push back better matches.
 * **1.9.0** — Relevance tests (saved searches with the products they must find, run before saving and compared with the saved settings); Statistics → To improve: phrases with results but no clicks and synonym suggestions from reworded searches; a Changelog button with the short list of changes in Joomla's updates.
 * **1.8.2** — Saving the search rules page counts only its own settings, not the fields inside its lists of rows.
 * **1.8.1** — The administrator in Czech, German, French and Dutch; the message after installing or updating no longer shows a raw key; the click count accepts only requests from the site itself.

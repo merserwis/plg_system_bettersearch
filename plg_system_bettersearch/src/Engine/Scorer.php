@@ -49,7 +49,8 @@ final class Scorer
      * @param string  $phrase   the whole query in compact form
      * @param bool    $explain  collect the reasons
      *
-     * @return array{score: float, matched: int, missed: int, reasons: string[]}  missed: technical values not held
+     * @return array{score: float, matched: int, missed: int, strong: int, reasons: string[]}  missed: technical values
+     *         not held; strong: groups found outside the descriptions (name, code, fields, categories, their values)
      */
     public function score(array $groups, object $row, string $phrase, bool $explain = false): array
     {
@@ -58,6 +59,7 @@ final class Scorer
         $reasons = [];
         $inTitle = 0;
         $missed  = 0;
+        $strong  = 0;
 
         foreach ($groups as $i => $group) {
             $best = 0.0;
@@ -66,9 +68,15 @@ final class Scorer
                 // a technical value: compared as a number with its unit, or the same text as one whole word
                 $tokens = (string) ($row->t_params ?? '');
                 $m      = Params::score($group['param'], $tokens);
+                $weak   = false;
                 if ($m > 0) {
                     $best = $m * $this->weights['params'];
                     $why  = $explain ? sprintf('%s:param %s', Params::label($group['param']), $m >= 1 ? 'exact' : 'in range') : '';
+                } elseif (($row->d_params ?? '') !== '' && ($d = Params::score($group['param'], ' ' . trim((string) $row->d_params) . ' ')) > 0) {
+                    // a value only in the description fields weighs as a description (a little more than a word of it)
+                    $best = $d * 2 * $this->weights['body'];
+                    $weak = true;
+                    $why  = $explain ? sprintf('%s:param in description', Params::label($group['param'])) : '';
                 }
                 // the text as one word only for items that state no value of this kind ("2,5 kV" holds the word "5kv")
                 $alts = str_contains($tokens, ' ' . $group['param']['dim'] . '=') ? [] : $group['alts'];
@@ -76,13 +84,15 @@ final class Scorer
                     foreach (self::FIELDS as $field => [$tokCol]) {
                         if (str_contains((string) ($row->{$tokCol} ?? ''), ' ' . $alt['c'] . ' ') && self::EXACT * 0.9 * $this->weights[$field] > $best) {
                             $best = 0.9 * $this->weights[$field];
+                            $weak = false;
                             $why  = $explain ? sprintf('%s:%s exact', $alt['c'], $field) : '';
                         }
                     }
                 }
                 if ($best > 0) {
                     $matched++;
-                    $score += $best;
+                    $strong += $weak ? 0 : 1;
+                    $score  += $best;
                     if ($explain) {
                         $reasons[] = sprintf('%s +%.1f', $why, $best);
                     }
@@ -114,12 +124,14 @@ final class Scorer
                     }
                 }
             }
+            $inFields = $best > 0;
             if (!empty($row->{'b' . $i}) && $this->weights['body'] > $best) {
                 $best = $this->weights['body'];
                 $why  = $explain ? $group['term'] . ':body' : '';
             }
             if ($best > 0) {
                 $matched++;
+                $strong += $inFields ? 1 : 0;
                 $best *= $group['digits'] ? $this->digitFactor : 1.0;
                 $score += $best;
                 if ($explain) {
@@ -129,7 +141,7 @@ final class Scorer
         }
 
         if ($matched === 0) {
-            return ['score' => 0.0, 'matched' => 0, 'missed' => $missed, 'reasons' => $reasons];
+            return ['score' => 0.0, 'matched' => 0, 'missed' => $missed, 'strong' => 0, 'reasons' => $reasons];
         }
 
         // the whole query as typed, wherever the spaces are
@@ -172,7 +184,7 @@ final class Scorer
         $short = 2.0 / (1 + $words / 8);
         $score += $short;
 
-        return ['score' => round($score, 3), 'matched' => $matched, 'missed' => $missed, 'reasons' => $reasons];
+        return ['score' => round($score, 3), 'matched' => $matched, 'missed' => $missed, 'strong' => $strong, 'reasons' => $reasons];
     }
 
     /** 0 .. 1 */

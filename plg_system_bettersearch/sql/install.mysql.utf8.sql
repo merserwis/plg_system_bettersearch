@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `#__bettersearch_items` (
   `t_main` mediumtext NOT NULL,
   `t_body` mediumtext NOT NULL,
   `t_params` text NOT NULL,
+  `d_params` text NOT NULL,
   `excerpt` text NOT NULL,
   `price` decimal(15,4) NULL DEFAULT NULL,
   `in_stock` tinyint(1) NOT NULL DEFAULT 1,

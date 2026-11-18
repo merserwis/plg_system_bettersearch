@@ -2,11 +2,24 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
-## 1.10.0 — not released yet
+## 1.10.0 — 2026-11-18
+
+### ✨ New
+
+- **Product descriptions are searched** (Index → *What is indexed* → **Description fields**): the Gridbox fields that hold the descriptions of the products — features, technical data… — are searched like a description, with the weight of descriptions, far below names, codes, the searched fields and categories, so a product that only mentions a word in its description does not come first. A shop whose descriptions are in such fields (text areas) was searched by the names only: “pętla zwarcia 15 mA” found 4 items on a copy of a store of 4 600 products, now 69, the meters of loop impedance among the first. Saving the setting reindexes the shop; an update changes nothing until the fields are chosen.
+- **Technical values of the descriptions weigh as descriptions:** the values in the description fields (1000 V, IP67, CAT IV, -20…50 °C) are found too, kept apart from the values of the name and the searched fields and worth a fraction of them, so a product named “… 1000 V” stays before one whose description mentions 1000 V among its ranges. **Fields without technical values** (advanced) leaves out the values of fields such as the equipment or the accessories, with their own voltages and currents: their words are still searched.
+- **Every candidate of a query is scored:** the number of results, the filters with their counts and the sortings by price, name or date take all the matching products, not the 3 000 found first. *Maximum candidates per query* is now a safeguard of 20 000 (the old default 3 000 becomes 20 000 on the update; a value chosen by hand stays). On a copy of a store of 4 600 products, scoring every candidate of the broadest query took about 30 ms.
 
 ### 🐞 Fixes
 
+- **Sorting by price uses the price the cards show:** the sale price and the active store sales, as the price filter already did — the index keeps the regular price, so a product on sale stood where its regular price put it (a meter of 9 890 zł on sale for 8 603 zł came before a set of 9 290 zł). Pinned and featured products stay first; items without a price last.
+- **The brand filter with a field of several values** (checkbox): a product with several brands ticked is counted for each and found by each; only the first one was read.
+- **Words found only in the descriptions no longer push back better matches:** when every product that has all the words has some of them only in its description, the products with more of the words in the name, code, fields or categories come first, also when a word is missing — an accessory named like the query before a meter whose description lists it. Partial matches count a word found only in a description as a quarter of one in the name.
 - **Names of the product fields in the lists of the settings:** *Product fields to search* and *Brand field* listed text areas as "#2 [textarea]", "#5 [textarea]"… — Gridbox keeps the name of such a field in its settings, not in the label column (which holds the text shown before the value on the page, empty for text areas or "." and "Uwaga:" for others). The lists show the name set in Gridbox ("Cechy i funkcje", "Dane techniczne"…); the brand filter on the site keeps the text shown before the value and takes the name only when there is none.
+
+### 🔧 Under the hood
+
+- **A regression bench of the search engine** (`tools/bench.php`, `tools/bench_diff.py`): a list of queries searched with the saved settings of a site — also with the code of another version — and two runs compared (totals, the first results, times). Run on a copy of a store of 4 600 products with its 60 most searched phrases and 25 more (model codes, technical values, broad words) before and after every change of 1.10.0: without description fields 153 of 156 searches are unchanged, the others better (the guide to loop measurements among the first results of “pętla zwarcia 15 mA”).
 
 ## 1.9.0 — 2026-11-17
 
