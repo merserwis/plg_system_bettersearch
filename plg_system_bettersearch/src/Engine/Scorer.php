@@ -193,6 +193,10 @@ final class Scorer
         if ($alt === '') {
             return 0.0;
         }
+        if ($prefixOnly && strlen($alt) < 5) {
+            // a short stem: only its inflected forms, not every word starting with it
+            return $this->inflected($alt, $tokens) ? self::PREFIX : 0.0;
+        }
         if (!$prefixOnly && str_contains($tokens, ' ' . $alt . ' ')) {
             return self::EXACT;
         }
@@ -206,10 +210,17 @@ final class Scorer
         return 0.0;
     }
 
-    /** A word of the tokens is the stem plus a short ending (up to 4 letters). */
+    /**
+     * A word of the tokens is the stem plus a short ending (up to 4 letters); for the stem of a 5-letter
+     * word one of the noun endings only ("petl" finds "petli", "test" does not find "tester").
+     */
     private function inflected(string $stem, string $tokens): bool
     {
-        return strlen($stem) >= 4 && (bool) preg_match('/ ' . preg_quote($stem, '/') . '[a-z]{0,4} /', $tokens);
+        if (strlen($stem) < 5) {
+            return strlen($stem) === 4 && (bool) preg_match('/ ' . preg_quote($stem, '/') . '(?:' . implode('|', array_filter(Normalizer::SHORT_ENDINGS)) . ')? /', $tokens);
+        }
+
+        return (bool) preg_match('/ ' . preg_quote($stem, '/') . '[a-z]{0,4} /', $tokens);
     }
 
     /** The compact SKU column holds the product code and its variant codes separated by spaces. */

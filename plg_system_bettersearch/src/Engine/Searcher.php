@@ -436,8 +436,17 @@ final class Searcher
                     $or[] = 'i.c_main LIKE ' . $like;
                 }
                 if ($body && strlen($a) > 1) {
-                    // descriptions: words starting with the alternative (full-text index when there is one)
-                    if ($ft && strlen($a) >= $this->ftMin && !in_array($a, self::FT_STOPWORDS, true)) {
+                    // descriptions: words starting with the alternative (full-text index when there is one);
+                    // a short stem ("petl" of "petli") only in its inflected forms, not "testowanie" for "testo"
+                    if ($alt['kind'] === 'stem' && strlen($a) < 5) {
+                        foreach (Normalizer::shortForms($a) as $form) {
+                            if ($ft && strlen($form) >= $this->ftMin && !in_array($form, self::FT_STOPWORDS, true)) {
+                                $words[] = $form;
+                            } else {
+                                $bodyOr[] = 'i.t_body LIKE ' . $db->quote('% ' . $db->escape($form, true) . ' %', false);
+                            }
+                        }
+                    } elseif ($ft && strlen($a) >= $this->ftMin && !in_array($a, self::FT_STOPWORDS, true)) {
                         $words[] = $a . '*';
                     } else {
                         $bodyOr[] = 'i.t_body LIKE ' . $word;

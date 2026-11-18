@@ -151,6 +151,9 @@ final class Params
         if ($text === '' || !preg_match('/\d|IP|ip|CAT|cat|kat|KAT/u', $text)) {
             return ['params' => [], 'rest' => $text];
         }
+        // a sign written apart from its number: "do + 50 °C", "od - 40 do 125 °C" (the space moves before the
+        // sign, so the text keeps its length and the offsets below stay right; a "- " starting a list item stays)
+        $text  = preg_replace(['/\+(\s+)(?=\d)/u', '/(?<![\p{L}\d])(od|from|von)(\s+)([-−–])(\s+)(?=\d)/iu'], ['$1+', '$1$2$4$3'], $text) ?? $text;
         $rest  = $text;
         $blank = function (array $m) use (&$rest): void {
             // the found text is taken out of the query (same length: offsets of later matches stay right)
@@ -191,7 +194,7 @@ final class Params
         // a number glued to a code with a hyphen is part of a model name ("C-4A", "APS-1102A",
         // "M10-522-10 260V"), not a value; "DC-150 kHz" is a band from DC
         // ranges: "-20…+50 °C", "0-600 V", "od -10 do 40°C", "1 mA ... 10 A"
-        $range = '/(?<![\p{L}\d.,])(?:(?<![\p{L}\d]-)|(?<=DC-)|(?<=AC-))(?:od\s+|from\s+|von\s+)?(?<n1>' . self::NUM . ')\s*(?:' . $unit . ')?\s*' . self::SEP
+        $range = '/(?<![\p{L}\d.,])(?:(?<![\p{L}\d]-)|(?<=DC-)|(?<=AC-))(?:od\s+|from\s+|von\s+)?(?<n1>\+?' . self::NUM . ')\s*(?:' . $unit . ')?\s*' . self::SEP
             . '\s*\+?(?<n2>' . self::NUM . ')\s*' . str_replace(['(?<prefix>', '(?<unit>'], ['(?<bprefix>', '(?<bunit>'], $unit) . '/u';
         if (preg_match_all($range, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($all as $m) {
@@ -233,7 +236,8 @@ final class Params
         if (preg_match_all($single, $rest, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
             foreach ($all as $m) {
                 $u = self::unitOf($m, '', $isQuery);
-                if ($u === null) {
+                // the size of a pipe thread ("G 1/2 A", "G 3/8"), not a current
+                if ($u === null || preg_match('/(?:^|[^A-Za-z0-9])G ?$/', substr($rest, max(0, $m[0][1] - 3), min(3, $m[0][1])))) {
                     continue;
                 }
                 foreach (preg_split('/\s*\/\s*/', $m[1][0]) ?: [] as $raw) {

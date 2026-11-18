@@ -235,8 +235,22 @@ final class Normalizer
     }
 
     /**
-     * Light stem for words of 6+ letters: "miernikow" -> "miernik", "izolacji" -> "izolacj". Short
-     * words (often brands: "testo", "fluke") are left alone.
+     * Endings of a short Polish noun (folded). A stem of a 5-letter word ("petl" of "petli") finds only
+     * these forms ("petla", "petle", "petlach"), never a longer word that starts the same ("test" of
+     * "testo" does not find "tester"). The empty ending is the genitive plural ("sond", "lamp").
+     */
+    public const SHORT_ENDINGS = ['', 'a', 'e', 'i', 'y', 'u', 'o', 'ie', 'em', 'om', 'ow', 'ach', 'ami'];
+
+    /** The forms a short stem stands for: "petl" -> petl, petla, petle, petli… */
+    public static function shortForms(string $stem): array
+    {
+        return array_map(fn ($e) => $stem . $e, self::SHORT_ENDINGS);
+    }
+
+    /**
+     * Light stem: "miernikow" -> "miernik", "izolacji" -> "izolacj". A word of 5 letters loses only a
+     * vowel ending ("petli" -> "petl", "sondy" -> "sond") or the mobile e ("kabel" -> "kabl") and its stem
+     * finds only the forms of shortForms().
      */
     public function stem(string $term): string
     {
@@ -251,8 +265,16 @@ final class Normalizer
      */
     public function stems(string $term): array
     {
-        if (strlen($term) < 6 || preg_match('/[0-9]/', $term)) {
+        if (strlen($term) < 5 || preg_match('/[0-9]/', $term)) {
             return [];
+        }
+        if (strlen($term) === 5) {
+            // "petla" / "petli", "sonda" / "sondy" (a consonant before the vowel), "kabel" / "kable", "zamek" / "zamki"
+            if (preg_match('/^([a-z]{3}[^aeiouy])[aeiouy]$/', $term, $m)) {
+                return [$m[1]];
+            }
+
+            return preg_match('/^([a-z]{2}[^aeiouy])e([lk])$/', $term, $m) ? [$m[1] . $m[2]] : [];
         }
         $out = [];
         foreach ($this->suffixSets as $suffixes) {
