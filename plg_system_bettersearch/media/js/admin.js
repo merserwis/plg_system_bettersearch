@@ -947,6 +947,48 @@
      * Voice search: is the microphone allowed on the site? The home page is asked for as a guest and
      * its Permissions-Policy (or old Feature-Policy) header read — what visitors' browsers get.
      */
+    // The preview of the technical-data filters: what the fields give for each filter (settings of the form, not saved).
+    function initSpecs(root) {
+        var t = JSON.parse(root.getAttribute('data-texts') || '{}');
+        var btn = root.querySelector('[data-bs-specs-run]');
+        var status = root.querySelector('.bs-specs-status');
+        var out = root.querySelector('.bs-specs-out');
+        btn.addEventListener('click', function () {
+            btn.disabled = true;
+            status.textContent = t.working || '…';
+            out.innerHTML = '';
+            call('specs_preview', {}, root.closest('form')).then(function (data) {
+                status.textContent = fmt(t.summary, [data.pages, (data.ms / 1000).toFixed(1)]) + (data.complete ? '' : ' ' + t.partial);
+                var html = '';
+                data.filters.forEach(function (f) {
+                    html += '<div class="bs-specs-filter card card-body p-2 mb-2"><div><strong>' + esc(f.label) + '</strong> — '
+                        + esc(fmt(t.products, [f.count])) + (f.on ? '' : ' <span class="badge bg-secondary">' + esc(t.off) + '</span>') + '</div>';
+                    if (!f.count) {
+                        html += '<div class="small text-muted">' + esc(t.none) + '</div></div>';
+                        return;
+                    }
+                    html += '<table class="table table-sm small mb-1 w-auto"><thead><tr><th>' + esc(t.threshold) + '</th><th class="text-end">' + esc(t.count)
+                        + '</th></tr></thead><tbody>';
+                    f.thresholds.forEach(function (th) {
+                        html += '<tr><td>' + esc(th.label) + '</td><td class="text-end">' + esc(th.count) + '</td></tr>';
+                    });
+                    html += '</tbody></table><details><summary class="small">' + esc(t.samples) + '</summary><table class="table table-sm small mb-0"><thead><tr><th>'
+                        + esc(t.product) + '</th><th>' + esc(t.value) + '</th><th>' + esc(t.source) + '</th></tr></thead><tbody>';
+                    f.samples.forEach(function (s) {
+                        html += '<tr><td>' + esc(s.title) + '</td><td class="text-nowrap">' + esc(s.value) + '</td><td class="text-muted">' + esc(s.src) + '</td></tr>';
+                    });
+                    html += '</tbody></table></details></div>';
+                });
+                out.innerHTML = html;
+            }).catch(function (e) {
+                status.textContent = '';
+                say('error', e.message);
+            }).then(function () {
+                btn.disabled = false;
+            });
+        });
+    }
+
     function initVoiceCheck(box) {
         var t = {};
         try {
@@ -1780,6 +1822,7 @@
         });
         document.querySelectorAll('[data-bs-dict]').forEach(initDict);
         document.querySelectorAll('.bs-voicecheck').forEach(initVoiceCheck);
+        document.querySelectorAll('.bs-specs').forEach(initSpecs);
         carried();
         // rows added to a subform (rules, boosts) bring new pickers
         document.addEventListener('subform-row-add', function (e) {

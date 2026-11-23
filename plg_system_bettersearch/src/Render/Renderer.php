@@ -14,6 +14,7 @@ namespace Merserwis\Plugin\System\BetterSearch\Render;
 
 \defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Merserwis\Plugin\System\BetterSearch\Engine\Normalizer;
 use Joomla\Registry\Registry;
@@ -727,6 +728,21 @@ CSS;
                 . '<input type="number" inputmode="decimal" min="0" step="any" name="bs_max" value="' . $esc($fmt($pr['to'])) . '" placeholder="' . $esc($fmt($pr['max'])) . '" aria-label="' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_PRICE_TO')) . '">'
                 . '<button type="submit">' . $esc($this->text('text_apply', 'PLG_SYSTEM_BETTERSEARCH_T_APPLY')) . '</button></div></div>';
         }
+        // the technical data: one list per kind, each threshold with the products that reach it
+        foreach ($f as $facet) {
+            if (!isset($facet['kind'])) {
+                continue;
+            }
+            $kind  = (string) $facet['kind'];
+            $id    = 'bsr-spec-' . $kind . ($state['action'] === '#' ? '-p' : '');
+            $html .= '<div class="bsr-facet bsr-facet-spec"><label class="bsr-facet-title" for="' . $esc($id) . '">' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_T_SPEC_' . strtoupper($kind))) . '</label>'
+                . '<select name="' . $esc($facet['var']) . '" id="' . $esc($id) . '" onchange="this.form.submit()"><option value="">' . $esc($this->text('text_all_brands', 'PLG_SYSTEM_BETTERSEARCH_T_ALL')) . '</option>';
+            foreach ($facet['options'] as $text => $option) {
+                $html .= '<option value="' . $esc($text) . '"' . ((string) $text === $facet['active'] ? ' selected' : '') . '>' . $esc(self::specLabel($kind, $option['value']))
+                    . ' (' . (int) $option['count'] . ')</option>';
+            }
+            $html .= '</select></div>';
+        }
         foreach (['sale' => ['text_sale_only', 'PLG_SYSTEM_BETTERSEARCH_T_SALE_ONLY'], 'stock' => ['text_stock_only', 'PLG_SYSTEM_BETTERSEARCH_T_STOCK_ONLY']] as $flag => [$key, $lang]) {
             if (isset($f[$flag])) {
                 $html .= '<label class="bsr-facet bsr-check"><input type="checkbox" name="bs_' . $flag . '" value="1"' . ($f[$flag]['active'] ? ' checked' : '')
@@ -740,6 +756,49 @@ CSS;
         }
 
         return $html . '</details>';
+    }
+
+    /**
+     * A threshold of a technical-data filter as the list shows it: "at least 1 kV", "IP65 or higher",
+     * "CAT III or higher", "covers -10…50 °C".
+     *
+     * @param float|array{0: float, 1: float} $value
+     */
+    public static function specLabel(string $kind, $value): string
+    {
+        $text = self::specText($kind, $value);
+        if (is_array($value)) {
+            return Text::sprintf('PLG_SYSTEM_BETTERSEARCH_T_SPEC_COVERS', $text);
+        }
+
+        return Text::sprintf($kind === 'v' ? 'PLG_SYSTEM_BETTERSEARCH_T_SPEC_AT_LEAST' : 'PLG_SYSTEM_BETTERSEARCH_T_SPEC_OR_HIGHER', $text);
+    }
+
+    /**
+     * A value of the technical data as written: "1 kV", "IP65", "CAT III", "-10…50 °C".
+     *
+     * @param float|array{0: float, 1: float} $value
+     */
+    public static function specText(string $kind, $value): string
+    {
+        $num = function (float $v): string {
+            $text = rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
+            // the decimal comma of the language (Polish, Czech, German, French, Dutch)
+            $tag  = strtolower(substr((string) Factory::getApplication()->getLanguage()->getTag(), 0, 2));
+
+            return str_replace('-', "\u{2212}", $tag === 'en' ? $text : str_replace('.', ',', $text));
+        };
+        if (is_array($value)) {
+            return $num($value[0]) . '…' . $num($value[1]) . "\u{00A0}°C";
+        }
+        switch ($kind) {
+            case 'ip':
+                return 'IP' . sprintf('%02d', (int) $value);
+            case 'cat':
+                return 'CAT ' . (['', 'I', 'II', 'III', 'IV'][(int) $value] ?? (string) (int) $value);
+            default:
+                return $value >= 1000 ? $num($value / 1000) . "\u{00A0}kV" : $num($value) . "\u{00A0}V";
+        }
     }
 
     /** Cards of one page of results (also used by "load more"). */

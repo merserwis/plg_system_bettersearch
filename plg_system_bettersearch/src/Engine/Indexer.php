@@ -23,7 +23,8 @@ final class Indexer
 {
     /**
      * Bump when the index format changes: every item is indexed again. 8 (1.11.0): the technical values are read
-     * by the reader shared with Better Categories (Params 1.0.0: "150 000 lux", "100 000 pF" one number).
+     * by the reader shared with Better Categories (Params 1.0.0: "150 000 lux", "100 000 pF" one number, a
+     * no-break space between digits kept for it), and the values of the technical-data filters are kept (f_params).
      */
     public const FORMAT = 8;
 
@@ -123,6 +124,12 @@ final class Indexer
         return array_values(array_unique(array_merge($this->idsOf('index_fields'), $this->idsOf('index_desc_fields'))));
     }
 
+    /** @return int[] the fields of technical data the filters of the results page read (Specs) */
+    private function specFieldIds(): array
+    {
+        return $this->idsOf('facet_spec_fields');
+    }
+
     /**
      * Everything that changes how every item is indexed: the settings of the index and the
      * definitions of the indexed fields (their option titles become words). A change marks every
@@ -141,7 +148,7 @@ final class Indexer
             $cfg[] = $this->params->get($key);
         }
         // the settings of 1.10.0 only when set: an update leaves the signature (and the index) as it was
-        foreach (['index_desc_fields', 'params_skip_fields'] as $key) {
+        foreach (['index_desc_fields', 'params_skip_fields', 'facet_spec_fields'] as $key) {
             if ($this->idsOf($key)) {
                 $cfg[] = [$key => $this->idsOf($key)];
             }
@@ -375,6 +382,9 @@ final class Indexer
         if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('d_params'))->loadRow()) {
             $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('d_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_params'))->execute();
         }
+        if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('f_params'))->loadRow()) {
+            $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('f_params') . ' varchar(255) NOT NULL DEFAULT ' . $db->quote('') . ' AFTER ' . $db->quoteName('d_params'))->execute();
+        }
         if (!$db->setQuery('SHOW COLUMNS FROM ' . $db->quoteName('#__bettersearch_items') . ' LIKE ' . $db->quote('vsig'))->loadRow()) {
             $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('vsig') . ' bigint(20) NOT NULL DEFAULT 0 AFTER ' . $db->quoteName('sig'))->execute();
         }
@@ -454,7 +464,8 @@ final class Indexer
     {
         $db     = $this->db;
         $apps   = $this->appIds();
-        $fields = array_keys($this->fields());
+        // the fields of technical data change a page's filter values, so their content is in the signature too
+        $fields = array_values(array_unique(array_merge(array_keys($this->fields()), $this->specFieldIds())));
         $e      = $db->quote('');
         $inApps = ' WHERE page_id IN (SELECT id FROM ' . $db->quoteName('#__gridbox_pages') . ' WHERE app_id IN (' . implode(',', $apps) . '))';
         if ($legacy) {
@@ -687,6 +698,22 @@ final class Indexer
             }
         }
 
+        // the HTML of the fields of technical data, as written (the tables tell what a value is)
+        $specSources = [];
+        if ($specIds = $this->specFieldIds()) {
+            $query = $db->createQuery()
+                ->select(['page_id', 'field_id', 'value'])
+                ->from($db->quoteName('#__gridbox_page_fields'))
+                ->where('page_id IN (' . $list . ')')
+                ->where('field_id IN (' . implode(',', $specIds) . ')')
+                ->order('field_id');
+            foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
+                if (trim((string) $row->value) !== '') {
+                    $specSources[(int) $row->page_id][] = (string) $row->value;
+                }
+            }
+        }
+
         $now  = gmdate('Y-m-d H:i:s');
         $rows = [];
         foreach ($ids as $id) {
@@ -694,7 +721,10 @@ final class Indexer
             if (!$page) {
                 continue;
             }
-            $rows[] = $this->buildRow($page, $products[$id] ?? null, $mapped[$id] ?? [], $tags[$id] ?? [], $fieldValues[$id] ?? [], $sigs[$id] ?? [0, 0], $now);
+            $row    = $this->buildRow($page, $products[$id] ?? null, $mapped[$id] ?? [], $tags[$id] ?? [], $fieldValues[$id] ?? [], $sigs[$id] ?? [0, 0], $now);
+            // the values of the filters: one per kind (the highest voltage, the operating temperatures…)
+            $row['f_params'] = isset($specSources[$id]) ? mb_substr(Specs::encode(Specs::read($specSources[$id])), 0, 255) : '';
+            $rows[] = $row;
         }
 
         $this->store($rows);
@@ -977,7 +1007,9 @@ final class Indexer
     {
         // not strip_tags(): it would cut the text at a "<" in "Przewód <50 V"
         $text = html_entity_decode(Normalizer::stripTags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // a no-break space between digits stays: "123 456 V" is one number to the reader of values (Params)
+        $text = preg_replace('/(?<!\d)[\x{00A0}\x{202F}]|[\x{00A0}\x{202F}](?!\d)/u', ' ', $text) ?? $text;
 
-        return trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+        return trim(preg_replace('/[^\S\x{00A0}\x{202F}]+/u', ' ', $text) ?? '');
     }
 }

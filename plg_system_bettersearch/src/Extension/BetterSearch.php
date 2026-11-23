@@ -41,6 +41,7 @@ use Joomla\Registry\Registry;
 use Merserwis\Plugin\System\BetterSearch\Engine\Indexer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Normalizer;
 use Merserwis\Plugin\System\BetterSearch\Engine\Searcher;
+use Merserwis\Plugin\System\BetterSearch\Engine\Specs;
 use Merserwis\Plugin\System\BetterSearch\Engine\Visitor;
 use Merserwis\Plugin\System\BetterSearch\Field\BsfieldsField;
 use Merserwis\Plugin\System\BetterSearch\Render\Renderer;
@@ -137,7 +138,14 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     private const CANONICAL_VARS = ['option', 'view', 'id', 'Itemid', 'lang', 'query'];
 
     /** URL parameters of the results page filters. */
-    private const FACET_VARS = ['bs_brand', 'bs_min', 'bs_max', 'bs_sale', 'bs_stock'];
+    private const FACET_VARS = ['bs_brand', 'bs_min', 'bs_max', 'bs_sale', 'bs_stock', 'bs_v', 'bs_ip', 'bs_mcat', 'bs_tw', 'bs_tm'];
+
+    /** The URL parameter of each technical-data filter (Specs::KINDS). */
+    private const SPEC_VARS = ['v' => 'bs_v', 'ip' => 'bs_ip', 'cat' => 'bs_mcat', 'tw' => 'bs_tw', 'tm' => 'bs_tm'];
+
+    /** The thresholds of the technical-data filters until the settings give others. */
+    private const SPEC_DEFAULTS = ['v' => '50, 300, 600, 1000, 2500, 5000, 10000', 'ip' => '54, 65, 67, 68', 'cat' => '2, 3, 4',
+        'tw' => '0..40, -10..50, -20..50, -20..60, -30..60', 'tm' => '-20..100, 0..300, 0..500, 0..1000, 0..1500'];
 
     public static function getSubscribedEvents(): array
     {
@@ -1155,7 +1163,172 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'max'   => $num('bs_max'),
             'sale'  => $input->getInt('bs_sale', 0) === 1,
             'stock' => $input->getInt('bs_stock', 0) === 1,
+            'specs' => array_filter(array_map(fn (string $var) => self::specValue((string) $input->get($var, '', 'string')), self::SPEC_VARS), fn ($v) => $v !== null),
         ];
+    }
+
+    /**
+     * A threshold of a technical-data filter as written in the URL or the settings: a number ("1000",
+     * "2.5") or a range ("-10..50"). Null when it is neither.
+     *
+     * @return float|array{0: float, 1: float}|null
+     */
+    private static function specValue(string $raw)
+    {
+        $raw = str_replace(['−', '–', ' ', "\u{00A0}", ','], ['-', '-', '', '', '.'], trim($raw));
+        if (preg_match('/^(-?\d+(?:\.\d+)?)(?:(?:\.\.|…)(-?\d+(?:\.\d+)?))?$/u', $raw, $m)) {
+            if (isset($m[2]) && $m[2] !== '') {
+                return [min((float) $m[1], (float) $m[2]), max((float) $m[1], (float) $m[2])];
+            }
+
+            return (float) $m[1] > 0 ? (float) $m[1] : null;
+        }
+
+        return null;
+    }
+
+    /** The value as the URL writes it: "1000", "2.5", "-10..50". */
+    private static function specText($value): string
+    {
+        $num = fn (float $v) => rtrim(rtrim(number_format($v, 3, '.', ''), '0'), '.');
+
+        return is_array($value) ? $num($value[0]) . '..' . $num($value[1]) : $num((float) $value);
+    }
+
+    /**
+     * The technical-data filters switched on, with their thresholds (settings, else the defaults):
+     * kind => list of thresholds. Empty without fields of technical data.
+     *
+     * @return array<string, array<int, float|array{0: float, 1: float}>>
+     */
+    private function specFilters(bool $all = false): array
+    {
+        $p = $this->params;
+        if (!$all && (!$p->get('page_facets', 1) || !$this->idList((array) $p->get('facet_spec_fields', [])))) {
+            return [];
+        }
+        $kinds = $p->get('facet_specs', Specs::KINDS);
+        $kinds = is_array($kinds) ? $kinds : explode(',', (string) $kinds);
+        $out   = [];
+        foreach (Specs::KINDS as $kind) {
+            if (!$all && !in_array($kind, array_map('trim', array_map('strval', $kinds)), true)) {
+                continue;
+            }
+            $list = trim((string) $p->get('facet_spec_' . $kind, ''));
+            $list = $list !== '' ? $list : self::SPEC_DEFAULTS[$kind];
+            $seen = [];
+            foreach (preg_split('/[;\n]+|,(?!\d)|,\s+/u', $list) ?: [] as $raw) {
+                $value = self::specValue($raw);
+                // a range only for the temperatures, a number for the others
+                if ($value !== null && is_array($value) === in_array($kind, Specs::RANGES, true)) {
+                    $seen[self::specText($value)] = $value;
+                }
+            }
+            if ($seen) {
+                $out[$kind] = array_values($seen);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * What the technical-data filters would read, before they are switched on (the settings of the form):
+     * for each filter the products with a value, the count of each threshold, and random products with
+     * the value read and the line it comes from — the shop sees at once whether the reading can be trusted.
+     * Read from the fields themselves, so it needs no indexing.
+     */
+    private function specsPreview(): array
+    {
+        $fields = $this->idList((array) $this->params->get('facet_spec_fields', []));
+        if (!$fields) {
+            return ['error' => Text::_('PLG_SYSTEM_BETTERSEARCH_SPEC_PREVIEW_NO_FIELDS')];
+        }
+        $filters = $this->specFilters();
+        $apps    = $this->indexer()->appIds();
+        if (!$apps) {
+            return ['error' => Text::_('PLG_SYSTEM_BETTERSEARCH_TOOLS_NO_DATA')];
+        }
+        $db    = $this->db();
+        $query = $db->createQuery()
+            ->select(['f.page_id', 'f.value', 'p.title'])
+            ->from($db->quoteName('#__gridbox_page_fields', 'f'))
+            ->innerJoin($db->quoteName('#__gridbox_pages', 'p') . ' ON p.id = f.page_id')
+            ->where('f.field_id IN (' . implode(',', $fields) . ')')
+            ->where('p.app_id IN (' . implode(',', $apps) . ')')
+            ->where('p.page_category <> ' . $db->quote('trashed'))
+            ->where('f.value <> ' . $db->quote(''))
+            ->order('f.page_id, f.field_id');
+        $t0     = microtime(true);
+        $found  = array_fill_keys(Specs::KINDS, []);
+        $titles = [];
+        $pages  = 0;
+        $done   = true;
+        $flush  = function (int $id, array $sources) use (&$found, &$pages): void {
+            $pages++;
+            foreach (Specs::read($sources, true) as $kind => $spec) {
+                $found[$kind][$id] = $spec;
+            }
+        };
+        $current = 0;
+        $sources = [];
+        foreach ($db->setQuery($query)->getIterator() as $row) {
+            $id = (int) $row->page_id;
+            if ($id !== $current) {
+                if ($current) {
+                    $flush($current, $sources);
+                }
+                // a large shop: what was read in 20 seconds (the counts say so)
+                if (microtime(true) - $t0 > 20) {
+                    $done    = false;
+                    $current = 0;
+                    break;
+                }
+                $current = $id;
+                $sources = [];
+                $titles[$id] = (string) $row->title;
+            }
+            $sources[] = (string) $row->value;
+        }
+        if ($current) {
+            $flush($current, $sources);
+        }
+
+        $out = [];
+        foreach (Specs::KINDS as $kind) {
+            $values     = array_column($found[$kind], 'value');
+            $thresholds = [];
+            foreach ($filters[$kind] ?? $this->specFilters(true)[$kind] ?? [] as $threshold) {
+                $thresholds[] = ['label' => Renderer::specLabel($kind, $threshold),
+                    'count' => count(array_filter($values, fn ($v) => Specs::passes($kind, $v, $threshold)))];
+            }
+            $ids = array_keys($found[$kind]);
+            shuffle($ids);
+            $samples = [];
+            foreach (array_slice($ids, 0, 10) as $id) {
+                $samples[] = ['id' => $id, 'title' => $titles[$id] ?? '', 'value' => Renderer::specText($kind, $found[$kind][$id]['value']),
+                    'src' => mb_substr((string) ($found[$kind][$id]['src'] ?? ''), 0, 200)];
+            }
+            $out[] = ['kind' => $kind, 'label' => Text::_('PLG_SYSTEM_BETTERSEARCH_T_SPEC_' . strtoupper($kind)), 'on' => isset($filters[$kind]),
+                'count' => count($values), 'thresholds' => $thresholds, 'samples' => $samples];
+        }
+
+        return ['pages' => $pages, 'complete' => $done, 'ms' => (int) round((microtime(true) - $t0) * 1000), 'filters' => $out];
+    }
+
+    /** @return int[] the ids of a list setting (a multiple list may be saved as ["1,2"]) */
+    private function idList(array $values): array
+    {
+        $ids = [];
+        foreach ($values as $value) {
+            foreach (explode(',', (string) $value) as $id) {
+                if ((int) $id > 0) {
+                    $ids[] = (int) $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /** The chosen filters as URL parameters. */
@@ -1167,7 +1340,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'bs_max'   => $f['max'] !== null ? (string) $f['max'] : null,
             'bs_sale'  => $f['sale'] ? '1' : null,
             'bs_stock' => $f['stock'] ? '1' : null,
-        ], fn ($v) => $v !== null);
+        ] + array_combine(array_values(self::SPEC_VARS), array_map(fn (string $kind) => isset($f['specs'][$kind]) ? self::specText($f['specs'][$kind]) : null,
+            array_keys(self::SPEC_VARS))), fn ($v) => $v !== null);
     }
 
     /**
@@ -1187,7 +1361,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $usePrice   = (bool) $p->get('facet_price', 1);
         $useSale    = (bool) $p->get('facet_sale', 1);
         $useStock   = (bool) $p->get('facet_stock', 1);
-        if (!$useBrand && !$usePrice && !$useSale && !$useStock) {
+        $specs      = $this->specFilters();
+        // a filter in the URL that the settings no longer offer is left out
+        $f['specs'] = array_intersect_key($f['specs'] ?? [], $specs);
+        if (!$useBrand && !$usePrice && !$useSale && !$useStock && !$specs) {
             return [$items, []];
         }
 
@@ -1199,7 +1376,14 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             if (!$d) {
                 // not a product with data (e.g. blog post): only filters that do not apply let it through
                 return !($useBrand && $f['brand'] !== '' && $skip !== 'brand') && !($usePrice && ($f['min'] !== null || $f['max'] !== null) && $skip !== 'price')
-                    && !($useSale && $f['sale'] && $skip !== 'sale') && !($useStock && $f['stock'] && $skip !== 'stock');
+                    && !($useSale && $f['sale'] && $skip !== 'sale') && !($useStock && $f['stock'] && $skip !== 'stock')
+                    && !array_diff_key($f['specs'], [substr($skip, 5) => true]);
+            }
+            // the technical data: the item's value reaches the chosen one (a range covers it)
+            foreach ($f['specs'] as $kind => $wanted) {
+                if ($skip !== 'spec_' . $kind && !Specs::passes($kind, $d['specs'][$kind] ?? null, $wanted)) {
+                    return false;
+                }
             }
             if ($useBrand && $skip !== 'brand' && $f['brand'] !== '' && !in_array(mb_strtolower($f['brand']), array_map('mb_strtolower', $d['brand']), true)) {
                 return false;
@@ -1267,6 +1451,37 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             }
         }
 
+        // the technical data: each threshold with the items that reach it (among those the other filters let through)
+        foreach ($specs as $kind => $thresholds) {
+            $values = [];
+            foreach ($items as $item) {
+                $value = $data[$item['id']]['specs'][$kind] ?? null;
+                if ($value !== null && $pass($item, 'spec_' . $kind)) {
+                    $values[] = $value;
+                }
+            }
+            $active  = $f['specs'][$kind] ?? null;
+            $options = [];
+            foreach ($thresholds as $threshold) {
+                $count = count(array_filter($values, fn ($v) => Specs::passes($kind, $v, $threshold)));
+                $text  = self::specText($threshold);
+                if ($count > 0 || ($active !== null && self::specText($active) === $text)) {
+                    $options[$text] = ['value' => $threshold, 'count' => $count];
+                }
+            }
+            // a value chosen in the URL that is not among the thresholds stays shown
+            if ($active !== null && !isset($options[self::specText($active)])) {
+                $options[self::specText($active)] = ['value' => $active, 'count' => count(array_filter($values, fn ($v) => Specs::passes($kind, $v, $active)))];
+            }
+            // a filter nobody could narrow with (every item reaches every threshold) is left out
+            $all     = count(array_filter($items, fn ($i) => $pass($i, 'spec_' . $kind)));
+            $narrows = array_filter($options, fn ($o) => $o['count'] < $all);
+            if ($active !== null || ($values && $narrows)) {
+                $facets['spec_' . $kind] = ['kind' => $kind, 'var' => self::SPEC_VARS[$kind], 'options' => $options,
+                    'active' => $active !== null ? self::specText($active) : ''];
+            }
+        }
+
         $items = array_values(array_filter($items, fn ($i) => $pass($i, '')));
 
         return [$items, $facets];
@@ -1280,12 +1495,13 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     {
         $p     = $this->params;
         $brand = $p->get('page_facets', 1) ? max(0, (int) $p->get('facet_brand_field', 0)) : 0;
+        $specs = (bool) $this->specFilters();
         $ids   = array_values(array_unique(array_map('intval', $ids)));
         sort($ids);
-        $key = md5($brand . ':' . implode(',', $ids));
+        $key = md5($brand . ':' . (int) $specs . ':' . implode(',', $ids));
         if (!isset($this->facetMemo[$key])) {
             // one set of items per request (the results page): the memo keeps only the last one
-            $this->facetMemo = [$key => $this->store()->facets($ids, $brand)];
+            $this->facetMemo = [$key => $this->store()->facets($ids, $brand, $specs)];
         }
 
         return $this->facetMemo[$key];
@@ -2861,7 +3077,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         // the settings of the form (not yet saved) for the test console
         $form = $input->post->get('jform', [], 'array');
-        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'suite', 'preview', 'settings_export', 'report_preview', 'report_info', 'theme_css'], true)) {
+        if (is_array($form) && isset($form['params']) && is_array($form['params']) && in_array($task, ['test', 'suite', 'preview', 'settings_export', 'report_preview', 'report_info', 'theme_css', 'specs_preview'], true)) {
             $this->params = $this->withForm($form['params']);
         }
 
@@ -2898,6 +3114,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             case 'preview':
                 return $this->preview((string) $input->getCmd('mode', 'live'), (string) $input->getCmd('device', 'desktop'),
                     mb_substr(trim((string) $input->get('q', '', 'raw')), 0, 200));
+
+            case 'specs_preview':
+                return $this->specsPreview();
 
             case 'theme_css':
                 return ['css' => Themes::export($this->params, Text::_('PLG_SYSTEM_BETTERSEARCH_THEME_' . strtoupper(Themes::key($this->params))))];

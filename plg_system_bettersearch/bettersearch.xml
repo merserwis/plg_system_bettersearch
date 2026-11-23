@@ -464,6 +464,20 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
+                <field name="facet_spec_fields" type="bsfields" multiple="true" layout="joomla.form.field.list-fancy-select" default="" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_FIELDS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_FIELDS_DESC" />
+                <field name="facet_specs" type="checkboxes" default="v,ip,cat,tw,tm" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPECS_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPECS_DESC">
+                    <option value="v">PLG_SYSTEM_BETTERSEARCH_T_SPEC_V</option>
+                    <option value="ip">PLG_SYSTEM_BETTERSEARCH_T_SPEC_IP</option>
+                    <option value="cat">PLG_SYSTEM_BETTERSEARCH_T_SPEC_CAT</option>
+                    <option value="tw">PLG_SYSTEM_BETTERSEARCH_T_SPEC_TW</option>
+                    <option value="tm">PLG_SYSTEM_BETTERSEARCH_T_SPEC_TM</option>
+                </field>
+                <field name="facet_spec_v" parentclass="bs-adv" type="text" default="" hint="50, 300, 600, 1000, 2500, 5000, 10000" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_V_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_NUMBERS_DESC" />
+                <field name="facet_spec_ip" parentclass="bs-adv" type="text" default="" hint="54, 65, 67, 68" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_IP_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_CLASSES_DESC" />
+                <field name="facet_spec_cat" parentclass="bs-adv" type="text" default="" hint="2, 3, 4" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_CAT_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_CLASSES_DESC" />
+                <field name="facet_spec_tw" parentclass="bs-adv" type="text" default="" hint="0..40, -10..50, -20..50, -20..60, -30..60" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_TW_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_RANGES_DESC" />
+                <field name="facet_spec_tm" parentclass="bs-adv" type="text" default="" hint="-20..100, 0..300, 0..500, 0..1000, 0..1500" showon="page_facets:1" label="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_TM_LABEL" description="PLG_SYSTEM_BETTERSEARCH_FACET_SPEC_RANGES_DESC" />
+                <field name="facet_spec_preview" type="bsspecs" showon="page_facets:1" />
                 <field name="page_per_page" type="number" default="24" min="1" max="200" label="PLG_SYSTEM_BETTERSEARCH_PER_PAGE_LABEL" />
                 <field name="page_pagination" type="list" default="both" label="PLG_SYSTEM_BETTERSEARCH_PAGINATION_LABEL">
                     <option value="numbers">PLG_SYSTEM_BETTERSEARCH_PAGINATION_NUMBERS</option>

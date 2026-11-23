@@ -19,6 +19,7 @@ use Joomla\CMS\Language\Associations;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Database\DatabaseInterface;
+use Merserwis\Plugin\System\BetterSearch\Engine\Specs;
 
 final class Store
 {
@@ -95,6 +96,9 @@ final class Store
 
     /** @var array<int, array<string, string>> option titles of the fields, by field id */
     private array $fieldOptionsMemo = [];
+
+    /** @var array<string, bool> columns looked up once per request */
+    private array $columnMemo = [];
 
     /** @var array<int, array{0: string, 1: string}> routed product and category links, by page id */
     private array $links = [];
@@ -376,8 +380,10 @@ final class Store
      *
      * @return array<int, array{price: ?float, sale: bool, stock: bool, brand: string[]}>
      */
-    public function facets(array $ids, int $brandField = 0): array
+    public function facets(array $ids, int $brandField = 0, bool $specs = false): array
     {
+        // the values of the technical-data filters (1.11.0: column f_params, added by the update)
+        $specs = $specs && $this->hasColumn('#__bettersearch_items', 'f_params');
         $ids = array_values(array_filter(array_map('intval', $ids)));
         if (!$ids) {
             return [];
@@ -392,6 +398,9 @@ final class Store
                 ->leftJoin($db->quoteName('#__bettersearch_items', 'i') . ' ON i.id = p.id')
                 ->leftJoin($db->quoteName('#__gridbox_store_product_data', 'd') . ' ON d.product_id = p.id')
                 ->where('p.id IN (' . $list . ')');
+            if ($specs) {
+                $query->select('i.f_params');
+            }
             foreach ($db->setQuery($query)->loadObjectList() ?: [] as $row) {
                 $isProduct = $this->appType((int) $row->app_id) === 'products' && $row->product_type !== null;
                 $values    = $isProduct ? $this->priceValues($row, $this->categoryPathIds((int) $row->page_category)) : null;
@@ -400,6 +409,7 @@ final class Store
                     'sale'  => $values ? $values[1] < $values[0] : false,
                     'stock' => (int) $row->in_stock === 1,
                     'brand' => [],
+                    'specs' => $specs ? Specs::decode((string) ($row->f_params ?? '')) : [],
                 ];
             }
             if ($brandField > 0) {
@@ -413,6 +423,21 @@ final class Store
         }
 
         return $out;
+    }
+
+    /** Whether a table has a column (one added by an update whose script may not have run yet). */
+    private function hasColumn(string $table, string $column): bool
+    {
+        $key = $table . '.' . $column;
+        if (!isset($this->columnMemo[$key])) {
+            try {
+                $this->columnMemo[$key] = (bool) $this->db->setQuery('SHOW COLUMNS FROM ' . $this->db->quoteName($table) . ' LIKE ' . $this->db->quote($column))->loadRow();
+            } catch (\Throwable $e) {
+                $this->columnMemo[$key] = false;
+            }
+        }
+
+        return $this->columnMemo[$key];
     }
 
     /** Option titles of a select / radio / checkbox field (key => title); empty for other fields. */

@@ -86,6 +86,10 @@ class PlgSystemBettersearchInstallerScript extends InstallerScript
             if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['d_params'])) {
                 $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('d_params') . ' text NOT NULL AFTER ' . $db->quoteName('t_params'))->execute();
             }
+            // 1.11.0: the values of the technical-data filters ("v=1000 ip=67 tw=-10..50")
+            if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['f_params'])) {
+                $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('f_params') . ' varchar(255) NOT NULL DEFAULT ' . $db->quote('') . ' AFTER ' . $db->quoteName('d_params'))->execute();
+            }
             // 1.7.0: signature of the price and stock alone (updated without indexing the text again)
             if (in_array($items, $have, true) && !isset($db->getTableColumns('#__bettersearch_items', false)['vsig'])) {
                 $db->setQuery('ALTER TABLE ' . $db->quoteName('#__bettersearch_items') . ' ADD COLUMN ' . $db->quoteName('vsig') . ' bigint(20) NOT NULL DEFAULT 0 AFTER ' . $db->quoteName('sig'))->execute();
