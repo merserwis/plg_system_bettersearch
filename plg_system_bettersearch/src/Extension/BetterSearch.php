@@ -2267,6 +2267,8 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $html .= $this->reportOrdersHtml($from, $to, $pFrom, $limit, ['esc' => $esc, 'n' => $n, 'change' => $change, 'th' => $th, 'td' => $td, 'tdr' => $tdr, 'h2' => $h2]);
         }
 
+        $html .= $this->reportSections($from, $to, $limit, ['esc' => $esc, 'n' => $n, 'change' => $change, 'th' => $th, 'td' => $td, 'tdr' => $tdr, 'h2' => $h2]);
+
         $id    = (int) $this->db()->setQuery($this->db()->createQuery()->select('extension_id')->from($this->db()->quoteName('#__extensions'))
             ->where($this->db()->quoteName('type') . ' = ' . $this->db()->quote('plugin'))->where($this->db()->quoteName('element') . ' = ' . $this->db()->quote('bettersearch')))->loadResult();
         $admin = rtrim(Uri::root(), '/') . '/administrator/index.php?option=com_plugins&task=plugin.edit&extension_id=' . $id;
@@ -2275,6 +2277,26 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_FOOTER', $site !== '' ? $site : Uri::root())) . '</p></div>';
 
         return $html;
+    }
+
+    /**
+     * 1.11.0: sections of other extensions at the end of the report (Better Categories: the statistics of its
+     * filters). Event onBetterSearchReport, arguments: from, to (the period, days Y-m-d, to excluded), limit
+     * (rows of a table), ui (the escaping, number and style helpers of the report); a listener adds the HTML of
+     * its section to the "sections" list. A failing listener leaves the report as it is.
+     *
+     * @param  array<string, mixed>  $ui
+     */
+    private function reportSections(string $from, string $to, int $limit, array $ui): string
+    {
+        try {
+            $event = new \Joomla\Event\Event('onBetterSearchReport', ['from' => $from, 'to' => $to, 'limit' => $limit, 'ui' => $ui, 'sections' => []]);
+            $this->getApplication()->getDispatcher()->dispatch('onBetterSearchReport', $event);
+
+            return implode('', array_filter(array_map('strval', (array) $event->getArgument('sections', []))));
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     /**

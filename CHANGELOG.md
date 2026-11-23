@@ -4,6 +4,15 @@ All changes of **Better Search for Gridbox**, newest first. Each version is also
 
 ## 1.11.0 — not released yet
 
+### ✨ New
+
+- **Other extensions add their sections to the e-mail report:** Better Categories for Gridbox (1.11.0 or later) adds *Filters in the categories* — the filtered pages of the period, the filters and values chosen most, the categories, and the choices that found no product — in the style of the report, for the same period. Turned on and off in Better Categories (*Filters → Statistics*). For developers: the event `onBetterSearchReport` (arguments `from`, `to`, `limit`, `ui` with the escaping, number and style helpers of the report; a listener adds its HTML to `sections`).
+
+### 🔧 Under the hood
+
+- **One reader of technical values for the search and for the filters of Better Categories:** `Engine/Params.php` is now a copy of a file shared with Better Categories (kept in one place, `gb-shared`, copied into both; `build.sh` stops on a stale copy), so a value is read the same way by the search and by the filters. From Better Categories it brings numbers with a space between thousands where they are one number: groups of three digits after a space are joined when the first group has one or two digits, when the others are “000” or after a no-break space — “0 do 150 000 lux” is a range up to 150 000 lx (it was 0 lx), “100 000 pF” is 100 nF, while “100 250 Ω” in two cells of a table stays two values. On a copy of a store of 4 143 products 20 products read differently, all for the better (the lux ranges of 16 light meters, 650 000 V, 540 000 GW, 100 000 pF).
+- The index format changed: after the update every product is indexed again (automatically, or at once with *Update index*).
+
 ### 🐞 Fixes
 
 - **A cart addition counts only when the product is in the cart:** the conversion statistics counted a product put into the cart from the search results as soon as the request arrived, also when Gridbox refused it (out of stock, below the minimum quantity). It is now counted once Gridbox has handled the request and the quantity of the product in the visitor's cart has grown; the cart kept for the orders in the e-mail report is chosen the same way. Checked on a copy of a store: a product out of stock is no longer counted, a second piece of the same product is.

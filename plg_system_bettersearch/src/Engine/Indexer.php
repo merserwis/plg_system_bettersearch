@@ -21,8 +21,11 @@ use Joomla\Registry\Registry;
 
 final class Indexer
 {
-    /** Bump when the index format changes: every item is indexed again. */
-    public const FORMAT = 7;
+    /**
+     * Bump when the index format changes: every item is indexed again. 8 (1.11.0): the technical values are read
+     * by the reader shared with Better Categories (Params 1.0.0: "150 000 lux", "100 000 pF" one number).
+     */
+    public const FORMAT = 8;
 
     private DatabaseInterface $db;
 

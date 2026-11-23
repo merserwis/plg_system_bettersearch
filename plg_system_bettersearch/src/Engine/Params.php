@@ -1,8 +1,8 @@
 <?php
 
 /**
- * @package     Merserwis.Plugin
- * @subpackage  System.bettersearch
+ * @package     Merserwis.Gridbox
+ * @subpackage  Shared
  *
  * Technical parameters: values with a unit ("1000 V", "1 kV", "50 Hz", "200 GΩ"), ranges
  * ("-20…+50 °C", "0–600 V", "od -10 do 40 °C"), measurement categories ("CAT IV", "kat. III")
@@ -13,6 +13,10 @@
  * In the product texts the units are read as written (case matters: "mA" is milliampere, "MΩ"
  * megaohm, a lone "a" is a Polish word); queries are typed in lower case, so there "10 ma" is
  * 10 mA and "10 mohm" may mean either milli- or megaohm (both are tried).
+ *
+ * One reader for Better Search (search, index) and Better Categories (filters): the source is the
+ * repository gb-shared (src/Params.php); each plugin carries a copy in its own namespace, written by
+ * gb-shared/tools/sync.py — edit the source, never a copy.
  */
 
 namespace Merserwis\Plugin\System\BetterSearch\Engine;
@@ -21,6 +25,12 @@ namespace Merserwis\Plugin\System\BetterSearch\Engine;
 
 final class Params
 {
+    /**
+     * Version of the reading rules: a plugin keeps what it has read under it (Better Search: its index
+     * format, Better Categories: the key of its filter index), so a change here reads the texts again.
+     */
+    public const VERSION = '1.0.0';
+
     /**
      * Unit as written => dimension of the token, or [dimension, factor to the base unit]. Pressure is
      * kept in pascals (1 bar = 100 000 Pa, 1 psi = 6894.757 Pa), flow in m³/h (1 l/min = 0.06 m³/h).
@@ -41,8 +51,13 @@ final class Params
 
     private const ROMAN = ['i' => 1, 'ii' => 2, 'iii' => 3, 'iv' => 4];
 
-    /** A number: "1000", "1,5", "-20", "1 000" (a space between thousands only after one or two digits). */
-    private const NUM = '[-−–]?(?:\d{1,2}(?:[  ]\d{3})+|\d+)(?:[.,]\d+)?';
+    /**
+     * A number: "1000", "1,5", "-20", "1 000", "10 500", "100 000". Groups of three digits after a space are
+     * one number when the first group has one or two digits, when every later group is "000" ("150 000 lx")
+     * or when the space is a no-break one; "100 250 Ω" is two cells of a table, not 100250 Ω. A group of
+     * three after a space is never read alone: "100 000 Pa" is 100000 Pa, not 0 Pa.
+     */
+    private const NUM = '[-−–]?(?:\d{1,3}(?:[\x{00A0}\x{202F}]\d{3})+|\d{1,3}(?: 000)+(?!\d)|\d{1,2}(?: \d{3})+|\d+)(?:[.,]\d+)?';
 
     /** Words and signs between the two ends of a range ("¸" is a "÷" broken by a copy from a PDF). */
     private const SEP = '(?:\.{2,3}|…|–|—|-|−|÷|¸|~|\bto\b|\bdo\b|\bbis\b)';
@@ -345,7 +360,7 @@ final class Params
 
     private static function number(string $raw): ?float
     {
-        $raw = str_replace(['−', '–', ' ', ' ', ','], ['-', '-', '', '', '.'], trim($raw));
+        $raw = str_replace(['−', '–', ' ', "\u{00A0}", "\u{202F}", ','], ['-', '-', '', '', '', '.'], trim($raw));
 
         return is_numeric($raw) ? (float) $raw : null;
     }
