@@ -3,6 +3,27 @@
     <changelog>
         <element>pkg_bettersearch</element>
         <type>package</type>
+        <version>1.11.0</version>
+        <fix>
+            <item>A cart addition counts only when the product is in the cart</item>
+            <item>The orders of the e-mail report are summed by the database</item>
+        </fix>
+        <addition>
+            <item>Filters of technical data on the results page</item>
+            <item>Other extensions add their sections to the e-mail report</item>
+        </addition>
+        <change>
+            <item>One reader of technical values for the search and for the filters of Better Categories</item>
+            <item>The index format changed: after the update every product is indexed again...</item>
+        </change>
+        <note>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases/tag/v1.11.0" target="_blank" rel="noopener noreferrer">The full list of changes of 1.11.0 (GitHub)</a>]]></item>
+            <item><![CDATA[<a href="https://github.com/merserwis/plg_system_bettersearch/releases" target="_blank" rel="noopener noreferrer">All versions and their changes (GitHub releases)</a>]]></item>
+        </note>
+    </changelog>
+    <changelog>
+        <element>pkg_bettersearch</element>
+        <type>package</type>
         <version>1.10.1</version>
         <fix>
             <item>Short words in another form are found</item>

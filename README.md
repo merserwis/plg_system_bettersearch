@@ -3,7 +3,7 @@
 [![Joomla Version](https://img.shields.io/badge/Joomla-6.x-blue?style=for-the-badge&logo=joomla)](https://www.joomla.org)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20--%208.5-777BB4?style=for-the-badge&logo=php)](https://www.php.net)
 [![Gridbox](https://img.shields.io/badge/Balbooa%20Gridbox-2.20.3.1%20(Store)-orange?style=for-the-badge)](https://www.balbooa.com/joomla-gridbox)
-[![Version](https://img.shields.io/badge/Release-v1.10.1-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
+[![Version](https://img.shields.io/badge/Release-v1.11.0-brightgreen?style=for-the-badge)](https://github.com/merserwis/plg_system_bettersearch/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 A native Joomla 6 extension that replaces the **Balbooa Gridbox store search** — the live results under the search fields and the search results page — with a search that finds products **the way shoppers type them**, from its own index.
@@ -629,6 +629,7 @@ With a page cache (Gridbox performance cache, *System - Page Cache* or a proxy) 
 
 The full history of every version is in **[CHANGELOG.md](CHANGELOG.md)**. In short:
 
+* **1.11.0** — Filters of technical data on the results page (maximum voltage, IP, measurement category, working temperature, temperature range) read from the tables of the descriptions; technical values read by the reader shared with Better Categories; other extensions add sections to the e-mail report (Better Categories: its filters); a cart addition counts only once the product is in the cart.
 * **1.10.1** — Short words found in another form (“pętla” finds “pętli”, “torby” the bags), technical values written “do + 50 °C”, “od - 40 do 125 °C” or “0° ... 40°C” read as ranges.
 * **1.10.0** — Product descriptions searched (*Description fields*) with the weight of descriptions, their technical values too; every candidate scored, so counts, filters and sortings see all the results; sorting by the price the cards show; the brand filter with several brands per product; words only in descriptions no longer push back better matches.
 * **1.9.0** — Relevance tests (saved searches with the products they must find, run before saving and compared with the saved settings); Statistics → To improve: phrases with results but no clicks and synonym suggestions from reworded searches; a Changelog button with the short list of changes in Joomla's updates.
