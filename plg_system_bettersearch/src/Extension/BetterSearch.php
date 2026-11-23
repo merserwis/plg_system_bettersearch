@@ -525,24 +525,47 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         }
         $q = mb_substr(mb_strtolower(trim($map[(string) $id]), 'UTF-8'), 0, 120);
         if ($q !== '') {
-            $this->recordEvent($q, $id, 2);
-            $this->rememberCart($id, $q);
+            $this->confirmCart($id, $q);
         }
     }
 
     /**
-     * The Gridbox cart the product went into, with the query: an order placed from that cart is
-     * counted for the search in the e-mail report. Gridbox ends the request with exit, and a first
-     * product opens a new cart in this very request (its number only in the Set-Cookie header),
-     * so the cart is looked up at shutdown, once the product is in it.
+     * Counts the cart addition only once Gridbox has put the product into the cart (a request it
+     * refuses, out of stock or with a wrong option, counts nothing), and keeps the cart it went into
+     * with the query: an order placed from that cart is counted for the search in the e-mail report.
+     * Gridbox ends the request with exit, and a first product opens a new cart in this very request
+     * (its number only in the Set-Cookie header), so the cart is looked up at shutdown and the
+     * quantity of the product there compared with the one before Gridbox handled the request.
      */
-    private function rememberCart(int $id, string $q): void
+    private function confirmCart(int $id, string $q): void
     {
         $app    = $this->getApplication();
         $cookie = $app->getInput()->cookie->getInt('gridbox_store_cart', 0);
         $user   = (int) ($app->getIdentity()?->id ?? 0);
         $db     = $this->db();
-        register_shutdown_function(function () use ($db, $id, $q, $cookie, $user): void {
+        $cartsTable = $db->quoteName('#__gridbox_store_cart');
+        $lines      = $db->quoteName('#__gridbox_store_cart_products');
+        // pieces of the product per cart: before Gridbox runs and at shutdown
+        $pieces = function (array $carts) use ($db, $lines, $id): array {
+            $carts = array_values(array_unique(array_filter(array_map('intval', $carts))));
+            if (!$carts) {
+                return [];
+            }
+            $out = [];
+            foreach ($db->setQuery('SELECT cart_id, SUM(quantity) FROM ' . $lines . ' WHERE product_id = ' . $id . ' AND cart_id IN (' . implode(',', $carts) . ')'
+                . ' GROUP BY cart_id')->loadRowList() ?: [] as [$cart, $count]) {
+                $out[(int) $cart] = (int) $count;
+            }
+
+            return $out;
+        };
+        $userCart = fn (): int => $user > 0 ? (int) $db->setQuery('SELECT MAX(id) FROM ' . $cartsTable . ' WHERE user_id = ' . $user)->loadResult() : 0;
+        try {
+            $before = $pieces([$cookie, $userCart()]);
+        } catch (\Throwable $e) {
+            return;
+        }
+        register_shutdown_function(function () use ($db, $id, $q, $cookie, $userCart, $pieces, $before): void {
             try {
                 $carts = [];
                 foreach (headers_list() as $header) {
@@ -551,13 +574,11 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                     }
                 }
                 $carts[] = $cookie;
-                if ($user > 0) {
-                    $carts[] = (int) $db->setQuery('SELECT MAX(id) FROM ' . $db->quoteName('#__gridbox_store_cart') . ' WHERE user_id = ' . $user)->loadResult();
-                }
+                $carts[] = $userCart();
+                $after   = $pieces($carts);
                 foreach (array_unique(array_filter($carts)) as $cart) {
-                    $has = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $db->quoteName('#__gridbox_store_cart_products')
-                        . ' WHERE cart_id = ' . (int) $cart . ' AND product_id = ' . $id)->loadResult();
-                    if ($has) {
+                    if (($after[$cart] ?? 0) > ($before[$cart] ?? 0)) {
+                        $this->recordEvent($q, $id, 2);
                         $db->setQuery('INSERT INTO ' . $db->quoteName('#__bettersearch_carts') . ' (cart_id, item_id, query, day) VALUES (' . (int) $cart . ', ' . $id . ', '
                             . $db->quote($q) . ', ' . $db->quote(self::siteDay()) . ') ON DUPLICATE KEY UPDATE query = VALUES(query), day = VALUES(day)')->execute();
 
@@ -2278,38 +2299,60 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
         $line     = 'CAST(IF(p.sale_price <> ' . $db->quote('') . ', p.sale_price, p.price) AS DECIMAL(16,4))';
         $tdn      = str_replace('style="', 'style="white-space:nowrap;', $td);
 
+        $valid    = ' AND o.status <> ' . $db->quote('refunded');
+        // the sums are counted by the database: a long period (up to a year) never loads all its orders
+        $perCurrency = fn (string $a, string $b) => $db->setQuery('SELECT o.currency_symbol AS symbol, o.currency_position AS position, COUNT(*) AS orders, SUM(' . $cart . ') AS cart FROM '
+            . $orders . ' AS o' . $where($a, $b) . $valid . ' GROUP BY o.currency_symbol, o.currency_position'
+            // the currency of the latest order first, as the list shows them
+            . ' ORDER BY MAX(o.date) DESC, MAX(o.id) DESC')->loadAssocList() ?: [];
+
         try {
+            // only the orders the report lists
             $list = $db->setQuery('SELECT o.id, o.order_number, o.date, o.status, o.currency_symbol AS symbol, o.currency_position AS position, ' . $cart . ' AS cart FROM '
-                . $orders . ' AS o' . $where($from, $to) . ' ORDER BY o.date DESC, o.id DESC')->loadAssocList() ?: [];
-            $prev = $db->setQuery('SELECT o.currency_symbol AS symbol, o.currency_position AS position, COUNT(*) AS orders, SUM(' . $cart . ') AS cart FROM ' . $orders . ' AS o'
-                . $where($pFrom, $from) . ' AND o.status <> ' . $db->quote('refunded') . ' GROUP BY o.currency_symbol, o.currency_position')->loadAssocList() ?: [];
+                . $orders . ' AS o' . $where($from, $to) . ' ORDER BY o.date DESC, o.id DESC LIMIT ' . $limit)->loadAssocList() ?: [];
+            $all  = (int) $db->setQuery('SELECT COUNT(*) FROM ' . $orders . ' AS o' . $where($from, $to))->loadResult();
+            $now  = $perCurrency($from, $to);
+            $prev = $perCurrency($pFrom, $from);
         } catch (\Throwable $e) {
             // no Gridbox store on this site
             return '';
         }
 
-        $ids    = array_map(fn ($r) => (int) $r['id'], $list);
-        $qty    = [];
-        $found  = [];
-        $prevFound = 0;
+        $ids        = array_map(fn ($r) => (int) $r['id'], $list);
+        $qty        = [];
+        $found      = [];
+        $fromSearch = $prevFound = 0;
+        $searchValue = [];
+        $phrases    = [];
+        $joined     = ' FROM ' . $products . ' AS p INNER JOIN ' . $orders . ' AS o ON o.id = p.order_id INNER JOIN ' . $carts
+            . ' AS c ON c.cart_id = o.cart_id AND c.item_id = p.product_id';
         try {
             if ($ids) {
                 $in = ' IN (' . implode(',', $ids) . ')';
                 foreach ($db->setQuery('SELECT order_id, SUM(quantity) FROM ' . $products . ' WHERE order_id' . $in . ' GROUP BY order_id')->loadRowList() ?: [] as [$oid, $count]) {
                     $qty[(int) $oid] = (int) $count;
                 }
-                foreach ($db->setQuery('SELECT p.order_id, c.query, SUM(' . $line . ') AS value FROM ' . $products . ' AS p INNER JOIN ' . $orders . ' AS o ON o.id = p.order_id INNER JOIN '
-                    . $carts . ' AS c ON c.cart_id = o.cart_id AND c.item_id = p.product_id WHERE p.order_id' . $in . ' GROUP BY p.order_id, c.query ORDER BY value DESC')->loadAssocList() ?: [] as $row) {
+                foreach ($db->setQuery('SELECT p.order_id, c.query, SUM(' . $line . ') AS value' . $joined . ' WHERE p.order_id' . $in
+                    . ' GROUP BY p.order_id, c.query ORDER BY value DESC')->loadAssocList() ?: [] as $row) {
                     $found[(int) $row['order_id']][(string) $row['query']] = (float) $row['value'];
                 }
             }
-            $prevFound = (int) $db->setQuery('SELECT COUNT(DISTINCT o.id) FROM ' . $orders . ' AS o INNER JOIN ' . $products . ' AS p ON p.order_id = o.id INNER JOIN ' . $carts
-                . ' AS c ON c.cart_id = o.cart_id AND c.item_id = p.product_id' . $where($pFrom, $from) . ' AND o.status <> ' . $db->quote('refunded'))->loadResult();
+            $fromSearch = (int) $db->setQuery('SELECT COUNT(DISTINCT o.id)' . $joined . $where($from, $to) . $valid)->loadResult();
+            $prevFound  = (int) $db->setQuery('SELECT COUNT(DISTINCT o.id)' . $joined . $where($pFrom, $from) . $valid)->loadResult();
+            // per phrase and currency (an order has one currency, so the order counts add up)
+            foreach ($db->setQuery('SELECT c.query, o.currency_symbol AS symbol, o.currency_position AS position, COUNT(DISTINCT o.id) AS orders, SUM(' . $line . ') AS value'
+                . $joined . $where($from, $to) . $valid . ' GROUP BY c.query, o.currency_symbol, o.currency_position ORDER BY MAX(o.date) DESC, MAX(o.id) DESC')->loadAssocList() ?: [] as $row) {
+                $key   = $row['symbol'] . "\x1F" . $row['position'];
+                $query = (string) $row['query'];
+                $searchValue[$key] = ($searchValue[$key] ?? 0) + (float) $row['value'];
+                $phrases[$query]['orders'] = ($phrases[$query]['orders'] ?? 0) + (int) $row['orders'];
+                $phrases[$query]['value'][$key] = ($phrases[$query]['value'][$key] ?? 0) + (float) $row['value'];
+            }
         } catch (\Throwable $e) {
             // the carts table is created on install; without it no order is put down to the search
         }
 
-        if (!$list && !$prev) {
+        if (!$all && !$prev) {
             return '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS')) . '</h2><p style="margin:0;color:#6b7280">'
                 . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_NONE')) . '</p>';
         }
@@ -2350,24 +2393,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
 
         $count = 0;
         $value = [];
-        $fromSearch = 0;
-        $searchValue = [];
-        $phrases = [];
-        foreach ($list as $row) {
-            if ($row['status'] === 'refunded') {
-                continue;
-            }
-            $key = $row['symbol'] . "\x1F" . $row['position'];
-            $count++;
-            $value[$key] = ($value[$key] ?? 0) + (float) $row['cart'];
-            if (!empty($found[(int) $row['id']])) {
-                $fromSearch++;
-                foreach ($found[(int) $row['id']] as $query => $amount) {
-                    $searchValue[$key] = ($searchValue[$key] ?? 0) + $amount;
-                    $phrases[$query]['orders'][(int) $row['id']] = true;
-                    $phrases[$query]['value'][$key] = ($phrases[$query]['value'][$key] ?? 0) + $amount;
-                }
-            }
+        foreach ($now as $row) {
+            $count += (int) $row['orders'];
+            $value[$row['symbol'] . "\x1F" . $row['position']] = (float) $row['cart'];
         }
         $prevCount = 0;
         $prevValue = [];
@@ -2402,7 +2430,7 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                 . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_DATE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_STATUS')) . '</th><th ' . $th . '>'
                 . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_ITEMS')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_CART')) . '</th><th ' . $th . '>'
                 . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_FROM_SEARCH')) . '</th></tr>';
-            foreach (array_slice($list, 0, $limit) as $row) {
+            foreach ($list as $row) {
                 $id       = (int) $row['id'];
                 $refunded = $row['status'] === 'refunded';
                 $state    = $status[(string) $row['status']] ?? ['title' => (string) $row['status'], 'color' => '#6b7280'];
@@ -2418,18 +2446,18 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
                     . '</td></tr>';
             }
             $html .= '</table>';
-            if (count($list) > $limit) {
-                $html .= '<p style="margin:6px 0 0;color:#6b7280;font-size:13px">' . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_MORE', count($list) - $limit)) . '</p>';
+            if ($all > $limit) {
+                $html .= '<p style="margin:6px 0 0;color:#6b7280;font-size:13px">' . $esc(Text::sprintf('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_MORE', $all - $limit)) . '</p>';
             }
         }
 
         if ($phrases) {
-            uasort($phrases, fn ($a, $b) => array_sum($b['value']) <=> array_sum($a['value']) ?: count($b['orders']) <=> count($a['orders']));
+            uasort($phrases, fn ($a, $b) => array_sum($b['value']) <=> array_sum($a['value']) ?: $b['orders'] <=> $a['orders']);
             $html .= '<h2 ' . $h2 . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_PHRASES')) . '</h2><table style="width:100%;border-collapse:collapse"><tr><th ' . $th . '>'
                 . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_PHRASE')) . '</th><th ' . $th . '>' . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_ORDERS_COUNT')) . '</th><th ' . $th . '>'
                 . $esc(Text::_('PLG_SYSTEM_BETTERSEARCH_REPORT_COL_SEARCH_VALUE')) . '</th></tr>';
             foreach (array_slice($phrases, 0, 10, true) as $query => $data) {
-                $html .= '<tr><td ' . $td . '>' . $esc($query) . '</td><td ' . $tdr . '>' . $n(count($data['orders'])) . '</td><td ' . $tdr . '>' . $esc($sums($data['value'])) . '</td></tr>';
+                $html .= '<tr><td ' . $td . '>' . $esc($query) . '</td><td ' . $tdr . '>' . $n($data['orders']) . '</td><td ' . $tdr . '>' . $esc($sums($data['value'])) . '</td></tr>';
             }
             $html .= '</table>';
         }

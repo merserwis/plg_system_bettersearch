@@ -2,6 +2,13 @@
 
 All changes of **Better Search for Gridbox**, newest first. Each version is also published as a [GitHub release](https://github.com/merserwis/plg_system_bettersearch/releases) with its installation package.
 
+## 1.11.0 — not released yet
+
+### 🐞 Fixes
+
+- **A cart addition counts only when the product is in the cart:** the conversion statistics counted a product put into the cart from the search results as soon as the request arrived, also when Gridbox refused it (out of stock, below the minimum quantity). It is now counted once Gridbox has handled the request and the quantity of the product in the visitor's cart has grown; the cart kept for the orders in the e-mail report is chosen the same way. Checked on a copy of a store: a product out of stock is no longer counted, a second piece of the same product is.
+- **The orders of the e-mail report are summed by the database:** for a long chosen period (up to a year) the report loaded every order of the period to add it up. The counts, values, orders from the search and phrases are now summed in the database and only the orders the report lists (as many as *Phrases in the report*) are read. The report is the same as before (compared on a copy of a store with 2 297 orders, periods from a week to almost three years, also with refunded orders).
+
 ## 1.10.1 — 2026-11-18
 
 ### 🐞 Fixes
