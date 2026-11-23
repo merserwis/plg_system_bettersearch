@@ -1163,7 +1163,9 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             'max'   => $num('bs_max'),
             'sale'  => $input->getInt('bs_sale', 0) === 1,
             'stock' => $input->getInt('bs_stock', 0) === 1,
-            'specs' => array_filter(array_map(fn (string $var) => self::specValue((string) $input->get($var, '', 'string')), self::SPEC_VARS), fn ($v) => $v !== null),
+            // each value checked for its kind: a range for the temperatures, a number in bounds for the others
+            'specs' => array_filter(array_combine(array_keys(self::SPEC_VARS), array_map(fn (string $var, string $kind) => self::validSpec($kind,
+                self::specValue((string) $input->get($var, '', 'string'))), self::SPEC_VARS, array_keys(self::SPEC_VARS))), fn ($v) => $v !== null),
         ];
     }
 
@@ -1177,14 +1179,44 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
     {
         $raw = str_replace(['−', '–', ' ', "\u{00A0}", ','], ['-', '-', '', '', '.'], trim($raw));
         if (preg_match('/^(-?\d+(?:\.\d+)?)(?:(?:\.\.|…)(-?\d+(?:\.\d+)?))?$/u', $raw, $m)) {
+            // the precision of the URL and of the options of the lists (specText), so a value compares as it is shown
+            $a = round((float) $m[1], 3);
             if (isset($m[2]) && $m[2] !== '') {
-                return [min((float) $m[1], (float) $m[2]), max((float) $m[1], (float) $m[2])];
+                $b = round((float) $m[2], 3);
+
+                return is_finite($a) && is_finite($b) ? [min($a, $b), max($a, $b)] : null;
             }
 
-            return (float) $m[1] > 0 ? (float) $m[1] : null;
+            return is_finite($a) && $a > 0 ? $a : null;
         }
 
         return null;
+    }
+
+    /**
+     * A threshold that fits its kind (null otherwise): a range of °C for the temperatures, a voltage up
+     * to 1 MV, an IP number up to 69 and a measurement category of 1 to 4.
+     *
+     * @param float|array{0: float, 1: float}|null $value
+     *
+     * @return float|array{0: float, 1: float}|null
+     */
+    private static function validSpec(string $kind, $value)
+    {
+        if ($value === null || is_array($value) !== in_array($kind, Specs::RANGES, true)) {
+            return null;
+        }
+        if (is_array($value)) {
+            return $value[0] >= -273 && $value[1] <= 5000 ? $value : null;
+        }
+        switch ($kind) {
+            case 'ip':
+                return $value <= 69 && floor($value) === $value ? $value : null;
+            case 'cat':
+                return $value >= 1 && $value <= 4 && floor($value) === $value ? $value : null;
+            default:
+                return $value <= 1.0e6 ? $value : null;
+        }
     }
 
     /** The value as the URL writes it: "1000", "2.5", "-10..50". */
@@ -1217,10 +1249,10 @@ final class BetterSearch extends CMSPlugin implements SubscriberInterface
             $list = trim((string) $p->get('facet_spec_' . $kind, ''));
             $list = $list !== '' ? $list : self::SPEC_DEFAULTS[$kind];
             $seen = [];
-            foreach (preg_split('/[;\n]+|,(?!\d)|,\s+/u', $list) ?: [] as $raw) {
-                $value = self::specValue($raw);
-                // a range only for the temperatures, a number for the others
-                if ($value !== null && is_array($value) === in_array($kind, Specs::RANGES, true)) {
+            // separated by commas, semicolons or lines ("2,3,4" are three categories; a decimal takes a point)
+            foreach (preg_split('/[,;\n]+/u', $list) ?: [] as $raw) {
+                $value = self::validSpec($kind, self::specValue($raw));
+                if ($value !== null) {
                     $seen[self::specText($value)] = $value;
                 }
             }

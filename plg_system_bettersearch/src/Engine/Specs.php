@@ -34,7 +34,7 @@ final class Specs
      * others anywhere in the label, header, heading or the line.
      */
     private const SKIP = [
-        'supply'  => '/zasila|bateri|akumulator|ładowa|pobór|zużyci|ogniw|żywotno|power supply|battery|\bmains\b/iu',
+        'supply'  => '/zasila|bateri|akumulator|ładowa|pobór|zużyci|ogniw|żywotno|\bsupply\b|battery|\bmains\b|versorgung|napájen|alimentation|voeding/iu',
         'output'  => '/wyjści|wyjście|output|przekaźnik|przełącza|obciążaln|styk/iu',
         'safety'  => '/przepięci|udar|surge|\besd\b|wyładowa|odporno|ochron|bezpiecznik|zabezpiecz|\bIR\s*\d|zdolno\w* wyłącza|wytrzym|withstand|izolacj[ai] (?:wzmocnion|podwójn)'
             . '|spodziewan|przewidywan|zwarciow|ipsc|\bpfc\b|\bpsc\b|transient|gwint|\bG\s?\d\/\d/iu',
@@ -213,33 +213,65 @@ final class Specs
 
     private static function table(\DOMElement $table, string $head, array &$out): void
     {
-        $cols = [];
+        $cols  = [];
+        // cells that span down from a row above: logical column => [cell, rows still to cover]
+        $spans = [];
         foreach ($table->getElementsByTagName('tr') as $tr) {
-            $cells = [];
+            $physical = [];
             foreach ($tr->childNodes as $td) {
                 if ($td instanceof \DOMElement && in_array(strtolower($td->tagName), ['td', 'th'], true)) {
-                    $cells[] = $td;
+                    $physical[] = $td;
                 }
             }
-            if (!$cells) {
+            if (!$physical) {
                 continue;
             }
-            $texts = array_map([self::class, 'text'], $cells);
-            // a row of column headers: th cells or bold cells, and no value in it
-            $bold = array_filter($cells, [self::class, 'isHeaderCell']);
-            if (count($cells) > 1 && count($bold) === count($cells) && !preg_match('/\d\s*[a-zA-ZΩ°%]/u', implode(' ', $texts))) {
+            // the logical row: a cell of rowspan keeps its column in the rows below ("Zasilanie" over
+            // "12 V" and "230 V"), a cell of colspan takes several columns
+            $row   = [];
+            $col   = 0;
+            $carry = function () use (&$spans, &$row, &$col): void {
+                while (isset($spans[$col])) {
+                    $row[$col] = ['td' => $spans[$col][0], 'own' => false];
+                    if (--$spans[$col][1] <= 0) {
+                        unset($spans[$col]);
+                    }
+                    $col++;
+                }
+            };
+            foreach ($physical as $td) {
+                $carry();
+                $wide = max(1, min(20, (int) $td->getAttribute('colspan')));
+                $down = max(1, min(100, (int) $td->getAttribute('rowspan')));
+                for ($k = 0; $k < $wide; $k++) {
+                    $row[$col + $k] = ['td' => $td, 'own' => $k === 0];
+                    if ($down > 1) {
+                        $spans[$col + $k] = [$td, $down - 1];
+                    }
+                }
+                $col += $wide;
+            }
+            $carry();
+            ksort($row);
+            $row   = array_values($row);
+            $texts = array_map(fn ($c) => self::text($c['td']), $row);
+            // a row of column headers: th or bold cells, and no value read in it (a bold "IP67" or "CAT IV" is data)
+            $bold = array_filter($physical, [self::class, 'isHeaderCell']);
+            if (count($physical) > 1 && count($bold) === count($physical) && !Params::extract(implode(' | ', $texts), false)['params']) {
                 $cols = $texts;
                 continue;
             }
-            $label  = count($cells) > 1 ? $texts[0] : '';
+            $first  = count($row) > 1 ? 1 : 0;
+            $label  = $first ? $texts[0] : '';
             // labels one under the other in the first cell and the values the same way in the next ones:
             // each value line under the label of its line
-            $labels = count($cells) > 1 ? self::lines($cells[0]) : [];
-            foreach ($cells as $i => $td) {
-                if ($i === 0 && count($cells) > 1) {
+            $labels = $first === 1 ? self::lines($row[0]['td']) : [];
+            foreach ($row as $i => $cell) {
+                // the label cells, and the values of a cell spanning down (read in its first row)
+                if ($i < $first || !$cell['own']) {
                     continue;
                 }
-                $lines  = self::lines($td);
+                $lines  = self::lines($cell['td']);
                 $paired = count($labels) > 1 && count($labels) === count($lines);
                 foreach ($lines as $n => $line) {
                     // labels that do not pair with the lines: a line's own "Label:" tells more than all of them
@@ -324,11 +356,7 @@ final class Specs
         }
         foreach (['tw' => $work, 'tm' => $meas] as $kind => $list) {
             if ($list) {
-                $lo = $hi = $list[0];
-                foreach ($list as $v) {
-                    $lo = $v['lo'] < $lo['lo'] ? $v : $lo;
-                    $hi = $v['hi'] > $hi['hi'] ? $v : $hi;
-                }
+                [$lo, $hi] = self::widest($list);
                 // where the two ends come from (one line, or the two that give them)
                 $src = $explain ? self::source($lo) . ($hi !== $lo && self::source($hi) !== self::source($lo) ? ' + ' . self::source($hi) : '') : '';
                 $out[$kind] = ['value' => [$lo['lo'], $hi['hi']]] + ($explain ? ['src' => $src] : []);
@@ -336,6 +364,44 @@ final class Specs
         }
 
         return $out;
+    }
+
+    /**
+     * The range of several values: the lowest and the highest end, as written in one range or in two
+     * lines ("min. -10 °C", "maks. 50 °C"). Only ranges that do not touch stay apart ("-20…100 °C" and
+     * "200…500 °C": a filter must not see a coverage the product has not); then the widest of them is
+     * kept. A gap of a degree is no gap ("-40…99.9 °C, 100…400 °C"). The values that give the two ends.
+     *
+     * @return array{0: array, 1: array}
+     */
+    private static function widest(array $list): array
+    {
+        $ranges = array_values(array_filter($list, fn ($v) => $v['lo'] < $v['hi']));
+        usort($ranges, fn ($a, $b) => $a['lo'] <=> $b['lo']);
+        $runs = [];
+        foreach ($ranges as $v) {
+            $last = count($runs) - 1;
+            if ($last >= 0 && $v['lo'] <= $runs[$last][1]['hi'] + max(1.0, abs($runs[$last][1]['hi']) * 0.01)) {
+                if ($v['hi'] > $runs[$last][1]['hi']) {
+                    $runs[$last][1] = $v;
+                }
+            } else {
+                $runs[] = [$v, $v];
+            }
+        }
+        if (count($runs) > 1) {
+            usort($runs, fn ($a, $b) => ($b[1]['hi'] - $b[0]['lo']) <=> ($a[1]['hi'] - $a[0]['lo']));
+
+            return $runs[0];
+        }
+        // one range (or none) with single values around it: all of them
+        $lo = $hi = $list[0];
+        foreach ($list as $v) {
+            $lo = $v['lo'] < $lo['lo'] ? $v : $lo;
+            $hi = $v['hi'] > $hi['hi'] ? $v : $hi;
+        }
+
+        return [$lo, $hi];
     }
 
     /** Why a voltage, current or temperature is not a rating (null: it is one). IP and CAT are never ruled out. */
